@@ -34,13 +34,14 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
+# Copy composer files first for better layer caching
+COPY composer.json composer.lock* ./
+
+# Install Composer dependencies
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
 # Copy application files
 COPY . .
-
-# Install Composer dependencies (skip if vendor doesn't exist yet for dev)
-RUN if [ -f "composer.json" ]; then \
-    composer install --no-dev --optimize-autoloader --no-interaction || true; \
-    fi
 
 # Create storage directories and set permissions
 RUN mkdir -p storage/app/public \

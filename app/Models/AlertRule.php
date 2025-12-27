@@ -60,7 +60,7 @@ class AlertRule extends Model
             'gte' => $value >= $this->threshold,
             'lt' => $value < $this->threshold,
             'lte' => $value <= $this->threshold,
-            'eq' => $value == $this->threshold,
+            'eq' => abs($value - (float) $this->threshold) < 0.0001,
             default => false,
         };
     }

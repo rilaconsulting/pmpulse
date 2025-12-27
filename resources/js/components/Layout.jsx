@@ -13,7 +13,7 @@ export default function Layout({ children }) {
         { name: 'Admin', href: '/admin', icon: Cog6ToothIcon },
     ];
 
-    const currentPath = window.location.pathname;
+    const currentPath = usePage().url;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -27,7 +27,7 @@ export default function Layout({ children }) {
                 {/* Navigation */}
                 <nav className="flex-1 px-4 py-4 space-y-1">
                     {navigation.map((item) => {
-                        const isActive = currentPath === item.href;
+                        const isActive = currentPath.startsWith(item.href);
                         return (
                             <Link
                                 key={item.name}

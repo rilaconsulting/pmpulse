@@ -4,7 +4,7 @@
 Single-tenant property management analytics application that ingests AppFolio data and provides insights, dashboards, and email notifications.
 
 ## Technology Stack
-- **Backend**: Laravel 12.x, PHP 8.4.x (latest stable - 8.5 not released yet)
+- **Backend**: Laravel 12.x, PHP 8.3.x
 - **Frontend**: React 18.x + Vite 6.x + Tailwind CSS 4.x
 - **Database**: PostgreSQL 17.x (latest stable - 18 not released yet)
 - **Cache/Queue**: Redis 7.x (latest stable - 8.4 not released yet)

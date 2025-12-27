@@ -252,7 +252,7 @@ class AnalyticsService
             ->sum('amount');
 
         // Rent due this month (from active leases)
-        $due = DB::table('leases')
+        $due = \App\Models\Lease::query()
             ->where('status', 'active')
             ->where('start_date', '<=', $date)
             ->where(function ($query) use ($date) {

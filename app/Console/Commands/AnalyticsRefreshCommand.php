@@ -28,7 +28,12 @@ class AnalyticsRefreshCommand extends Command
         $dateInput = $this->option('date');
         $sync = $this->option('sync');
 
-        $date = $dateInput ? Carbon::parse($dateInput) : now();
+        try {
+            $date = $dateInput ? Carbon::parse($dateInput) : now();
+        } catch (\Carbon\Exceptions\InvalidFormatException $e) {
+            $this->error("Invalid date format: {$dateInput}");
+            return self::FAILURE;
+        }
 
         $this->info("Refreshing analytics for: {$date->toDateString()}");
 
