@@ -33,9 +33,8 @@ class AnalyticsRefreshCommand extends Command
         $this->info("Refreshing analytics for: {$date->toDateString()}");
 
         if ($sync) {
-            // Run synchronously
-            $job = new RefreshAnalyticsJob($date);
-            $job->handle(app(\App\Services\AnalyticsService::class));
+            // Run synchronously using Laravel's dispatchSync helper
+            RefreshAnalyticsJob::dispatchSync($date);
             $this->info('Analytics refresh completed.');
         } else {
             // Queue the job

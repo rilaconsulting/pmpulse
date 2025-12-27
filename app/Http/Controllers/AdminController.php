@@ -50,14 +50,9 @@ class AdminController extends Controller
     /**
      * Save AppFolio connection settings.
      */
-    public function saveConnection(Request $request): RedirectResponse
+    public function saveConnection(SaveConnectionRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'client_id' => ['required', 'string', 'max:255'],
-            'client_secret' => ['nullable', 'string', 'max:500'],
-            'api_base_url' => ['required', 'url', 'max:255'],
-        ]);
+        $validated = $request->validated();
 
         $connection = AppfolioConnection::query()->first() ?? new AppfolioConnection();
 

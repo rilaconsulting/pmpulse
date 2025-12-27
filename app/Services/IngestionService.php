@@ -30,6 +30,15 @@ class IngestionService
     private int $errorCount = 0;
     private array $errors = [];
 
+    /** @var array<string, int> Cache of property external_id => id mappings */
+    private array $propertyCache = [];
+
+    /** @var array<string, int> Cache of unit external_id => id mappings */
+    private array $unitCache = [];
+
+    /** @var array<string, int> Cache of person external_id => id mappings */
+    private array $personCache = [];
+
     public function __construct(
         private readonly AppfolioClient $appfolioClient
     ) {}
@@ -43,6 +52,9 @@ class IngestionService
         $this->processedCount = 0;
         $this->errorCount = 0;
         $this->errors = [];
+        $this->propertyCache = [];
+        $this->unitCache = [];
+        $this->personCache = [];
 
         $syncRun->markAsRunning();
 
@@ -131,6 +143,9 @@ class IngestionService
             return;
         }
 
+        // Prefetch related entities to avoid N+1 queries
+        $this->prefetchRelatedEntities($resourceType, $items);
+
         foreach ($items as $item) {
             try {
                 DB::transaction(function () use ($resourceType, $item) {
@@ -160,17 +175,175 @@ class IngestionService
     }
 
     /**
+     * Prefetch related entities to avoid N+1 query problems.
+     */
+    private function prefetchRelatedEntities(string $resourceType, array $items): void
+    {
+        match ($resourceType) {
+            'units' => $this->prefetchProperties($items),
+            'leases' => $this->prefetchUnitsAndPeople($items),
+            'ledger_transactions', 'work_orders' => $this->prefetchPropertiesAndUnits($items),
+            default => null,
+        };
+    }
+
+    /**
+     * Prefetch properties for unit processing.
+     */
+    private function prefetchProperties(array $items): void
+    {
+        $externalIds = collect($items)
+            ->map(fn ($item) => (string) ($item['property_id'] ?? $item['property']['id'] ?? null))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($externalIds)) {
+            return;
+        }
+
+        Property::whereIn('external_id', $externalIds)
+            ->pluck('id', 'external_id')
+            ->each(fn ($id, $externalId) => $this->propertyCache[$externalId] = $id);
+    }
+
+    /**
+     * Prefetch units and people for lease processing.
+     */
+    private function prefetchUnitsAndPeople(array $items): void
+    {
+        $unitExternalIds = collect($items)
+            ->map(fn ($item) => (string) ($item['unit_id'] ?? $item['unit']['id'] ?? null))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $personExternalIds = collect($items)
+            ->map(fn ($item) => (string) ($item['tenant_id'] ?? $item['person_id'] ?? $item['resident_id'] ?? null))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (! empty($unitExternalIds)) {
+            Unit::whereIn('external_id', $unitExternalIds)
+                ->pluck('id', 'external_id')
+                ->each(fn ($id, $externalId) => $this->unitCache[$externalId] = $id);
+        }
+
+        if (! empty($personExternalIds)) {
+            Person::whereIn('external_id', $personExternalIds)
+                ->pluck('id', 'external_id')
+                ->each(fn ($id, $externalId) => $this->personCache[$externalId] = $id);
+        }
+    }
+
+    /**
+     * Prefetch properties and units for transaction/work order processing.
+     */
+    private function prefetchPropertiesAndUnits(array $items): void
+    {
+        $propertyExternalIds = collect($items)
+            ->map(fn ($item) => (string) ($item['property_id'] ?? $item['property']['id'] ?? null))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $unitExternalIds = collect($items)
+            ->map(fn ($item) => (string) ($item['unit_id'] ?? $item['unit']['id'] ?? null))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (! empty($propertyExternalIds)) {
+            Property::whereIn('external_id', $propertyExternalIds)
+                ->pluck('id', 'external_id')
+                ->each(fn ($id, $externalId) => $this->propertyCache[$externalId] = $id);
+        }
+
+        if (! empty($unitExternalIds)) {
+            Unit::whereIn('external_id', $unitExternalIds)
+                ->pluck('id', 'external_id')
+                ->each(fn ($id, $externalId) => $this->unitCache[$externalId] = $id);
+        }
+    }
+
+    /**
+     * Look up a property ID from cache or database.
+     */
+    private function lookupPropertyId(string $externalId): ?int
+    {
+        if (isset($this->propertyCache[$externalId])) {
+            return $this->propertyCache[$externalId];
+        }
+
+        $property = Property::where('external_id', $externalId)->first();
+        if ($property) {
+            $this->propertyCache[$externalId] = $property->id;
+            return $property->id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Look up a unit ID from cache or database.
+     */
+    private function lookupUnitId(string $externalId): ?int
+    {
+        if (isset($this->unitCache[$externalId])) {
+            return $this->unitCache[$externalId];
+        }
+
+        $unit = Unit::where('external_id', $externalId)->first();
+        if ($unit) {
+            $this->unitCache[$externalId] = $unit->id;
+            return $unit->id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Look up a person ID from cache or database.
+     */
+    private function lookupPersonId(string $externalId): ?int
+    {
+        if (isset($this->personCache[$externalId])) {
+            return $this->personCache[$externalId];
+        }
+
+        $person = Person::where('external_id', $externalId)->first();
+        if ($person) {
+            $this->personCache[$externalId] = $person->id;
+            return $person->id;
+        }
+
+        return null;
+    }
+
+    /**
      * Store raw API response for debugging and replay.
+     *
+     * @throws \InvalidArgumentException If item is missing an external ID
      */
     private function storeRawEvent(string $resourceType, array $item): void
     {
         // TODO: Adjust 'id' field name based on actual AppFolio response
-        $externalId = $item['id'] ?? $item['external_id'] ?? uniqid();
+        $externalId = (string) ($item['id'] ?? $item['external_id'] ?? null);
+
+        if (empty($externalId)) {
+            throw new \InvalidArgumentException('Item is missing an external ID and cannot be processed.');
+        }
 
         RawAppfolioEvent::create([
             'sync_run_id' => $this->syncRun->id,
             'resource_type' => $resourceType,
-            'external_id' => (string) $externalId,
+            'external_id' => $externalId,
             'payload_json' => $item,
             'pulled_at' => now(),
         ]);
@@ -229,11 +402,11 @@ class IngestionService
      */
     private function upsertUnit(array $item): void
     {
-        // First, ensure the property exists
+        // Look up property using cache to avoid N+1 queries
         $propertyExternalId = (string) ($item['property_id'] ?? $item['property']['id'] ?? null);
-        $property = Property::where('external_id', $propertyExternalId)->first();
+        $propertyId = $propertyExternalId ? $this->lookupPropertyId($propertyExternalId) : null;
 
-        if (! $property) {
+        if (! $propertyId) {
             Log::warning("Property not found for unit", [
                 'property_external_id' => $propertyExternalId,
                 'unit_data' => $item,
@@ -244,7 +417,7 @@ class IngestionService
         // Map AppFolio fields to our schema
         // TODO: Update these mappings when API documentation is available
         $data = [
-            'property_id' => $property->id,
+            'property_id' => $propertyId,
             'unit_number' => $item['unit_number'] ?? $item['number'] ?? $item['name'] ?? 'Unknown',
             'sqft' => $item['sqft'] ?? $item['square_feet'] ?? $item['size'] ?? null,
             'bedrooms' => $item['bedrooms'] ?? $item['beds'] ?? $item['bedroom_count'] ?? null,
@@ -324,14 +497,14 @@ class IngestionService
      */
     private function upsertLease(array $item): void
     {
-        // Look up unit and person
+        // Look up unit and person using cache to avoid N+1 queries
         $unitExternalId = (string) ($item['unit_id'] ?? $item['unit']['id'] ?? null);
-        $unit = Unit::where('external_id', $unitExternalId)->first();
+        $unitId = $unitExternalId ? $this->lookupUnitId($unitExternalId) : null;
 
         $personExternalId = (string) ($item['tenant_id'] ?? $item['person_id'] ?? $item['resident_id'] ?? null);
-        $person = Person::where('external_id', $personExternalId)->first();
+        $personId = $personExternalId ? $this->lookupPersonId($personExternalId) : null;
 
-        if (! $unit) {
+        if (! $unitId) {
             Log::warning("Unit not found for lease", ['unit_external_id' => $unitExternalId]);
             return;
         }
@@ -339,8 +512,8 @@ class IngestionService
         // Map AppFolio fields to our schema
         // TODO: Update these mappings when API documentation is available
         $data = [
-            'unit_id' => $unit->id,
-            'person_id' => $person?->id,
+            'unit_id' => $unitId,
+            'person_id' => $personId,
             'start_date' => $item['start_date'] ?? $item['lease_start'] ?? $item['move_in_date'] ?? now(),
             'end_date' => $item['end_date'] ?? $item['lease_end'] ?? $item['move_out_date'] ?? null,
             'rent' => $item['rent'] ?? $item['monthly_rent'] ?? $item['rent_amount'] ?? 0,
@@ -378,18 +551,18 @@ class IngestionService
      */
     private function upsertLedgerTransaction(array $item): void
     {
-        // Look up property and unit
+        // Look up property and unit using cache to avoid N+1 queries
         $propertyExternalId = (string) ($item['property_id'] ?? $item['property']['id'] ?? null);
-        $property = $propertyExternalId ? Property::where('external_id', $propertyExternalId)->first() : null;
+        $propertyId = $propertyExternalId ? $this->lookupPropertyId($propertyExternalId) : null;
 
         $unitExternalId = (string) ($item['unit_id'] ?? $item['unit']['id'] ?? null);
-        $unit = $unitExternalId ? Unit::where('external_id', $unitExternalId)->first() : null;
+        $unitId = $unitExternalId ? $this->lookupUnitId($unitExternalId) : null;
 
         // Map AppFolio fields to our schema
         // TODO: Update these mappings when API documentation is available
         $data = [
-            'property_id' => $property?->id,
-            'unit_id' => $unit?->id,
+            'property_id' => $propertyId,
+            'unit_id' => $unitId,
             'date' => $item['date'] ?? $item['transaction_date'] ?? $item['posted_date'] ?? now(),
             'type' => $this->mapTransactionType($item['type'] ?? $item['transaction_type'] ?? 'charge'),
             'amount' => abs($item['amount'] ?? $item['transaction_amount'] ?? 0),
@@ -428,18 +601,18 @@ class IngestionService
      */
     private function upsertWorkOrder(array $item): void
     {
-        // Look up property and unit
+        // Look up property and unit using cache to avoid N+1 queries
         $propertyExternalId = (string) ($item['property_id'] ?? $item['property']['id'] ?? null);
-        $property = $propertyExternalId ? Property::where('external_id', $propertyExternalId)->first() : null;
+        $propertyId = $propertyExternalId ? $this->lookupPropertyId($propertyExternalId) : null;
 
         $unitExternalId = (string) ($item['unit_id'] ?? $item['unit']['id'] ?? null);
-        $unit = $unitExternalId ? Unit::where('external_id', $unitExternalId)->first() : null;
+        $unitId = $unitExternalId ? $this->lookupUnitId($unitExternalId) : null;
 
         // Map AppFolio fields to our schema
         // TODO: Update these mappings when API documentation is available
         $data = [
-            'property_id' => $property?->id,
-            'unit_id' => $unit?->id,
+            'property_id' => $propertyId,
+            'unit_id' => $unitId,
             'opened_at' => $item['opened_at'] ?? $item['created_at'] ?? $item['date_created'] ?? now(),
             'closed_at' => $item['closed_at'] ?? $item['completed_at'] ?? $item['date_completed'] ?? null,
             'status' => $this->mapWorkOrderStatus($item['status'] ?? 'open'),
