@@ -191,3 +191,28 @@ docker compose exec node npm run build
 # Or for dev with HMR:
 docker compose exec node npm run dev
 ```
+
+### Linear Workflow
+
+**Project Management Principles:**
+- Linear is the project management system - break work into small, digestible tasks
+- Each issue should represent 1-2 hours of focused work maximum
+- **NEVER** create monolithic issues covering entire phases or features
+
+**Issue Creation Rules:**
+1. **Use existing labels** - Check available labels before creating issues. NEVER create new labels without explicit approval
+2. **Small scope** - One migration, one model, one controller method, one component per issue
+3. **Clear titles** - Action-oriented: "Create brands table migration", "Add LocationController index endpoint"
+4. **Preview first** - When planning larger features, preview the issue breakdown in chat before creating in Linear
+
+**Workflow:**
+- Always use Linear MCP tools to check for issue details and status
+- When starting work: Update status to **In Progress**
+- When completed: Update status to **In Review** with a comment describing what was completed
+- Link PRs to issues when creating pull requests
+
+**Branch Naming:**
+- `feature/issue-name` - New features
+- `fix/issue-name` - Bug fixes
+- `patch/description` - Small improvements/cleanup
+- `feature/phase-description` - Multi-issue feature work
