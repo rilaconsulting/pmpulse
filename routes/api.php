@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\DashboardApiController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\SyncApiController;
 use Illuminate\Support\Facades\Route;
 

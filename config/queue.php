@@ -28,7 +28,7 @@ return [
             'queue' => env('QUEUE_NAME', 'default'),
             'retry_after' => (int) env('QUEUE_RETRY_AFTER', 90),
             'block_for' => null,
-            'after_commit' => false,
+            'after_commit' => true,
         ],
 
     ],

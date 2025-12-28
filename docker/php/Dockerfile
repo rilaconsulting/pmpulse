@@ -54,6 +54,9 @@ RUN mkdir -p storage/app/public \
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 775 storage bootstrap/cache
 
+# Run as non-root user
+USER www-data
+
 # Expose port 9000 for PHP-FPM
 EXPOSE 9000
 

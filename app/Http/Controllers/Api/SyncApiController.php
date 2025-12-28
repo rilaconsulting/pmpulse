@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\TriggerSyncRequest;
 use App\Jobs\SyncAppfolioResourceJob;
 use App\Models\AppfolioConnection;
 use App\Models\SyncRun;
@@ -33,11 +34,9 @@ class SyncApiController extends Controller
     /**
      * Trigger a manual sync via API.
      */
-    public function trigger(Request $request): JsonResponse
+    public function trigger(TriggerSyncRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'mode' => ['required', 'in:incremental,full'],
-        ]);
+        $validated = $request->validated();
 
         $connection = AppfolioConnection::query()->first();
 

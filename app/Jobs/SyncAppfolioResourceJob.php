@@ -32,6 +32,11 @@ class SyncAppfolioResourceJob implements ShouldQueue
     public int $maxExceptions = 3;
 
     /**
+     * The number of seconds the job can run before timing out.
+     */
+    public int $timeout = 600;
+
+    /**
      * Create a new job instance.
      */
     public function __construct(

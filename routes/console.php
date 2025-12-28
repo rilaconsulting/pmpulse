@@ -1,9 +1,9 @@
 <?php
 
-use Illuminate\Support\Facades\Schedule;
-use App\Console\Commands\AppfolioSyncCommand;
 use App\Console\Commands\AnalyticsRefreshCommand;
+use App\Console\Commands\AppfolioSyncCommand;
 use App\Console\Commands\EvaluateAlertsCommand;
+use Illuminate\Support\Facades\Schedule;
 
 /*
 |--------------------------------------------------------------------------

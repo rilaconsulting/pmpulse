@@ -26,6 +26,11 @@ class RefreshAnalyticsJob implements ShouldQueue
     public int $backoff = 30;
 
     /**
+     * The number of seconds the job can run before timing out.
+     */
+    public int $timeout = 300;
+
+    /**
      * Create a new job instance.
      */
     public function __construct(
