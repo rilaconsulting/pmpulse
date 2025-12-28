@@ -1,0 +1,33 @@
+# Gemini Code Assist Configuration for PMPulse
+# https://developers.google.com/gemini-code-assist/docs/customize-gemini-behavior-github
+
+have_fun: false
+
+memory_config:
+  disabled: false
+
+code_review:
+  disable: false
+  # Minimum severity level for comments: LOW, MEDIUM, HIGH, CRITICAL
+  comment_severity_threshold: MEDIUM
+  # Maximum number of review comments (-1 for unlimited)
+  max_review_comments: -1
+  pull_request_opened:
+    help: false
+    summary: true
+    code_review: true
+    include_drafts: true
+
+# Files and directories to ignore during code review
+ignore_patterns:
+  - "*.lock"
+  - "package-lock.json"
+  - "composer.lock"
+  - "public/build/**"
+  - "bootstrap/cache/**"
+  - "storage/**"
+  - "vendor/**"
+  - "node_modules/**"
+  - ".DS_Store"
+  - "*.min.js"
+  - "*.min.css"
