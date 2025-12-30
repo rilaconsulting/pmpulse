@@ -4,14 +4,10 @@ namespace Tests\Unit;
 
 use App\Models\AppfolioConnection;
 use App\Models\Property;
-use App\Models\RawAppfolioEvent;
 use App\Models\SyncRun;
-use App\Models\Unit;
-use App\Services\AppfolioClient;
 use App\Services\IngestionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
-use Mockery;
 use Tests\TestCase;
 
 class IngestionServiceTest extends TestCase
@@ -19,6 +15,7 @@ class IngestionServiceTest extends TestCase
     use RefreshDatabase;
 
     private IngestionService $service;
+
     private SyncRun $syncRun;
 
     protected function setUp(): void

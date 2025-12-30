@@ -25,6 +25,7 @@ class NotificationService
     {
         if (! FeatureFlag::isEnabled('notifications')) {
             Log::info('Notifications are disabled via feature flag');
+
             return;
         }
 
@@ -32,6 +33,7 @@ class NotificationService
 
         if (! $latestKpis) {
             Log::warning('No KPI data available for alert evaluation');
+
             return;
         }
 
@@ -62,6 +64,7 @@ class NotificationService
                 'rule' => $rule->name,
                 'metric' => $rule->metric,
             ]);
+
             return;
         }
 
@@ -117,6 +120,7 @@ class NotificationService
 
         if (empty($recipients)) {
             Log::warning('No recipients configured for alert rule', ['rule' => $rule->name]);
+
             return;
         }
 
@@ -163,9 +167,9 @@ class NotificationService
     private function formatMetricValue(string $metric, float $value): string
     {
         return match ($metric) {
-            'delinquency_amount' => '$' . number_format($value, 2),
-            'occupancy_rate' => number_format($value, 1) . '%',
-            'work_order_days_open' => (int) $value . ' days',
+            'delinquency_amount' => '$'.number_format($value, 2),
+            'occupancy_rate' => number_format($value, 1).'%',
+            'work_order_days_open' => (int) $value.' days',
             default => (string) (int) $value,
         };
     }

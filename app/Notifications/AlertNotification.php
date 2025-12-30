@@ -37,7 +37,7 @@ class AlertNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('PMPulse Alert: ' . $this->rule->name)
+            ->subject('PMPulse Alert: '.$this->rule->name)
             ->greeting('Hello!')
             ->line($this->message)
             ->line('This alert was triggered based on your configured rules.')

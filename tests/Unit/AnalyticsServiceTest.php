@@ -3,13 +3,11 @@
 namespace Tests\Unit;
 
 use App\Models\DailyKpi;
-use App\Models\LedgerTransaction;
 use App\Models\Property;
 use App\Models\PropertyRollup;
 use App\Models\Unit;
 use App\Models\WorkOrder;
 use App\Services\AnalyticsService;
-use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -22,7 +20,7 @@ class AnalyticsServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new AnalyticsService();
+        $this->service = new AnalyticsService;
     }
 
     public function test_calculates_occupancy_rate_correctly(): void

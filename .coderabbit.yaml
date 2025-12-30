@@ -2,12 +2,12 @@
 # https://docs.coderabbit.ai/reference/configuration
 
 language: "en-US"
-tone_instructions: "Be direct and concise. Focus on security, performance, and Laravel/React best practices."
+tone_instructions: "Be direct and concise. Focus only on critical issues: security vulnerabilities, bugs, and significant performance problems. Ignore minor style issues, naming preferences, and nitpicks."
 early_access: false
 enable_free_tier: true
 
 reviews:
-  profile: "assertive"
+  profile: "chill"
   request_changes_workflow: false
   high_level_summary: true
   high_level_summary_placeholder: "@coderabbitai summary"

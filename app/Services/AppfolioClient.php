@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Log;
 class AppfolioClient
 {
     private ?AppfolioConnection $connection = null;
+
     private int $retryCount = 0;
 
     /**
@@ -49,6 +50,7 @@ class AppfolioClient
     public function setConnection(AppfolioConnection $connection): self
     {
         $this->connection = $connection;
+
         return $this;
     }
 
@@ -88,10 +90,11 @@ class AppfolioClient
     /**
      * Make an API request with retry logic and exponential backoff.
      *
-     * @param string $method HTTP method
-     * @param string $endpoint API endpoint
-     * @param array $params Query parameters
+     * @param  string  $method  HTTP method
+     * @param  string  $endpoint  API endpoint
+     * @param  array  $params  Query parameters
      * @return array|null Response data
+     *
      * @throws \Exception On permanent failure
      */
     private function request(string $method, string $endpoint, array $params = []): ?array
@@ -115,12 +118,14 @@ class AppfolioClient
                 // Handle rate limiting (429)
                 if ($response->status() === 429) {
                     $this->handleRateLimit($response, $initialBackoff, $backoffMultiplier, $maxBackoff);
+
                     continue;
                 }
 
                 // Handle server errors (5xx) - retry
                 if ($response->serverError()) {
                     $this->handleServerError($response, $initialBackoff, $backoffMultiplier, $maxBackoff);
+
                     continue;
                 }
 
@@ -227,8 +232,7 @@ class AppfolioClient
      *
      * TODO: Adjust field mapping based on actual AppFolio API response structure.
      *
-     * @param array $params Query parameters (e.g., modified_since, page, per_page)
-     * @return array
+     * @param  array  $params  Query parameters (e.g., modified_since, page, per_page)
      */
     public function getProperties(array $params = []): array
     {
@@ -240,8 +244,7 @@ class AppfolioClient
      *
      * TODO: Adjust field mapping based on actual AppFolio API response structure.
      *
-     * @param array $params Query parameters
-     * @return array
+     * @param  array  $params  Query parameters
      */
     public function getUnits(array $params = []): array
     {
@@ -253,8 +256,7 @@ class AppfolioClient
      *
      * TODO: Adjust field mapping based on actual AppFolio API response structure.
      *
-     * @param array $params Query parameters
-     * @return array
+     * @param  array  $params  Query parameters
      */
     public function getPeople(array $params = []): array
     {
@@ -266,8 +268,7 @@ class AppfolioClient
      *
      * TODO: Adjust field mapping based on actual AppFolio API response structure.
      *
-     * @param array $params Query parameters
-     * @return array
+     * @param  array  $params  Query parameters
      */
     public function getLeases(array $params = []): array
     {
@@ -279,8 +280,7 @@ class AppfolioClient
      *
      * TODO: Adjust field mapping based on actual AppFolio API response structure.
      *
-     * @param array $params Query parameters (e.g., start_date, end_date)
-     * @return array
+     * @param  array  $params  Query parameters (e.g., start_date, end_date)
      */
     public function getLedgerTransactions(array $params = []): array
     {
@@ -292,8 +292,7 @@ class AppfolioClient
      *
      * TODO: Adjust field mapping based on actual AppFolio API response structure.
      *
-     * @param array $params Query parameters
-     * @return array
+     * @param  array  $params  Query parameters
      */
     public function getWorkOrders(array $params = []): array
     {
@@ -310,11 +309,13 @@ class AppfolioClient
         try {
             // Try to fetch a single property to test connectivity
             $response = $this->getProperties(['per_page' => 1]);
+
             return true;
         } catch (\Exception $e) {
             Log::error('AppFolio connection test failed', [
                 'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }

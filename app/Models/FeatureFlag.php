@@ -27,6 +27,7 @@ class FeatureFlag extends Model
      * Cache key for feature flags.
      */
     private const CACHE_KEY = 'feature_flags';
+
     private const CACHE_TTL = 300; // 5 minutes
 
     /**

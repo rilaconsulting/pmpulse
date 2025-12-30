@@ -4,7 +4,6 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\RateLimiter;
 
 /*
 |--------------------------------------------------------------------------
