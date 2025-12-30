@@ -10,11 +10,11 @@ PMPulse is a single-tenant property management analytics application that ingest
 
 - **Backend**: Laravel 12.x, PHP 8.3
 - **Frontend**: React 18 + Inertia.js + Vite 6 + Tailwind CSS 4
-- **Database**: PostgreSQL 17
-- **Cache/Queue**: Redis 7
+- **Database**: PostgreSQL 17 (also used for sessions, cache, queue)
 - **Charts**: Recharts
 - **Testing**: PHPUnit
 - **CI**: GitHub Actions
+- **Production**: Laravel Cloud (Staging + Production environments)
 
 ## Project Structure
 
@@ -82,16 +82,21 @@ docker compose exec app php artisan analytics:refresh --sync
 docker compose exec app php artisan alerts:evaluate
 ```
 
+## Local Development Architecture
+
+The local development environment uses Docker with 4 containers:
+- **app**: PHP-FPM + Supervisor (manages queue worker and scheduler)
+- **nginx**: Web server
+- **postgres**: Database (also handles sessions, cache, queue)
+- **node**: Vite dev server for frontend HMR
+
 ## Local Ports (Non-standard to avoid conflicts)
 
 | Service | Port |
 |---------|------|
 | Web Application | 8180 |
 | PostgreSQL | 5433 |
-| Redis | 6380 |
 | Vite Dev Server | 5174 |
-| MailHog SMTP | 1026 |
-| MailHog Web UI | 8126 |
 
 ## Database Schema
 
@@ -165,6 +170,46 @@ Key variables to configure:
 - `FEATURE_INCREMENTAL_SYNC` - Enable/disable incremental sync
 - `FEATURE_NOTIFICATIONS` - Enable/disable email alerts
 
+## Deployment
+
+### Environments
+- **Local**: Docker Compose (4 containers)
+- **Staging**: Laravel Cloud (`APP_ENV=staging`)
+- **Production**: Laravel Cloud (`APP_ENV=production`)
+
+### Laravel Cloud
+Production deployments use Laravel Cloud which provides:
+- Automatic container orchestration
+- Managed queue workers
+- Scheduler/cron execution
+- PostgreSQL database
+- SSL certificates
+- Zero-downtime deployments
+
+### Environment Variables by Environment
+
+**Local Development:**
+```env
+SESSION_DRIVER=database
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+MAIL_MAILER=log
+```
+
+**Staging:**
+```env
+APP_ENV=staging
+APP_DEBUG=true
+# Mail service configured for testing
+```
+
+**Production:**
+```env
+APP_ENV=production
+APP_DEBUG=false
+# Production mail service (Mailgun/Postmark/SES)
+```
+
 ## Troubleshooting
 
 ### Containers not starting
@@ -174,8 +219,9 @@ docker compose logs postgres
 ```
 
 ### Queue jobs not processing
+Queue worker runs via Supervisor in the app container:
 ```bash
-docker compose logs queue
+docker compose logs app | grep -i queue
 docker compose exec app php artisan queue:restart
 ```
 
