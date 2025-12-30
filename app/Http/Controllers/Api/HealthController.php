@@ -21,6 +21,7 @@ class HealthController extends Controller
         $health = [
             'status' => 'healthy',
             'timestamp' => now()->toIso8601String(),
+            'version' => $this->getVersion(),
             'checks' => [],
         ];
 
@@ -39,17 +40,18 @@ class HealthController extends Controller
             $health['status'] = 'unhealthy';
         }
 
-        // Check Redis connection
+        // Check cache connection
         try {
-            Cache::store('redis')->get('health_check');
-            $health['checks']['redis'] = [
+            Cache::put('health_check', true, 10);
+            Cache::forget('health_check');
+            $health['checks']['cache'] = [
                 'status' => 'healthy',
-                'message' => 'Redis connection successful',
+                'message' => 'Cache connection successful',
             ];
         } catch (\Exception $e) {
-            $health['checks']['redis'] = [
+            $health['checks']['cache'] = [
                 'status' => 'unhealthy',
-                'message' => 'Redis connection failed',
+                'message' => 'Cache connection failed',
             ];
             $health['status'] = 'unhealthy';
         }
@@ -96,5 +98,31 @@ class HealthController extends Controller
         };
 
         return response()->json($health, $statusCode);
+    }
+
+    /**
+     * Get the application version from VERSION file.
+     */
+    private function getVersion(): string
+    {
+        $versionFile = base_path('VERSION');
+
+        if (file_exists($versionFile)) {
+            return trim(file_get_contents($versionFile));
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * Version endpoint - returns just the version info.
+     */
+    public function version(): JsonResponse
+    {
+        return response()->json([
+            'version' => $this->getVersion(),
+            'app' => config('app.name'),
+            'environment' => config('app.env'),
+        ]);
     }
 }

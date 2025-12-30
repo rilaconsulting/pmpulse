@@ -1,0 +1,123 @@
+name: Promote to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get current version
+        id: current
+        run: |
+          # Read current version, strip -dev suffix if present
+          CURRENT=$(cat VERSION | tr -d '\n' | sed 's/-dev.*//')
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT"
+
+      - name: Calculate new version
+        id: version
+        run: |
+          CURRENT="${{ steps.current.outputs.version }}"
+          BUMP="${{ github.event.inputs.version_bump }}"
+
+          # Parse version components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          case $BUMP in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Update VERSION file
+        run: |
+          echo "${{ steps.version.outputs.new_version }}" > VERSION
+          git add VERSION
+          git commit -m "chore: Release v${{ steps.version.outputs.new_version }}"
+
+      - name: Push to develop
+        run: git push origin develop
+
+      - name: Create promotion PR
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const newVersion = '${{ steps.version.outputs.new_version }}';
+
+            // Create PR from develop to main
+            const pr = await github.rest.pulls.create({
+              owner,
+              repo,
+              title: `Release v${newVersion}`,
+              head: 'develop',
+              base: 'main',
+              body: `## 🚀 Production Release v${newVersion}
+
+            This PR promotes the current \`develop\` branch to \`main\` for production deployment.
+
+            ### Version Bump: \`${{ github.event.inputs.version_bump }}\`
+            - Previous: \`${{ steps.current.outputs.version }}\`
+            - New: \`${newVersion}\`
+
+            ### Checklist
+            - [ ] All features have been tested on staging
+            - [ ] No critical bugs in staging environment
+            - [ ] Ready for production deployment
+
+            ---
+            *Triggered by @${{ github.actor }}*`
+            });
+
+            console.log(`Created PR #${pr.data.number}`);
+            return pr.data.number;
+
+      - name: Summary
+        run: |
+          echo "## 🚀 Promotion PR Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: v${{ steps.version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Bump type**: ${{ github.event.inputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR**: Created from develop → main" >> $GITHUB_STEP_SUMMARY

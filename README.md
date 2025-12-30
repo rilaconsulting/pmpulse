@@ -300,6 +300,81 @@ php artisan test --testsuite=Feature
 php artisan test --coverage
 ```
 
+## Git Workflow & Versioning
+
+This project uses a **develop → main** branching strategy with automated versioning.
+
+### Branches
+
+| Branch | Purpose | Deploys to |
+|--------|---------|------------|
+| `main` | Production-ready code | Production |
+| `develop` | Integration branch for features | Staging |
+| `feature/*` | Feature development | - |
+| `fix/*` | Bug fixes | - |
+
+### Workflow
+
+```
+feature/my-feature → develop → main
+                         ↓        ↓
+                     Staging  Production
+```
+
+1. **Create feature branch** from `develop`
+2. **Open PR** targeting `develop` (PRs to `main` are auto-redirected)
+3. **Merge to develop** → Deploys to staging, version bumped to `-dev.X`
+4. **Promote to main** → Use "Promote to Production" workflow
+
+### Versioning
+
+Versions follow semantic versioning with dev builds:
+
+| Stage | Version Format | Example |
+|-------|---------------|---------|
+| Development | `X.Y.Z-dev.N` | `1.2.0-dev.3` |
+| Production | `X.Y.Z` | `1.2.0` |
+
+- Each PR merged to `develop` increments the dev build number
+- Promotion to `main` strips `-dev.N` and creates a release tag
+
+### GitHub Actions Workflows
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `ci.yml` | Push/PR to develop, main | Run tests and linting |
+| `deploy.yml` | Push to develop, main | Deploy to Laravel Cloud |
+| `pr-redirect.yml` | PR opened to main | Redirect PRs to develop |
+| `promote.yml` | Manual dispatch | Create release PR from develop → main |
+| `version.yml` | PR merged | Auto-increment version |
+
+### Promoting to Production
+
+1. Go to **Actions** → **Promote to Production**
+2. Click **Run workflow**
+3. Select version bump type:
+   - `patch` (1.0.0 → 1.0.1) - Bug fixes
+   - `minor` (1.0.0 → 1.1.0) - New features
+   - `major` (1.0.0 → 2.0.0) - Breaking changes
+4. Review and merge the created PR
+5. A GitHub Release and tag are created automatically
+
+### Checking Version
+
+```bash
+# API endpoint
+curl http://localhost:8180/api/version
+
+# Response
+{
+  "version": "1.2.0-dev.3",
+  "app": "PMPulse",
+  "environment": "local"
+}
+```
+
+The version is also included in the health check response (`/api/health`).
+
 ## Troubleshooting
 
 ### Sync not running

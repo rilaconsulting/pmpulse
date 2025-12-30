@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', [HealthController::class, 'check'])
     ->name('api.health');
 
+// Version info - no auth required
+Route::get('/version', [HealthController::class, 'version'])
+    ->name('api.version');
+
 // Authenticated API routes
 Route::middleware('auth:sanctum')->group(function () {
     // Dashboard stats
