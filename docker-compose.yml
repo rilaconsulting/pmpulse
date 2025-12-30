@@ -1,5 +1,5 @@
 services:
-  # PHP-FPM Application
+  # PHP-FPM Application with Supervisor (queue worker + scheduler)
   app:
     build:
       context: .
@@ -13,8 +13,8 @@ services:
     networks:
       - pmpulse
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
 
   # Nginx Web Server
   nginx:
@@ -31,7 +31,7 @@ services:
     depends_on:
       - app
 
-  # PostgreSQL Database
+  # PostgreSQL Database (also handles sessions, cache, queue)
   postgres:
     image: postgres:17-alpine
     container_name: pmpulse_postgres
@@ -52,63 +52,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis Cache & Queue
-  redis:
-    image: redis:7-alpine
-    container_name: pmpulse_redis
-    restart: unless-stopped
-    ports:
-      - "6380:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - pmpulse
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Queue Worker
-  queue:
-    build:
-      context: .
-      dockerfile: docker/php/Dockerfile
-    container_name: pmpulse_queue
-    restart: unless-stopped
-    working_dir: /var/www/html
-    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
-    volumes:
-      - .:/var/www/html
-    networks:
-      - pmpulse
-    depends_on:
-      - app
-      - redis
-      - postgres
-
-  # Scheduler (runs cron for Laravel scheduler)
-  scheduler:
-    build:
-      context: .
-      dockerfile: docker/php/Dockerfile
-    container_name: pmpulse_scheduler
-    restart: unless-stopped
-    working_dir: /var/www/html
-    command: >
-      sh -c "while true; do
-        php artisan schedule:run --verbose --no-interaction;
-        sleep 60;
-      done"
-    volumes:
-      - .:/var/www/html
-    networks:
-      - pmpulse
-    depends_on:
-      - app
-      - redis
-      - postgres
-
   # Node for Vite dev server
   node:
     image: node:22-alpine
@@ -123,21 +66,9 @@ services:
     networks:
       - pmpulse
 
-  # MailHog for local email testing
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: pmpulse_mailhog
-    restart: unless-stopped
-    ports:
-      - "1026:1025"
-      - "8126:8025"
-    networks:
-      - pmpulse
-
 networks:
   pmpulse:
     driver: bridge
 
 volumes:
   postgres_data:
-  redis_data:
