@@ -58,7 +58,7 @@ export default function Dashboard({ syncStatus, kpis, propertyRollups }) {
                     <KpiCard
                         title="Open Work Orders"
                         value={currentKpis?.open_work_orders || 0}
-                        subtitle={`Avg ${currentKpis?.avg_days_open_work_orders?.toFixed(1) || 0} days open`}
+                        subtitle={`Avg ${parseFloat(currentKpis?.avg_days_open_work_orders || 0).toFixed(1)} days open`}
                         icon={WrenchScrewdriverIcon}
                     />
                     <KpiCard
