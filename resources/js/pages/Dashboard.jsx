@@ -29,6 +29,10 @@ export default function Dashboard({ syncStatus, kpis, propertyRollups }) {
         return `${parseFloat(value).toFixed(1)}%`;
     };
 
+    const formatDays = (value) => {
+        return (value || 0).toFixed(1);
+    };
+
     return (
         <Layout>
             <Head title="Dashboard" />
@@ -58,7 +62,7 @@ export default function Dashboard({ syncStatus, kpis, propertyRollups }) {
                     <KpiCard
                         title="Open Work Orders"
                         value={currentKpis?.open_work_orders || 0}
-                        subtitle={`Avg ${parseFloat(currentKpis?.avg_days_open_work_orders || 0).toFixed(1)} days open`}
+                        subtitle={`Avg ${formatDays(currentKpis?.avg_days_open_work_orders)} days open`}
                         icon={WrenchScrewdriverIcon}
                     />
                     <KpiCard
