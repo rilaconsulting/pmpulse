@@ -30,6 +30,7 @@ class AppfolioSyncCommand extends Command
 
         if (! in_array($mode, ['incremental', 'full'])) {
             $this->error("Invalid mode: {$mode}. Must be 'incremental' or 'full'.");
+
             return self::FAILURE;
         }
 
@@ -37,11 +38,13 @@ class AppfolioSyncCommand extends Command
 
         if (! $connection) {
             $this->error('No AppFolio connection configured. Please configure one in the Admin panel.');
+
             return self::FAILURE;
         }
 
         if (! $connection->isConfigured()) {
             $this->error('AppFolio connection is not fully configured. Please add credentials in the Admin panel.');
+
             return self::FAILURE;
         }
 
@@ -53,6 +56,7 @@ class AppfolioSyncCommand extends Command
 
             if ($runningSync) {
                 $this->warn("Another sync is currently running (ID: {$runningSync->id}). Use --force to start anyway.");
+
                 return self::FAILURE;
             }
         }

@@ -32,6 +32,7 @@ class AnalyticsRefreshCommand extends Command
             $date = $dateInput ? Carbon::parse($dateInput) : now();
         } catch (\Carbon\Exceptions\InvalidFormatException $e) {
             $this->error("Invalid date format: {$dateInput}");
+
             return self::FAILURE;
         }
 

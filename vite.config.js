@@ -15,9 +15,12 @@ export default defineConfig({
     server: {
         host: '0.0.0.0',
         port: 5173,
+        strictPort: true,
+        origin: `http://${process.env.VITE_HMR_HOST || 'localhost'}:${process.env.VITE_HMR_PORT || 5174}`,
+        cors: true,
         hmr: {
             host: process.env.VITE_HMR_HOST || 'localhost',
-            port: 5174,
+            port: parseInt(process.env.VITE_HMR_PORT || '5174'),
         },
     },
 });

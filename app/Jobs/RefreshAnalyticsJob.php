@@ -71,7 +71,7 @@ class RefreshAnalyticsJob implements ShouldQueue
     {
         return [
             'analytics',
-            'date:' . ($this->date ?? now())->toDateString(),
+            'date:'.($this->date ?? now())->toDateString(),
         ];
     }
 }

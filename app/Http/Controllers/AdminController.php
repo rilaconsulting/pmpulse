@@ -54,7 +54,7 @@ class AdminController extends Controller
     {
         $validated = $request->validated();
 
-        $connection = AppfolioConnection::query()->first() ?? new AppfolioConnection();
+        $connection = AppfolioConnection::query()->first() ?? new AppfolioConnection;
 
         $connection->name = $validated['name'];
         $connection->client_id = $validated['client_id'];

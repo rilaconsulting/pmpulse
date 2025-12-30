@@ -27,7 +27,7 @@ class AppfolioClientTest extends TestCase
             'status' => 'configured',
         ]);
 
-        $this->client = new AppfolioClient();
+        $this->client = new AppfolioClient;
     }
 
     public function test_is_configured_returns_true_when_credentials_are_set(): void
@@ -38,7 +38,7 @@ class AppfolioClientTest extends TestCase
     public function test_is_configured_returns_false_when_no_connection(): void
     {
         AppfolioConnection::truncate();
-        $client = new AppfolioClient();
+        $client = new AppfolioClient;
 
         $this->assertFalse($client->isConfigured());
     }
@@ -84,6 +84,7 @@ class AppfolioClientTest extends TestCase
             if ($callCount === 1) {
                 return Http::response('Rate limited', 429, ['Retry-After' => '1']);
             }
+
             return Http::response(['data' => []], 200);
         });
 
@@ -102,6 +103,7 @@ class AppfolioClientTest extends TestCase
             if ($callCount === 1) {
                 return Http::response('Server error', 500);
             }
+
             return Http::response(['data' => []], 200);
         });
 

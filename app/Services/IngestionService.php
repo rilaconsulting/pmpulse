@@ -26,8 +26,11 @@ use Illuminate\Support\Facades\Log;
 class IngestionService
 {
     private SyncRun $syncRun;
+
     private int $processedCount = 0;
+
     private int $errorCount = 0;
+
     private array $errors = [];
 
     /** @var array<string, int> Cache of property external_id => id mappings */
@@ -79,7 +82,7 @@ class IngestionService
             } catch (\Exception $e) {
                 $this->errorCount++;
                 $this->errors[] = "Failed to process {$resource}: {$e->getMessage()}";
-                Log::error("Failed to process resource", [
+                Log::error('Failed to process resource', [
                     'resource' => $resource,
                     'error' => $e->getMessage(),
                 ]);
@@ -92,7 +95,7 @@ class IngestionService
      */
     public function processResource(string $resourceType): void
     {
-        Log::info("Processing resource type", ['type' => $resourceType]);
+        Log::info('Processing resource type', ['type' => $resourceType]);
 
         $params = $this->buildQueryParams();
 
@@ -139,7 +142,8 @@ class IngestionService
         $items = $data['data'] ?? $data;
 
         if (! is_array($items)) {
-            Log::warning("No items found for resource type", ['type' => $resourceType]);
+            Log::warning('No items found for resource type', ['type' => $resourceType]);
+
             return;
         }
 
@@ -159,7 +163,7 @@ class IngestionService
                 $this->processedCount++;
             } catch (\Exception $e) {
                 $this->errorCount++;
-                Log::error("Failed to process item", [
+                Log::error('Failed to process item', [
                     'type' => $resourceType,
                     'item' => $item,
                     'error' => $e->getMessage(),
@@ -284,6 +288,7 @@ class IngestionService
         $property = Property::where('external_id', $externalId)->first();
         if ($property) {
             $this->propertyCache[$externalId] = $property->id;
+
             return $property->id;
         }
 
@@ -302,6 +307,7 @@ class IngestionService
         $unit = Unit::where('external_id', $externalId)->first();
         if ($unit) {
             $this->unitCache[$externalId] = $unit->id;
+
             return $unit->id;
         }
 
@@ -320,6 +326,7 @@ class IngestionService
         $person = Person::where('external_id', $externalId)->first();
         if ($person) {
             $this->personCache[$externalId] = $person->id;
+
             return $person->id;
         }
 
@@ -407,10 +414,11 @@ class IngestionService
         $propertyId = $propertyExternalId ? $this->lookupPropertyId($propertyExternalId) : null;
 
         if (! $propertyId) {
-            Log::warning("Property not found for unit", [
+            Log::warning('Property not found for unit', [
                 'property_external_id' => $propertyExternalId,
                 'unit_data' => $item,
             ]);
+
             return;
         }
 
@@ -460,7 +468,7 @@ class IngestionService
         // Map AppFolio fields to our schema
         // TODO: Update these mappings when API documentation is available
         $data = [
-            'name' => $item['name'] ?? trim(($item['first_name'] ?? '') . ' ' . ($item['last_name'] ?? '')),
+            'name' => $item['name'] ?? trim(($item['first_name'] ?? '').' '.($item['last_name'] ?? '')),
             'email' => $item['email'] ?? $item['primary_email'] ?? null,
             'phone' => $item['phone'] ?? $item['primary_phone'] ?? $item['mobile'] ?? null,
             'type' => $this->mapPersonType($item['type'] ?? $item['person_type'] ?? 'tenant'),
@@ -505,7 +513,8 @@ class IngestionService
         $personId = $personExternalId ? $this->lookupPersonId($personExternalId) : null;
 
         if (! $unitId) {
-            Log::warning("Unit not found for lease", ['unit_external_id' => $unitExternalId]);
+            Log::warning('Unit not found for lease', ['unit_external_id' => $unitExternalId]);
+
             return;
         }
 
@@ -670,7 +679,7 @@ class IngestionService
     {
         // This is a placeholder implementation
         // TODO: Implement actual pagination handling based on AppFolio API
-        Log::info("Pagination detected but not yet implemented", [
+        Log::info('Pagination detected but not yet implemented', [
             'resource' => $resourceType,
         ]);
     }
@@ -683,7 +692,7 @@ class IngestionService
         if ($this->errorCount > 0) {
             $errorSummary = implode("\n", array_slice($this->errors, 0, 10));
             if (count($this->errors) > 10) {
-                $errorSummary .= "\n... and " . (count($this->errors) - 10) . " more errors";
+                $errorSummary .= "\n... and ".(count($this->errors) - 10).' more errors';
             }
 
             $this->syncRun->update([

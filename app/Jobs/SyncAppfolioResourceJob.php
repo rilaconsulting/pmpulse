@@ -107,8 +107,8 @@ class SyncAppfolioResourceJob implements ShouldQueue
     {
         return [
             'sync',
-            'sync-run:' . $this->syncRun->id,
-            'mode:' . $this->syncRun->mode,
+            'sync-run:'.$this->syncRun->id,
+            'mode:'.$this->syncRun->mode,
         ];
     }
 }
