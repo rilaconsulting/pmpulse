@@ -14,9 +14,9 @@ PMPulse is a property management analytics dashboard that ingests data from AppF
 
 - **Backend**: Laravel 12.x, PHP 8.3
 - **Frontend**: React 18, Vite 6, Tailwind CSS 4
-- **Database**: PostgreSQL 17
-- **Cache/Queue**: Redis 7
+- **Database**: PostgreSQL 17 (also used for sessions, cache, queue)
 - **Charts**: Recharts
+- **Production**: Laravel Cloud
 
 ## Requirements
 
@@ -68,7 +68,6 @@ docker compose exec node npm run build
 ### 5. Access the application
 
 - **Application**: http://localhost:8180
-- **MailHog (email testing)**: http://localhost:8126
 
 ### Local Ports
 
@@ -76,10 +75,7 @@ docker compose exec node npm run build
 |---------|------|
 | Web Application | 8180 |
 | PostgreSQL | 5433 |
-| Redis | 6380 |
 | Vite Dev Server | 5174 |
-| MailHog SMTP | 1026 |
-| MailHog Web UI | 8126 |
 
 ### Default Login
 
@@ -203,51 +199,67 @@ php artisan alerts:evaluate
 
 ## Production Deployment
 
-### Using Docker Compose
+PMPulse uses **Laravel Cloud** for production and staging deployments.
 
-1. Copy production compose file:
+### Environments
+
+| Environment | Branch | Purpose |
+|-------------|--------|---------|
+| Local | - | Docker Compose development |
+| Staging | `develop` | Pre-production testing |
+| Production | `main` | Live environment |
+
+### Laravel Cloud Features
+
+- **Zero-config deployments**: Push to deploy enabled by default
+- **Zero-downtime**: Graceful rollouts with automatic rollback
+- **Auto-scaling**: Scales based on traffic and queue depth
+- **Managed PostgreSQL**: Serverless database that auto-scales
+- **Built-in queue workers**: No Supervisor configuration needed
+- **Scheduled tasks**: Enable scheduler toggle in dashboard
+
+### Deployment Process
+
+1. Push code to GitHub (`main` for production, `develop` for staging)
+2. Laravel Cloud automatically builds and deploys
+3. Migrations run via deploy commands
+
+### Build Commands (configured in Laravel Cloud dashboard)
+
 ```bash
-cp docker-compose.prod.yml docker-compose.override.yml
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+LARAVEL_CLOUD=1 php artisan config:cache
 ```
 
-2. Set production environment variables in `.env`
+### Deploy Commands
 
-3. Build and deploy:
 ```bash
-docker compose build
-docker compose up -d
-
-# Run migrations
-docker compose exec app php artisan migrate --force
-
-# Build assets
-docker compose exec app npm run build
+php artisan migrate --force
 ```
 
-### Required Environment Variables for Production
+### Environment Variables for Production
+
+Set these in the Laravel Cloud dashboard:
 
 ```env
 APP_ENV=production
 APP_DEBUG=false
-APP_KEY=base64:...  # Generate with: php artisan key:generate
 
-DB_HOST=postgres
-DB_DATABASE=pmpulse
-DB_USERNAME=pmpulse
-DB_PASSWORD=<strong-password>
+# Database auto-injected by Laravel Cloud
 
-REDIS_HOST=redis
+SESSION_DRIVER=database
+CACHE_STORE=database
+QUEUE_CONNECTION=database
 
-MAIL_HOST=<smtp-host>
-MAIL_PORT=587
-MAIL_USERNAME=<smtp-user>
-MAIL_PASSWORD=<smtp-password>
-MAIL_ENCRYPTION=tls
+MAIL_MAILER=ses  # Or mailgun, postmark
 MAIL_FROM_ADDRESS=noreply@yourdomain.com
 
 APPFOLIO_CLIENT_ID=<client-id>
 APPFOLIO_CLIENT_SECRET=<client-secret>
 ```
+
+For detailed deployment documentation, see [CLAUDE.md](CLAUDE.md).
 
 ## API Endpoints
 
@@ -255,7 +267,7 @@ APPFOLIO_CLIENT_SECRET=<client-secret>
 ```
 GET /api/health
 ```
-Returns service status (database, Redis, AppFolio connection, last sync).
+Returns service status (database, AppFolio connection, last sync).
 
 ### Dashboard Stats (Authenticated)
 ```
@@ -303,8 +315,8 @@ php artisan test --coverage
 ## Troubleshooting
 
 ### Sync not running
-1. Check queue worker is running: `docker compose logs queue`
-2. Check scheduler is running: `docker compose logs scheduler`
+1. Check app container logs: `docker compose logs app`
+2. Verify Supervisor is running queue worker and scheduler
 3. Verify AppFolio credentials in Admin panel
 
 ### Missing data
@@ -315,7 +327,7 @@ php artisan test --coverage
 ### Notifications not sending
 1. Verify `FEATURE_NOTIFICATIONS=true`
 2. Check mail configuration in `.env`
-3. Test with MailHog at http://localhost:8126 (development)
+3. In local development, emails are logged (check `storage/logs/laravel.log`)
 
 ## License
 
