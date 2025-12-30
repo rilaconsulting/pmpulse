@@ -177,38 +177,156 @@ Key variables to configure:
 - **Staging**: Laravel Cloud (`APP_ENV=staging`)
 - **Production**: Laravel Cloud (`APP_ENV=production`)
 
-### Laravel Cloud
-Production deployments use Laravel Cloud which provides:
-- Automatic container orchestration
-- Managed queue workers
-- Scheduler/cron execution
-- PostgreSQL database
-- SSL certificates
-- Zero-downtime deployments
+### Laravel Cloud Overview
 
-### Environment Variables by Environment
+Laravel Cloud is the official infrastructure platform for Laravel. Key features:
+- **Zero-config deployments**: No YAML files or CLI tools required
+- **Push-to-deploy**: Automatic deployments on git push (enabled by default)
+- **Zero-downtime**: Graceful termination of existing processes
+- **Auto-scaling**: Scales based on traffic and job queue depth
+- **Hibernation**: Auto-hibernates inactive staging environments to save costs
+
+**Requirements:**
+- Laravel 9+ (we use Laravel 12.x)
+- Latest minor version of `laravel/framework`
+- PHP 8.2+ (Cloud supports 8.2, 8.3, 8.4, 8.5)
+
+### Laravel Cloud Configuration
+
+All configuration is done via the Laravel Cloud dashboard - no config files in the repository.
+
+**Build Commands** (run during deployment, 15-min timeout):
+```bash
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+LARAVEL_CLOUD=1 php artisan config:cache
+```
+
+**Deploy Commands** (run before going live, 15-min timeout):
+```bash
+php artisan migrate --force
+```
+
+**Commands to AVOID in deploy hooks:**
+- `php artisan queue:restart` (automatic)
+- `php artisan optimize:clear` (breaks caching)
+- `php artisan storage:link` (ephemeral filesystem)
+
+### Queue Workers on Laravel Cloud
+
+Three options for queue processing:
+
+1. **Queue Clusters** (Recommended for production)
+   - Dedicated infrastructure isolated from web traffic
+   - Auto-scales based on job latency and queue depth
+   - Create via: Infrastructure Canvas → "New queue cluster"
+
+2. **Worker Clusters**
+   - Dedicated clusters for custom workers (e.g., Laravel Horizon)
+   - Separate from app compute
+
+3. **App Cluster Background Processes** (Good for staging)
+   - Runs on same compute as web traffic
+   - Configure in: App Cluster → Background Processes → New
+
+No `queue:restart` needed after deployments - Laravel Cloud handles this automatically.
+
+### Scheduler on Laravel Cloud
+
+Enable the scheduler in the Laravel Cloud dashboard:
+1. Click on environment's App compute cluster
+2. Enable the "Scheduler" toggle
+3. Save and redeploy
+
+The `schedule:run` command runs every minute automatically.
+
+**Important for multi-replica:** Use `->onOneServer()` on scheduled tasks to prevent duplicate execution:
+```php
+$schedule->command('appfolio:sync --mode=incremental')
+    ->everyFifteenMinutes()
+    ->onOneServer();
+```
+
+### Database on Laravel Cloud
+
+Laravel Cloud offers:
+- **Serverless PostgreSQL**: Auto-scales with demand (recommended)
+- **MySQL**: Traditional managed instances
+- **Bring your own**: Configure external database credentials
+
+Cloud automatically injects `DB_*` environment variables when you attach a database.
+
+### Environment Variables
+
+Custom environment variables are set via the dashboard. Cloud auto-injects:
+- Database credentials (`DB_HOST`, `DB_DATABASE`, etc.)
+- Cache/Redis credentials (if using managed cache)
+- Object storage credentials (if using managed storage)
+
+Custom variables override auto-injected ones.
+
+### Environment-Specific Configuration
 
 **Local Development:**
 ```env
+APP_ENV=local
+APP_DEBUG=true
 SESSION_DRIVER=database
 CACHE_STORE=database
 QUEUE_CONNECTION=database
 MAIL_MAILER=log
 ```
 
-**Staging:**
+**Staging (Laravel Cloud):**
 ```env
 APP_ENV=staging
 APP_DEBUG=true
-# Mail service configured for testing
+SESSION_DRIVER=database
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+MAIL_MAILER=log  # Or configure test mail service
 ```
+- Enable hibernation to reduce costs
+- Use separate database from production
+- Consider unique `CACHE_PREFIX` if sharing cache
 
-**Production:**
+**Production (Laravel Cloud):**
 ```env
 APP_ENV=production
 APP_DEBUG=false
-# Production mail service (Mailgun/Postmark/SES)
+SESSION_DRIVER=database
+CACHE_STORE=database
+QUEUE_CONNECTION=database
+MAIL_MAILER=ses  # Or mailgun, postmark
 ```
+
+### Deployment Workflow
+
+1. **Push to GitHub** → Triggers automatic deployment
+2. **Build phase**: Installs dependencies, compiles assets
+3. **Deploy phase**: Runs migrations
+4. **Rollout**: Zero-downtime swap to new deployment
+
+**Deploy Hooks** (for CI/CD integration):
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to Laravel Cloud
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Deploy
+        run: curl -X POST "${{ secrets.LARAVEL_CLOUD_DEPLOY_HOOK }}"
+```
+
+### Important Notes
+
+- **Ephemeral filesystem**: Files don't persist across deployments. Use Object Storage for uploads.
+- **No Redis required**: We use PostgreSQL for sessions, cache, and queue.
+- **Hibernation**: Staging environments auto-sleep when inactive; wake on first request.
 
 ## Troubleshooting
 
