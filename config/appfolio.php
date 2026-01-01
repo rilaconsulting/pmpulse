@@ -39,6 +39,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Business Hours Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure business hours for sync frequency optimization.
+    | During business hours, sync runs every 15 minutes.
+    | Outside business hours, sync runs hourly to conserve API resources.
+    |
+    */
+
+    'business_hours' => [
+        'enabled' => env('APPFOLIO_BUSINESS_HOURS_ENABLED', true),
+        'timezone' => env('APPFOLIO_BUSINESS_HOURS_TIMEZONE', 'America/Los_Angeles'),
+        'start_hour' => (int) env('APPFOLIO_BUSINESS_HOURS_START', 9),
+        'end_hour' => (int) env('APPFOLIO_BUSINESS_HOURS_END', 17),
+        'weekdays_only' => env('APPFOLIO_BUSINESS_HOURS_WEEKDAYS_ONLY', true),
+        'business_hours_interval' => (int) env('APPFOLIO_BUSINESS_HOURS_INTERVAL', 15),
+        'off_hours_interval' => (int) env('APPFOLIO_OFF_HOURS_INTERVAL', 60),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Rate Limiting Configuration
     |--------------------------------------------------------------------------
     |
