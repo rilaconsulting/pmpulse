@@ -16,46 +16,33 @@ jobs:
 
     steps:
       - name: Comment and close PR
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const prNumber = context.payload.pull_request.number;
-            const headRef = context.payload.pull_request.head.ref;
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          # Add comment explaining the redirect
+          gh pr comment $PR_NUMBER --body "## 🔄 PR Redirected to \`develop\`
 
-            // Add comment explaining the redirect
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: prNumber,
-              body: `## 🔄 PR Redirected to \`develop\`
+          This repository follows a **develop → main** workflow:
 
-            This repository follows a **develop → main** workflow:
+          1. All feature PRs should target the \`develop\` branch
+          2. The \`main\` branch only receives promotions from \`develop\`
 
-            1. All feature PRs should target the \`develop\` branch
-            2. The \`main\` branch only receives promotions from \`develop\`
+          ### What to do:
 
-            ### What to do:
+          Please close this PR and open a new one targeting \`develop\`:
 
-            Please close this PR and open a new one targeting \`develop\`:
+          \`\`\`bash
+          gh pr create --base develop --head ${HEAD_REF}
+          \`\`\`
 
-            \`\`\`bash
-            # Update your branch to target develop
-            gh pr create --base develop --head ${headRef}
-            \`\`\`
+          Or use the GitHub UI to create a new PR with base branch set to \`develop\`.
 
-            Or use the GitHub UI to create a new PR with base branch set to \`develop\`.
+          ---
+          *This PR will be automatically closed.*"
 
-            ---
-            *This PR will be automatically closed.*`
-            });
+          # Close the PR
+          gh pr close $PR_NUMBER
 
-            // Close the PR
-            await github.rest.pulls.update({
-              owner,
-              repo,
-              pull_number: prNumber,
-              state: 'closed'
-            });
-
-            console.log(`PR #${prNumber} closed and redirected to develop`);
+          echo "PR #$PR_NUMBER closed and redirected to develop"
