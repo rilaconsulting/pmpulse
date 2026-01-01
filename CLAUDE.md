@@ -280,7 +280,7 @@ MAIL_MAILER=log
 **Staging (Laravel Cloud):**
 ```env
 APP_ENV=staging
-APP_DEBUG=true
+APP_DEBUG=false
 SESSION_DRIVER=database
 CACHE_STORE=database
 QUEUE_CONNECTION=database
@@ -313,13 +313,22 @@ MAIL_MAILER=ses  # Or mailgun, postmark
 name: Deploy to Laravel Cloud
 on:
   push:
-    branches: [main]
+    branches:
+      - main      # Triggers production deployment
+      - develop   # Triggers staging deployment
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
     steps:
       - name: Trigger Deploy
-        run: curl -X POST "${{ secrets.LARAVEL_CLOUD_DEPLOY_HOOK }}"
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            curl -X POST "${{ secrets.LARAVEL_CLOUD_DEPLOY_HOOK_PRODUCTION }}"
+          else
+            curl -X POST "${{ secrets.LARAVEL_CLOUD_DEPLOY_HOOK_STAGING }}"
+          fi
 ```
 
 ### Important Notes
