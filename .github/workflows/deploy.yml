@@ -1,0 +1,83 @@
+name: Deploy to Laravel Cloud
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  # Run tests first
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  # Deploy after tests pass
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+      url: ${{ github.ref == 'refs/heads/main' && vars.PRODUCTION_URL || vars.STAGING_URL }}
+
+    steps:
+      - name: Determine environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to Laravel Cloud
+        run: |
+          echo "Deploying to ${{ steps.env.outputs.environment }}..."
+
+          # Use the appropriate deploy hook based on environment
+          if [ "${{ steps.env.outputs.environment }}" == "production" ]; then
+            DEPLOY_HOOK="${{ secrets.LARAVEL_CLOUD_DEPLOY_HOOK_PRODUCTION }}"
+          else
+            DEPLOY_HOOK="${{ secrets.LARAVEL_CLOUD_DEPLOY_HOOK_STAGING }}"
+          fi
+
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::warning::Deploy hook not configured for ${{ steps.env.outputs.environment }}. Skipping deployment."
+            echo "Laravel Cloud will still deploy automatically via push-to-deploy if enabled."
+            exit 0
+          fi
+
+          # Trigger the deploy hook
+          response=$(curl -s -w "\n%{http_code}" -X POST "$DEPLOY_HOOK?commit_hash=${{ github.sha }}")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Response: $body"
+          echo "HTTP Status: $http_code"
+
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "✅ Deployment triggered successfully!"
+          else
+            echo "❌ Failed to trigger deployment"
+            exit 1
+          fi
+
+      - name: Deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ steps.env.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY

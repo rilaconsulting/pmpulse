@@ -17,9 +17,6 @@ RUN apt-get update && apt-get install -y \
 # Install PHP extensions
 RUN docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip opcache
 
-# Install Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
-
 # Configure OPcache
 RUN echo "opcache.enable=1" >> /usr/local/etc/php/conf.d/opcache.ini \
     && echo "opcache.memory_consumption=128" >> /usr/local/etc/php/conf.d/opcache.ini \
@@ -43,21 +40,23 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --no-script
 # Copy application files
 COPY . .
 
-# Create storage directories and set permissions
+# Copy Supervisor configuration
+COPY docker/php/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Create directories and set permissions
 RUN mkdir -p storage/app/public \
     storage/framework/cache \
     storage/framework/sessions \
     storage/framework/views \
     storage/logs \
-    bootstrap/cache
+    bootstrap/cache \
+    /var/log/supervisor
 
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 775 storage bootstrap/cache
 
-# Run as non-root user
-USER www-data
-
 # Expose port 9000 for PHP-FPM
 EXPOSE 9000
 
-CMD ["php-fpm"]
+# Use Supervisor to manage PHP-FPM, queue worker, and scheduler
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
