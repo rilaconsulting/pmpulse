@@ -112,7 +112,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Release PR Created" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Release PR Created" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: v${{ steps.version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Bump type**: ${{ github.event.inputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
