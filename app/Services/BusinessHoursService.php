@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\SyncConfiguration;
 use Carbon\Carbon;
 
 /**
@@ -13,11 +14,33 @@ use Carbon\Carbon;
 class BusinessHoursService
 {
     /**
+     * Get the current configuration from database or environment.
+     */
+    protected function getConfig(): array
+    {
+        // Try database first, fall back to config
+        try {
+            return SyncConfiguration::current();
+        } catch (\Exception) {
+            // Database not available, use config
+            return config('appfolio.business_hours', [
+                'enabled' => true,
+                'timezone' => 'America/Los_Angeles',
+                'start_hour' => 9,
+                'end_hour' => 17,
+                'weekdays_only' => true,
+                'business_hours_interval' => 15,
+                'off_hours_interval' => 60,
+            ]);
+        }
+    }
+
+    /**
      * Check if the current time is within configured business hours.
      */
     public function isBusinessHours(): bool
     {
-        $config = config('appfolio.business_hours');
+        $config = $this->getConfig();
 
         if (! $config['enabled']) {
             return true; // Treat all hours as business hours when disabled
@@ -41,7 +64,7 @@ class BusinessHoursService
      */
     public function getSyncInterval(): int
     {
-        $config = config('appfolio.business_hours');
+        $config = $this->getConfig();
 
         if (! $config['enabled']) {
             return config('appfolio.incremental_sync_interval', 15);
@@ -61,7 +84,7 @@ class BusinessHoursService
      */
     public function shouldSyncNow(): bool
     {
-        $config = config('appfolio.business_hours');
+        $config = $this->getConfig();
 
         if (! $config['enabled']) {
             // Fall back to legacy behavior - let Laravel scheduler handle interval
@@ -81,7 +104,7 @@ class BusinessHoursService
      */
     public function getSyncModeDescription(): string
     {
-        $config = config('appfolio.business_hours');
+        $config = $this->getConfig();
 
         if (! $config['enabled']) {
             return sprintf('Fixed interval: every %d minutes', config('appfolio.incremental_sync_interval', 15));
@@ -108,7 +131,7 @@ class BusinessHoursService
      */
     public function getNextSyncTime(): Carbon
     {
-        $config = config('appfolio.business_hours');
+        $config = $this->getConfig();
         $now = Carbon::now($config['timezone'] ?? 'America/Los_Angeles');
         $interval = $this->getSyncInterval();
 
@@ -128,7 +151,7 @@ class BusinessHoursService
      */
     public function getConfiguration(): array
     {
-        $config = config('appfolio.business_hours');
+        $config = $this->getConfig();
 
         return [
             'enabled' => $config['enabled'],

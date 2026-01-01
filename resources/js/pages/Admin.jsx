@@ -1,9 +1,10 @@
 import { Head } from '@inertiajs/react';
 import Layout from '../components/Layout';
 import ConnectionForm from '../components/Admin/ConnectionForm';
+import SyncConfigurationForm from '../components/Admin/SyncConfigurationForm';
 import SyncHistory from '../components/Admin/SyncHistory';
 
-export default function Admin({ connection, syncHistory, features }) {
+export default function Admin({ connection, syncHistory, features, syncConfiguration, syncStatus, timezones }) {
     return (
         <Layout>
             <Head title="Admin" />
@@ -49,6 +50,13 @@ export default function Admin({ connection, syncHistory, features }) {
 
                 {/* Connection Form */}
                 <ConnectionForm connection={connection} />
+
+                {/* Sync Configuration */}
+                <SyncConfigurationForm
+                    syncConfiguration={syncConfiguration}
+                    syncStatus={syncStatus}
+                    timezones={timezones}
+                />
 
                 {/* Sync History */}
                 <SyncHistory syncHistory={syncHistory} hasConnection={!!connection} />

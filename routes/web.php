@@ -37,4 +37,6 @@ Route::middleware('auth')->group(function () {
         ->name('admin.connection.save');
     Route::post('/admin/sync', [AdminController::class, 'triggerSync'])
         ->name('admin.sync');
+    Route::post('/admin/sync-configuration', [AdminController::class, 'saveSyncConfiguration'])
+        ->name('admin.sync-configuration.save');
 });
