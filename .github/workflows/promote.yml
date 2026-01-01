@@ -81,43 +81,39 @@ jobs:
 
       - name: Create promotion PR
         id: pr
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const newVersion = '${{ steps.version.outputs.new_version }}';
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL=$(gh pr create \
+            --base main \
+            --head develop \
+            --title "Release v${{ steps.version.outputs.new_version }}" \
+            --body "$(cat <<'EOF'
+          ## Release v${{ steps.version.outputs.new_version }}
 
-            // Create PR from develop to main
-            const pr = await github.rest.pulls.create({
-              owner,
-              repo,
-              title: `Release v${newVersion}`,
-              head: 'develop',
-              base: 'main',
-              body: `## 🚀 Production Release v${newVersion}
+          This PR promotes the current `develop` branch to `main` for production deployment.
 
-            This PR promotes the current \`develop\` branch to \`main\` for production deployment.
+          ### Version Bump: `${{ github.event.inputs.version_bump }}`
+          - Previous: `${{ steps.current.outputs.version }}`
+          - New: `${{ steps.version.outputs.new_version }}`
 
-            ### Version Bump: \`${{ github.event.inputs.version_bump }}\`
-            - Previous: \`${{ steps.current.outputs.version }}\`
-            - New: \`${newVersion}\`
+          ### Checklist
+          - [ ] All features have been tested on staging
+          - [ ] No critical bugs in staging environment
+          - [ ] Ready for production deployment
 
-            ### Checklist
-            - [ ] All features have been tested on staging
-            - [ ] No critical bugs in staging environment
-            - [ ] Ready for production deployment
+          ---
+          *Triggered by @${{ github.actor }}*
+          EOF
+          )")
 
-            ---
-            *Triggered by @${{ github.actor }}*`
-            });
-
-            console.log(`Created PR #${pr.data.number}`);
-            return pr.data.number;
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "Created PR: $PR_URL"
 
       - name: Summary
         run: |
-          echo "## 🚀 Promotion PR Created" >> $GITHUB_STEP_SUMMARY
+          echo "## Release PR Created" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Version**: v${{ steps.version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Bump type**: ${{ github.event.inputs.version_bump }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **PR**: Created from develop → main" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR**: ${{ steps.pr.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY

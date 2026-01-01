@@ -93,21 +93,17 @@ jobs:
           echo "Created tag v${VERSION}"
 
       - name: Create GitHub Release
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const version = require('fs').readFileSync('VERSION', 'utf8').trim();
-            const { owner, repo } = context.repo;
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(cat VERSION | tr -d '\n')
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --notes "## Release v${VERSION}
 
-            await github.rest.repos.createRelease({
-              owner,
-              repo,
-              tag_name: `v${version}`,
-              name: `v${version}`,
-              body: `## Release v${version}\n\nPromoted from develop branch.\n\nSee the [changelog](https://github.com/${owner}/${repo}/compare/v${version}...develop) for details.`,
-              draft: false,
-              prerelease: false
-            });
+          Promoted from develop branch.
+
+          See the [changelog](../../compare/v${VERSION}...develop) for details."
 
       - name: Summary
         run: |
