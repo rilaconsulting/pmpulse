@@ -121,6 +121,64 @@ The local development environment uses Docker with 4 containers:
 - `alert_rules` - Notification thresholds
 - `feature_flags` - Feature toggles
 
+## AppFolio Reports API Reference
+
+The AppFolio Reports API specification is available in `appfolio-reports-openapi-spec.json` in the project root.
+
+### Key Endpoints Used
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/property_directory.json` | Property details (sqft, unit counts, portfolio, year built) |
+| `/unit_directory.json` | Unit details (sqft, bedrooms, bathrooms, market rent) |
+| `/vendor_directory.json` | Vendor profiles with insurance expiration dates |
+| `/work_order.json` | Work orders with vendor, costs, status |
+| `/expense_register.json` | Expenses including utilities |
+| `/rent_roll.json` | Current lease and rent information |
+| `/delinquency.json` | Delinquent accounts |
+
+### API Notes
+
+- All endpoints use POST method with JSON request body
+- Responses are paginated with `next_page_url` field
+- Dates are returned as strings (parse with Carbon)
+- Amounts are returned as strings (parse to decimal)
+- IDs are integers (`property_id`, `unit_id`, `vendor_id`)
+
+### Response Pagination
+
+```php
+// Handle paginated responses
+do {
+    $response = $this->request('POST', $endpoint, $params);
+    $results = array_merge($results, $response['results']);
+    $nextUrl = $response['next_page_url'] ?? null;
+} while ($nextUrl);
+```
+
+### Common Field Mappings
+
+**Property Directory:**
+- `property_id` → `external_id`
+- `property_name` → `name`
+- `property_street`, `property_city`, `property_state`, `property_zip` → address fields
+- `sqft` → `total_sqft`
+- `units` → `unit_count`
+
+**Vendor Directory:**
+- `vendor_id` → `external_id`
+- `company_name` → `company_name`
+- `workers_comp_expires` → `workers_comp_expires` (parse date)
+- `liability_ins_expires` → `liability_ins_expires` (parse date)
+- `do_not_use_for_work_order` → `do_not_use`
+
+**Work Order:**
+- `work_order_id` → `external_id`
+- `vendor_id` → link to vendor
+- `amount` → `amount` (parse to decimal)
+- `created_at` → `opened_at`
+- `completed_on` → `closed_at`
+
 ## AppFolio Integration Status
 
 The AppFolio client is implemented with **placeholder endpoints**. When actual API documentation is provided:
