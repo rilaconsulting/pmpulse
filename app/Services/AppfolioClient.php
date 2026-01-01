@@ -497,34 +497,133 @@ class AppfolioClient
      *
      * @param  string  $method  The report method name (e.g., 'getPropertyDirectory')
      * @param  array  $params  Initial request parameters
+     * @param  callable|null  $onProgress  Optional callback for progress updates
+     *                                     Signature: function(int $page, int $recordsFetched, bool $hasMore)
+     * @param  int|null  $maxPages  Optional maximum number of pages to fetch (null = unlimited)
      * @return array All results combined from all pages
+     *
+     * @throws \Exception If pagination fails after retries
      */
-    public function fetchAllPages(string $method, array $params = []): array
-    {
+    public function fetchAllPages(
+        string $method,
+        array $params = [],
+        ?callable $onProgress = null,
+        ?int $maxPages = null
+    ): array {
         if (! method_exists($this, $method)) {
             throw new \InvalidArgumentException("Method {$method} does not exist");
         }
 
         $allResults = [];
-        $response = $this->$method($params);
+        $page = 1;
+        $totalRecords = 0;
 
-        // Combine results from first page
-        if (isset($response['results'])) {
-            $allResults = array_merge($allResults, $response['results']);
-        }
+        try {
+            $response = $this->$method($params);
 
-        // Follow pagination
-        while (! empty($response['next_page_url'])) {
-            Log::debug('Following pagination', ['url' => $response['next_page_url']]);
-
-            // Make request to the next page URL directly
-            $response = $this->request('POST', $response['next_page_url'], []) ?? [];
-
+            // Combine results from first page
             if (isset($response['results'])) {
                 $allResults = array_merge($allResults, $response['results']);
+                $totalRecords = count($allResults);
             }
+
+            $hasMore = ! empty($response['next_page_url']);
+
+            // Report progress for first page
+            if ($onProgress) {
+                $onProgress($page, $totalRecords, $hasMore);
+            }
+
+            // Follow pagination
+            while ($hasMore) {
+                $page++;
+
+                // Check max pages limit
+                if ($maxPages !== null && $page > $maxPages) {
+                    Log::info('Pagination stopped at max pages limit', [
+                        'method' => $method,
+                        'max_pages' => $maxPages,
+                        'records_fetched' => $totalRecords,
+                    ]);
+                    break;
+                }
+
+                Log::debug('Following pagination', [
+                    'method' => $method,
+                    'page' => $page,
+                    'url' => $response['next_page_url'],
+                ]);
+
+                // Make request to the next page URL directly
+                $response = $this->request('POST', $response['next_page_url'], []) ?? [];
+
+                if (isset($response['results'])) {
+                    $allResults = array_merge($allResults, $response['results']);
+                    $totalRecords = count($allResults);
+                }
+
+                $hasMore = ! empty($response['next_page_url']);
+
+                // Report progress
+                if ($onProgress) {
+                    $onProgress($page, $totalRecords, $hasMore);
+                }
+            }
+
+            Log::info('Pagination complete', [
+                'method' => $method,
+                'total_pages' => $page,
+                'total_records' => $totalRecords,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Pagination failed', [
+                'method' => $method,
+                'page' => $page,
+                'records_fetched' => $totalRecords,
+                'error' => $e->getMessage(),
+            ]);
+
+            // If we have some results, return them with a warning
+            if ($totalRecords > 0) {
+                Log::warning('Returning partial results due to pagination error', [
+                    'records_fetched' => $totalRecords,
+                ]);
+
+                return $allResults;
+            }
+
+            throw $e;
         }
 
         return $allResults;
+    }
+
+    /**
+     * Get pagination statistics for a report.
+     *
+     * Fetches just the first page to determine total count and page information.
+     *
+     * @param  string  $method  The report method name
+     * @param  array  $params  Request parameters
+     * @return array Pagination statistics including estimated total pages
+     */
+    public function getPaginationInfo(string $method, array $params = []): array
+    {
+        if (! method_exists($this, $method)) {
+            throw new \InvalidArgumentException("Method {$method} does not exist");
+        }
+
+        $params['per_page'] = 1; // Minimal request to get pagination info
+        $response = $this->$method($params);
+
+        $perPage = config('appfolio.sync.batch_size', 100);
+
+        return [
+            'has_results' => isset($response['results']) && count($response['results']) > 0,
+            'has_more_pages' => ! empty($response['next_page_url']),
+            'per_page' => $perPage,
+            // Note: AppFolio API doesn't provide total_count, so we can't estimate total pages
+        ];
     }
 }

@@ -349,6 +349,96 @@ class AppfolioClientTest extends TestCase
         $this->assertEquals(2, $callCount);
     }
 
+    public function test_fetch_all_pages_calls_progress_callback(): void
+    {
+        $callCount = 0;
+        $progressCalls = [];
+
+        Http::fake(function ($request) use (&$callCount) {
+            $callCount++;
+
+            if ($callCount === 1) {
+                return Http::response([
+                    'results' => [['id' => 1], ['id' => 2]],
+                    'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
+                ], 200);
+            }
+
+            return Http::response([
+                'results' => [['id' => 3]],
+                'next_page_url' => null,
+            ], 200);
+        });
+
+        $results = $this->client->fetchAllPages(
+            'getPropertyDirectory',
+            [],
+            function ($page, $recordsFetched, $hasMore) use (&$progressCalls) {
+                $progressCalls[] = [
+                    'page' => $page,
+                    'records' => $recordsFetched,
+                    'hasMore' => $hasMore,
+                ];
+            }
+        );
+
+        $this->assertCount(3, $results);
+        $this->assertCount(2, $progressCalls);
+        $this->assertEquals(1, $progressCalls[0]['page']);
+        $this->assertEquals(2, $progressCalls[0]['records']);
+        $this->assertTrue($progressCalls[0]['hasMore']);
+        $this->assertEquals(2, $progressCalls[1]['page']);
+        $this->assertEquals(3, $progressCalls[1]['records']);
+        $this->assertFalse($progressCalls[1]['hasMore']);
+    }
+
+    public function test_fetch_all_pages_respects_max_pages_limit(): void
+    {
+        $callCount = 0;
+
+        Http::fake(function ($request) use (&$callCount) {
+            $callCount++;
+
+            // Always return more pages
+            return Http::response([
+                'results' => [['id' => $callCount]],
+                'next_page_url' => '/api/v1/reports/property_directory.json?page='.($callCount + 1),
+            ], 200);
+        });
+
+        $results = $this->client->fetchAllPages('getPropertyDirectory', [], null, 3);
+
+        $this->assertCount(3, $results);
+        $this->assertEquals(3, $callCount);
+    }
+
+    public function test_fetch_all_pages_returns_partial_results_on_error(): void
+    {
+        $callCount = 0;
+
+        Http::fake(function ($request) use (&$callCount) {
+            $callCount++;
+
+            if ($callCount === 1) {
+                return Http::response([
+                    'results' => [['id' => 1], ['id' => 2]],
+                    'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
+                ], 200);
+            }
+
+            // Second page fails
+            return Http::response('Server error', 500);
+        });
+
+        // Override max retries for faster test
+        config(['appfolio.rate_limit.max_retries' => 0]);
+
+        $results = $this->client->fetchAllPages('getPropertyDirectory');
+
+        // Should return partial results from first page
+        $this->assertCount(2, $results);
+    }
+
     public function test_report_endpoints_include_default_pagination_params(): void
     {
         Http::fake([
@@ -363,5 +453,23 @@ class AppfolioClientTest extends TestCase
             return $body['paginate_results'] === true
                 && isset($body['per_page']);
         });
+    }
+
+    public function test_get_pagination_info_returns_expected_structure(): void
+    {
+        Http::fake([
+            'api.appfolio.test/*' => Http::response([
+                'results' => [['id' => 1]],
+                'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
+            ], 200),
+        ]);
+
+        $info = $this->client->getPaginationInfo('getPropertyDirectory');
+
+        $this->assertArrayHasKey('has_results', $info);
+        $this->assertArrayHasKey('has_more_pages', $info);
+        $this->assertArrayHasKey('per_page', $info);
+        $this->assertTrue($info['has_results']);
+        $this->assertTrue($info['has_more_pages']);
     }
 }
