@@ -30,7 +30,7 @@ export default function Dashboard({ syncStatus, kpis, propertyRollups }) {
     };
 
     const formatDays = (value) => {
-        return (value || 0).toFixed(1);
+        return parseFloat(value || 0).toFixed(1);
     };
 
     return (
