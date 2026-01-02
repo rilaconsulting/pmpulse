@@ -3,14 +3,19 @@ import {
     HomeIcon,
     Cog6ToothIcon,
     ArrowRightOnRectangleIcon,
+    UsersIcon,
+    UserCircleIcon,
 } from '@heroicons/react/24/outline';
 
 export default function Layout({ children }) {
     const { auth, flash } = usePage().props;
 
+    const isAdmin = auth.user?.role?.name === 'admin';
+
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-        { name: 'Admin', href: '/admin', icon: Cog6ToothIcon },
+        ...(isAdmin ? [{ name: 'Users', href: '/users', icon: UsersIcon }] : []),
+        ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: Cog6ToothIcon }] : []),
     ];
 
     const currentPath = usePage().url;
@@ -48,7 +53,10 @@ export default function Layout({ children }) {
                 {/* User section */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center">
+                        <Link
+                            href="/profile"
+                            className="flex items-center hover:bg-gray-50 rounded-lg p-1 -m-1 transition-colors"
+                        >
                             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                                 <span className="text-sm font-medium text-blue-700">
                                     {auth.user?.name?.charAt(0)?.toUpperCase() || 'U'}
@@ -58,8 +66,9 @@ export default function Layout({ children }) {
                                 <p className="text-sm font-medium text-gray-700">
                                     {auth.user?.name || 'User'}
                                 </p>
+                                <p className="text-xs text-gray-500">View profile</p>
                             </div>
-                        </div>
+                        </Link>
                         <Link
                             href="/logout"
                             method="post"
