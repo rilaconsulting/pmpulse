@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use App\Models\Role;
 use App\Models\User;
+use App\Services\UserService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -91,9 +91,11 @@ class UpdateUserRequest extends FormRequest
                 return;
             }
 
+            $userService = app(UserService::class);
+
             // Check if trying to deactivate last admin
             if ($this->has('is_active') && $this->boolean('is_active') === false) {
-                if ($user->isAdmin() && $this->isLastActiveAdmin($user)) {
+                if ($userService->isLastActiveAdmin($user)) {
                     $validator->errors()->add(
                         'is_active',
                         'Cannot deactivate the last admin user.'
@@ -103,16 +105,13 @@ class UpdateUserRequest extends FormRequest
 
             // Check if trying to remove admin role from last admin
             if ($this->has('role_id')) {
-                $adminRole = Role::where('name', Role::ADMIN)->first();
                 $newRoleId = $this->input('role_id');
 
-                if ($user->role_id === $adminRole?->id && $newRoleId !== $adminRole?->id) {
-                    if ($this->isLastActiveAdmin($user)) {
-                        $validator->errors()->add(
-                            'role_id',
-                            'Cannot remove admin role from the last admin user.'
-                        );
-                    }
+                if ($userService->wouldRemoveLastAdmin($user, $newRoleId)) {
+                    $validator->errors()->add(
+                        'role_id',
+                        'Cannot remove admin role from the last admin user.'
+                    );
                 }
             }
 
@@ -141,23 +140,5 @@ class UpdateUserRequest extends FormRequest
                 );
             }
         });
-    }
-
-    /**
-     * Check if the given user is the last active admin.
-     */
-    private function isLastActiveAdmin(User $user): bool
-    {
-        $adminRole = Role::where('name', Role::ADMIN)->first();
-
-        if (! $adminRole) {
-            return false;
-        }
-
-        $activeAdminCount = User::where('role_id', $adminRole->id)
-            ->where('is_active', true)
-            ->count();
-
-        return $activeAdminCount <= 1;
     }
 }

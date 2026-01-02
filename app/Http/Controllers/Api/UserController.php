@@ -6,22 +6,25 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CreateUserRequest;
+use App\Http\Requests\DeactivateUserRequest;
+use App\Http\Requests\ListUsersRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\UserService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
+    public function __construct(
+        private readonly UserService $userService
+    ) {}
+
     /**
      * Display a listing of users.
      */
-    public function index(Request $request): JsonResponse
+    public function index(ListUsersRequest $request): JsonResponse
     {
-        $this->authorizeAdmin($request);
-
         $query = User::with('role');
 
         // Filter by active status
@@ -48,7 +51,8 @@ class UserController extends Controller
             });
         }
 
-        $users = $query->orderBy('name')->paginate($request->input('per_page', 15));
+        $perPage = $request->integer('per_page', 15);
+        $users = $query->orderBy('name')->paginate($perPage);
 
         return response()->json($users);
     }
@@ -56,10 +60,8 @@ class UserController extends Controller
     /**
      * Display the specified user.
      */
-    public function show(Request $request, User $user): JsonResponse
+    public function show(ListUsersRequest $request, User $user): JsonResponse
     {
-        $this->authorizeAdmin($request);
-
         $user->load('role', 'creator');
 
         return response()->json([
@@ -72,21 +74,10 @@ class UserController extends Controller
      */
     public function store(CreateUserRequest $request): JsonResponse
     {
-        $validated = $request->validated();
-
-        // Hash password if provided, otherwise set unusable password for SSO users
-        if (! empty($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
-        } else {
-            // SSO users get an unusable random password (they can't login with password)
-            $validated['password'] = Hash::make(bin2hex(random_bytes(32)));
-        }
-
-        // Set created_by to current user
-        $validated['created_by'] = $request->user()->id;
-
-        $user = User::create($validated);
-        $user->load('role');
+        $user = $this->userService->createUser(
+            $request->validated(),
+            $request->user()
+        );
 
         return response()->json([
             'message' => 'User created successfully',
@@ -99,17 +90,7 @@ class UserController extends Controller
      */
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
-        $validated = $request->validated();
-
-        // Hash password if provided
-        if (isset($validated['password']) && ! empty($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
-        } else {
-            unset($validated['password']);
-        }
-
-        $user->update($validated);
-        $user->load('role');
+        $user = $this->userService->updateUser($user, $request->validated());
 
         return response()->json([
             'message' => 'User updated successfully',
@@ -120,27 +101,9 @@ class UserController extends Controller
     /**
      * Soft delete (deactivate) the specified user.
      */
-    public function destroy(Request $request, User $user): JsonResponse
+    public function destroy(DeactivateUserRequest $request, User $user): JsonResponse
     {
-        $this->authorizeAdmin($request);
-
-        // Prevent self-deactivation
-        if ($user->id === $request->user()->id) {
-            return response()->json([
-                'message' => 'Cannot deactivate your own account',
-                'errors' => ['user' => ['Cannot deactivate your own account']],
-            ], 422);
-        }
-
-        // Prevent deactivating the last admin
-        if ($user->isAdmin() && $this->isLastActiveAdmin($user)) {
-            return response()->json([
-                'message' => 'Cannot deactivate the last admin user',
-                'errors' => ['user' => ['Cannot deactivate the last admin user']],
-            ], 422);
-        }
-
-        $user->update(['is_active' => false]);
+        $this->userService->deactivateUser($user);
 
         return response()->json([
             'message' => 'User deactivated successfully',
@@ -150,42 +113,12 @@ class UserController extends Controller
     /**
      * Get available roles for dropdown.
      */
-    public function roles(Request $request): JsonResponse
+    public function roles(ListUsersRequest $request): JsonResponse
     {
-        $this->authorizeAdmin($request);
-
         $roles = Role::orderBy('name')->get(['id', 'name', 'description']);
 
         return response()->json([
             'data' => $roles,
         ]);
-    }
-
-    /**
-     * Authorize that the current user is an admin.
-     */
-    private function authorizeAdmin(Request $request): void
-    {
-        if (! $request->user()?->isAdmin()) {
-            abort(403, 'Unauthorized. Admin access required.');
-        }
-    }
-
-    /**
-     * Check if the given user is the last active admin.
-     */
-    private function isLastActiveAdmin(User $user): bool
-    {
-        $adminRole = Role::where('name', Role::ADMIN)->first();
-
-        if (! $adminRole) {
-            return false;
-        }
-
-        $activeAdminCount = User::where('role_id', $adminRole->id)
-            ->where('is_active', true)
-            ->count();
-
-        return $activeAdminCount <= 1;
     }
 }

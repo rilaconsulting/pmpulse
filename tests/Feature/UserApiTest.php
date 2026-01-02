@@ -53,6 +53,53 @@ class UserApiTest extends TestCase
         $response->assertStatus(403);
     }
 
+    public function test_view_user_requires_admin_role(): void
+    {
+        $response = $this->actingAs($this->viewerUser)
+            ->getJson("/api/users/{$this->adminUser->id}");
+
+        $response->assertStatus(403);
+    }
+
+    public function test_create_user_requires_admin_role(): void
+    {
+        $response = $this->actingAs($this->viewerUser)
+            ->postJson('/api/users', [
+                'name' => 'Test User',
+                'email' => 'test@example.com',
+                'password' => 'XyZ#9kL$mN2pQ7rS!',
+                'auth_provider' => 'password',
+            ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_update_user_requires_admin_role(): void
+    {
+        $response = $this->actingAs($this->viewerUser)
+            ->putJson("/api/users/{$this->adminUser->id}", [
+                'name' => 'Updated Name',
+            ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_delete_user_requires_admin_role(): void
+    {
+        $response = $this->actingAs($this->viewerUser)
+            ->deleteJson("/api/users/{$this->adminUser->id}");
+
+        $response->assertStatus(403);
+    }
+
+    public function test_roles_endpoint_requires_admin_role(): void
+    {
+        $response = $this->actingAs($this->viewerUser)
+            ->getJson('/api/users/roles');
+
+        $response->assertStatus(403);
+    }
+
     public function test_admin_can_list_users(): void
     {
         $response = $this->actingAs($this->adminUser)
@@ -88,6 +135,24 @@ class UserApiTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertGreaterThan(0, count($response->json('data')));
+    }
+
+    public function test_list_users_validates_per_page_max(): void
+    {
+        $response = $this->actingAs($this->adminUser)
+            ->getJson('/api/users?per_page=500');
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['per_page']);
+    }
+
+    public function test_list_users_validates_auth_provider(): void
+    {
+        $response = $this->actingAs($this->adminUser)
+            ->getJson('/api/users?auth_provider=invalid');
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['auth_provider']);
     }
 
     public function test_admin_can_view_single_user(): void
@@ -204,7 +269,7 @@ class UserApiTest extends TestCase
             ->deleteJson("/api/users/{$this->adminUser->id}");
 
         $response->assertStatus(422)
-            ->assertJsonPath('message', 'Cannot deactivate your own account');
+            ->assertJsonValidationErrors(['user']);
     }
 
     public function test_cannot_deactivate_last_admin(): void

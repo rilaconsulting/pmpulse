@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -139,16 +140,22 @@ class User extends Authenticatable
 
     /**
      * Scope a query to only include active users.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
      */
-    public function scopeActive($query)
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
 
     /**
      * Scope a query to only include users with a specific auth provider.
+     *
+     * @param  Builder<User>  $query
+     * @return Builder<User>
      */
-    public function scopeWithAuthProvider($query, string $provider)
+    public function scopeWithAuthProvider(Builder $query, string $provider): Builder
     {
         return $query->where('auth_provider', $provider);
     }

@@ -82,10 +82,16 @@ class UserFactory extends Factory
     public function admin(): static
     {
         return $this->state(function (array $attributes) {
-            $role = Role::where('name', Role::ADMIN)->first();
+            $role = Role::firstOrCreate(
+                ['name' => Role::ADMIN],
+                [
+                    'description' => 'Full administrative access',
+                    'permissions' => ['*'],
+                ]
+            );
 
             return [
-                'role_id' => $role?->id,
+                'role_id' => $role->id,
             ];
         });
     }
@@ -96,10 +102,16 @@ class UserFactory extends Factory
     public function viewer(): static
     {
         return $this->state(function (array $attributes) {
-            $role = Role::where('name', Role::VIEWER)->first();
+            $role = Role::firstOrCreate(
+                ['name' => Role::VIEWER],
+                [
+                    'description' => 'Read-only access to dashboards',
+                    'permissions' => ['dashboard.view', 'reports.view'],
+                ]
+            );
 
             return [
-                'role_id' => $role?->id,
+                'role_id' => $role->id,
             ];
         });
     }
