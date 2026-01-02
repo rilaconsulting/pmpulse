@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,11 +14,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('units', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('external_id')->unique(); // AppFolio unit ID
-            $table->foreignId('property_id')
+            $table->foreignUuid('property_id')
                 ->constrained('properties')
-                ->onDelete('cascade');
+                ->cascadeOnDelete();
             $table->string('unit_number');
             $table->unsignedInteger('sqft')->nullable();
             $table->unsignedTinyInteger('bedrooms')->nullable();

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,11 +14,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('raw_appfolio_events', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('sync_run_id')
+            $table->uuid('id')->primary();
+            $table->foreignUuid('sync_run_id')
                 ->nullable()
                 ->constrained('sync_runs')
-                ->onDelete('set null');
+                ->nullOnDelete();
             $table->string('resource_type'); // properties, units, people, leases, etc.
             $table->string('external_id'); // AppFolio's ID for the resource
             $table->jsonb('payload_json'); // Raw JSON payload from API

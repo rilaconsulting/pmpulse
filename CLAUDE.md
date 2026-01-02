@@ -118,8 +118,15 @@ The local development environment uses Docker with 4 containers:
 - `property_rollups` - Per-property daily metrics
 
 **Configuration Tables:**
+- `settings` - Unified key/value store for all application configuration (organized by category)
 - `alert_rules` - Notification thresholds
-- `feature_flags` - Feature toggles
+- `sync_failure_alerts` - Tracks consecutive sync failures for alerting
+
+**Setting Categories:**
+- `sync` - Sync timing settings (full_sync_time)
+- `business_hours` - Business hours configuration (enabled, timezone, start_hour, end_hour, etc.)
+- `features` - Feature flags (incremental_sync, notifications)
+- `appfolio` - AppFolio API credentials (encrypted)
 
 ## AppFolio Reports API Reference
 
@@ -201,6 +208,51 @@ The AppFolio client is implemented with **placeholder endpoints**. When actual A
 - Use typed properties and return types
 - Keep controllers thin, business logic in Services
 - Use Eloquent scopes for common query patterns
+
+### UUID Primary Keys
+
+All models use UUID primary keys via Laravel's `HasUuids` trait:
+
+```php
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
+class Property extends Model
+{
+    use HasFactory, HasUuids;
+}
+```
+
+Migrations use `uuid()` for primary keys and `foreignUuid()` for relationships:
+
+```php
+$table->uuid('id')->primary();
+$table->foreignUuid('property_id')->constrained()->cascadeOnDelete();
+```
+
+### Setting Model Usage
+
+Use the `Setting` model for all application configuration:
+
+```php
+use App\Models\Setting;
+
+// Reading settings
+$value = Setting::get('category', 'key', 'default');
+
+// Writing settings
+Setting::set('category', 'key', $value);
+
+// Encrypted settings (e.g., API secrets)
+Setting::set('appfolio', 'client_secret', $secret, encrypted: true);
+
+// Get all settings in a category
+$syncSettings = Setting::getCategory('sync');
+
+// Check feature flags
+if (Setting::isFeatureEnabled('notifications', default: true)) {
+    // ...
+}
+```
 
 ## Common Tasks
 
