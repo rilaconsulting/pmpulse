@@ -2,7 +2,10 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\GoogleSsoController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -19,6 +22,12 @@ Route::middleware(['guest', 'throttle:5,1'])->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    // Google SSO routes
+    Route::get('auth/google', [GoogleSsoController::class, 'redirect'])
+        ->name('auth.google');
+    Route::get('auth/google/callback', [GoogleSsoController::class, 'callback'])
+        ->name('auth.google.callback');
 });
 
 // Authenticated routes
@@ -39,4 +48,16 @@ Route::middleware('auth')->group(function () {
         ->name('admin.sync');
     Route::post('/admin/sync-configuration', [AdminController::class, 'saveSyncConfiguration'])
         ->name('admin.sync-configuration.save');
+
+    // User Management (admin only)
+    Route::resource('users', UserManagementController::class)
+        ->except(['show']);
+
+    // Profile (all authenticated users)
+    Route::get('/profile', [ProfileController::class, 'show'])
+        ->name('profile.show');
+    Route::patch('/profile', [ProfileController::class, 'update'])
+        ->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])
+        ->name('profile.password');
 });
