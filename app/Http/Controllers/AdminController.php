@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SaveConnectionRequest;
+use App\Http\Requests\SaveSyncConfigurationRequest;
 use App\Jobs\SyncAppfolioResourceJob;
 use App\Models\AppfolioConnection;
+use App\Models\SyncConfiguration;
 use App\Models\SyncRun;
+use App\Services\BusinessHoursService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -17,7 +20,7 @@ class AdminController extends Controller
     /**
      * Display the admin page.
      */
-    public function index(): Response
+    public function index(BusinessHoursService $businessHoursService): Response
     {
         // Get current connection settings (mask the secret)
         $connection = AppfolioConnection::query()->first();
@@ -27,6 +30,9 @@ class AdminController extends Controller
             ->latest('started_at')
             ->limit(20)
             ->get();
+
+        // Get sync configuration
+        $syncConfig = SyncConfiguration::query()->first();
 
         return Inertia::render('Admin', [
             'connection' => $connection ? [
@@ -44,6 +50,18 @@ class AdminController extends Controller
                 'incremental_sync' => config('features.incremental_sync'),
                 'notifications' => config('features.notifications'),
             ],
+            'syncConfiguration' => $syncConfig ? [
+                'business_hours_enabled' => $syncConfig->business_hours_enabled,
+                'timezone' => $syncConfig->timezone,
+                'start_hour' => $syncConfig->start_hour,
+                'end_hour' => $syncConfig->end_hour,
+                'weekdays_only' => $syncConfig->weekdays_only,
+                'business_hours_interval' => $syncConfig->business_hours_interval,
+                'off_hours_interval' => $syncConfig->off_hours_interval,
+                'full_sync_time' => $syncConfig->full_sync_time,
+            ] : null,
+            'syncStatus' => $businessHoursService->getConfiguration(),
+            'timezones' => SyncConfiguration::getTimezones(),
         ]);
     }
 
@@ -99,5 +117,20 @@ class AdminController extends Controller
         SyncAppfolioResourceJob::dispatch($syncRun);
 
         return back()->with('success', 'Sync job has been queued.');
+    }
+
+    /**
+     * Save sync configuration settings.
+     */
+    public function saveSyncConfiguration(SaveSyncConfigurationRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        $config = SyncConfiguration::query()->first() ?? new SyncConfiguration;
+
+        $config->fill($validated);
+        $config->save();
+
+        return back()->with('success', 'Sync configuration saved. Changes will take effect on next scheduler run.');
     }
 }

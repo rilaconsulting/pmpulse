@@ -39,6 +39,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Business Hours Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure business hours for sync frequency optimization.
+    | During business hours, sync runs every 15 minutes.
+    | Outside business hours, sync runs hourly to conserve API resources.
+    |
+    */
+
+    'business_hours' => [
+        'enabled' => env('APPFOLIO_BUSINESS_HOURS_ENABLED', true),
+        'timezone' => env('APPFOLIO_BUSINESS_HOURS_TIMEZONE', 'America/Los_Angeles'),
+        'start_hour' => (int) env('APPFOLIO_BUSINESS_HOURS_START', 9),
+        'end_hour' => (int) env('APPFOLIO_BUSINESS_HOURS_END', 17),
+        'weekdays_only' => env('APPFOLIO_BUSINESS_HOURS_WEEKDAYS_ONLY', true),
+        'business_hours_interval' => (int) env('APPFOLIO_BUSINESS_HOURS_INTERVAL', 15),
+        'off_hours_interval' => (int) env('APPFOLIO_OFF_HOURS_INTERVAL', 60),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Rate Limiting Configuration
     |--------------------------------------------------------------------------
     |
@@ -88,6 +109,27 @@ return [
         'leases',
         'ledger_transactions',
         'work_orders',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sync Failure Alerts Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure sync failure alert behavior including the number of
+    | consecutive failures before alerting and rate limiting.
+    |
+    */
+
+    'alerts' => [
+        // Number of consecutive failures before sending an alert
+        'failure_threshold' => (int) env('APPFOLIO_ALERT_FAILURE_THRESHOLD', 3),
+
+        // Minimum minutes between alert emails (prevents spam)
+        'cooldown_minutes' => (int) env('APPFOLIO_ALERT_COOLDOWN_MINUTES', 60),
+
+        // Override recipients (defaults to all users if not set)
+        'recipients' => env('APPFOLIO_ALERT_RECIPIENTS') ? explode(',', env('APPFOLIO_ALERT_RECIPIENTS')) : null,
     ],
 
 ];

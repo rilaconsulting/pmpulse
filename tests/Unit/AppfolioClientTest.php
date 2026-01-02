@@ -175,4 +175,301 @@ class AppfolioClientTest extends TestCase
 
         $this->assertFalse($result);
     }
+
+    // =========================================================================
+    // Reports API Tests
+    // =========================================================================
+
+    public function test_get_property_directory_calls_correct_endpoint(): void
+    {
+        Http::fake([
+            'api.appfolio.test/api/v1/reports/property_directory.json' => Http::response([
+                'results' => [
+                    ['property_id' => 1, 'property_name' => 'Test Property'],
+                ],
+            ], 200),
+        ]);
+
+        $result = $this->client->getPropertyDirectory();
+
+        Http::assertSent(function ($request) {
+            return $request->method() === 'POST'
+                && str_contains($request->url(), '/api/v1/reports/property_directory.json');
+        });
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('results', $result);
+    }
+
+    public function test_get_unit_directory_calls_correct_endpoint(): void
+    {
+        Http::fake([
+            'api.appfolio.test/api/v1/reports/unit_directory.json' => Http::response([
+                'results' => [
+                    ['unit_id' => 1, 'unit_name' => '101'],
+                ],
+            ], 200),
+        ]);
+
+        $result = $this->client->getUnitDirectory();
+
+        Http::assertSent(function ($request) {
+            return $request->method() === 'POST'
+                && str_contains($request->url(), '/api/v1/reports/unit_directory.json');
+        });
+
+        $this->assertIsArray($result);
+    }
+
+    public function test_get_vendor_directory_calls_correct_endpoint(): void
+    {
+        Http::fake([
+            'api.appfolio.test/api/v1/reports/vendor_directory.json' => Http::response([
+                'results' => [
+                    ['vendor_id' => 1, 'company_name' => 'Test Vendor'],
+                ],
+            ], 200),
+        ]);
+
+        $result = $this->client->getVendorDirectory();
+
+        Http::assertSent(function ($request) {
+            return $request->method() === 'POST'
+                && str_contains($request->url(), '/api/v1/reports/vendor_directory.json');
+        });
+
+        $this->assertIsArray($result);
+    }
+
+    public function test_get_expense_register_calls_correct_endpoint(): void
+    {
+        Http::fake([
+            'api.appfolio.test/api/v1/reports/expense_register.json' => Http::response([
+                'results' => [
+                    ['expense_id' => 1, 'amount' => '100.00'],
+                ],
+            ], 200),
+        ]);
+
+        $result = $this->client->getExpenseRegister([
+            'from_date' => '2025-01-01',
+            'to_date' => '2025-12-31',
+        ]);
+
+        Http::assertSent(function ($request) {
+            return $request->method() === 'POST'
+                && str_contains($request->url(), '/api/v1/reports/expense_register.json');
+        });
+
+        $this->assertIsArray($result);
+    }
+
+    public function test_get_work_order_report_calls_correct_endpoint(): void
+    {
+        Http::fake([
+            'api.appfolio.test/api/v1/reports/work_order.json' => Http::response([
+                'results' => [
+                    ['work_order_id' => 1, 'status' => 'open'],
+                ],
+            ], 200),
+        ]);
+
+        $result = $this->client->getWorkOrderReport([
+            'from_date' => '2025-01-01',
+            'to_date' => '2025-12-31',
+        ]);
+
+        Http::assertSent(function ($request) {
+            return $request->method() === 'POST'
+                && str_contains($request->url(), '/api/v1/reports/work_order.json');
+        });
+
+        $this->assertIsArray($result);
+    }
+
+    public function test_get_rent_roll_calls_correct_endpoint(): void
+    {
+        Http::fake([
+            'api.appfolio.test/api/v1/reports/rent_roll.json' => Http::response([
+                'results' => [],
+            ], 200),
+        ]);
+
+        $result = $this->client->getRentRoll();
+
+        Http::assertSent(function ($request) {
+            return $request->method() === 'POST'
+                && str_contains($request->url(), '/api/v1/reports/rent_roll.json');
+        });
+
+        $this->assertIsArray($result);
+    }
+
+    public function test_get_delinquency_calls_correct_endpoint(): void
+    {
+        Http::fake([
+            'api.appfolio.test/api/v1/reports/delinquency.json' => Http::response([
+                'results' => [],
+            ], 200),
+        ]);
+
+        $result = $this->client->getDelinquency();
+
+        Http::assertSent(function ($request) {
+            return $request->method() === 'POST'
+                && str_contains($request->url(), '/api/v1/reports/delinquency.json');
+        });
+
+        $this->assertIsArray($result);
+    }
+
+    public function test_fetch_all_pages_handles_pagination(): void
+    {
+        $callCount = 0;
+
+        Http::fake(function ($request) use (&$callCount) {
+            $callCount++;
+
+            if ($callCount === 1) {
+                return Http::response([
+                    'results' => [['id' => 1], ['id' => 2]],
+                    'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
+                ], 200);
+            }
+
+            return Http::response([
+                'results' => [['id' => 3], ['id' => 4]],
+                'next_page_url' => null,
+            ], 200);
+        });
+
+        $results = $this->client->fetchAllPages('getPropertyDirectory');
+
+        $this->assertCount(4, $results);
+        $this->assertEquals(2, $callCount);
+    }
+
+    public function test_fetch_all_pages_calls_progress_callback(): void
+    {
+        $callCount = 0;
+        $progressCalls = [];
+
+        Http::fake(function ($request) use (&$callCount) {
+            $callCount++;
+
+            if ($callCount === 1) {
+                return Http::response([
+                    'results' => [['id' => 1], ['id' => 2]],
+                    'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
+                ], 200);
+            }
+
+            return Http::response([
+                'results' => [['id' => 3]],
+                'next_page_url' => null,
+            ], 200);
+        });
+
+        $results = $this->client->fetchAllPages(
+            'getPropertyDirectory',
+            [],
+            function ($page, $recordsFetched, $hasMore) use (&$progressCalls) {
+                $progressCalls[] = [
+                    'page' => $page,
+                    'records' => $recordsFetched,
+                    'hasMore' => $hasMore,
+                ];
+            }
+        );
+
+        $this->assertCount(3, $results);
+        $this->assertCount(2, $progressCalls);
+        $this->assertEquals(1, $progressCalls[0]['page']);
+        $this->assertEquals(2, $progressCalls[0]['records']);
+        $this->assertTrue($progressCalls[0]['hasMore']);
+        $this->assertEquals(2, $progressCalls[1]['page']);
+        $this->assertEquals(3, $progressCalls[1]['records']);
+        $this->assertFalse($progressCalls[1]['hasMore']);
+    }
+
+    public function test_fetch_all_pages_respects_max_pages_limit(): void
+    {
+        $callCount = 0;
+
+        Http::fake(function ($request) use (&$callCount) {
+            $callCount++;
+
+            // Always return more pages
+            return Http::response([
+                'results' => [['id' => $callCount]],
+                'next_page_url' => '/api/v1/reports/property_directory.json?page='.($callCount + 1),
+            ], 200);
+        });
+
+        $results = $this->client->fetchAllPages('getPropertyDirectory', [], null, 3);
+
+        $this->assertCount(3, $results);
+        $this->assertEquals(3, $callCount);
+    }
+
+    public function test_fetch_all_pages_returns_partial_results_on_error(): void
+    {
+        $callCount = 0;
+
+        Http::fake(function ($request) use (&$callCount) {
+            $callCount++;
+
+            if ($callCount === 1) {
+                return Http::response([
+                    'results' => [['id' => 1], ['id' => 2]],
+                    'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
+                ], 200);
+            }
+
+            // Second page fails
+            return Http::response('Server error', 500);
+        });
+
+        // Override max retries for faster test
+        config(['appfolio.rate_limit.max_retries' => 0]);
+
+        $results = $this->client->fetchAllPages('getPropertyDirectory');
+
+        // Should return partial results from first page
+        $this->assertCount(2, $results);
+    }
+
+    public function test_report_endpoints_include_default_pagination_params(): void
+    {
+        Http::fake([
+            'api.appfolio.test/*' => Http::response(['results' => []], 200),
+        ]);
+
+        $this->client->getPropertyDirectory();
+
+        Http::assertSent(function ($request) {
+            $body = json_decode($request->body(), true);
+
+            return $body['paginate_results'] === true
+                && isset($body['per_page']);
+        });
+    }
+
+    public function test_get_pagination_info_returns_expected_structure(): void
+    {
+        Http::fake([
+            'api.appfolio.test/*' => Http::response([
+                'results' => [['id' => 1]],
+                'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
+            ], 200),
+        ]);
+
+        $info = $this->client->getPaginationInfo('getPropertyDirectory');
+
+        $this->assertArrayHasKey('has_results', $info);
+        $this->assertArrayHasKey('has_more_pages', $info);
+        $this->assertArrayHasKey('per_page', $info);
+        $this->assertTrue($info['has_results']);
+        $this->assertTrue($info['has_more_pages']);
+    }
 }

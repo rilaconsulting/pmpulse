@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\SyncRun;
 use App\Services\AppfolioClient;
 use App\Services\IngestionService;
+use App\Services\SyncFailureAlertService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -46,8 +47,11 @@ class SyncAppfolioResourceJob implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(AppfolioClient $appfolioClient, IngestionService $ingestionService): void
-    {
+    public function handle(
+        AppfolioClient $appfolioClient,
+        IngestionService $ingestionService,
+        SyncFailureAlertService $alertService
+    ): void {
         Log::info('Starting AppFolio sync job', [
             'sync_run_id' => $this->syncRun->id,
             'mode' => $this->syncRun->mode,
@@ -74,6 +78,10 @@ class SyncAppfolioResourceJob implements ShouldQueue
                 'errors' => $ingestionService->getErrorCount(),
             ]);
 
+            // Handle successful sync (resets failure counter)
+            $this->syncRun->refresh();
+            $alertService->handleSyncCompleted($this->syncRun);
+
         } catch (\Exception $e) {
             Log::error('AppFolio sync job failed', [
                 'sync_run_id' => $this->syncRun->id,
@@ -82,6 +90,10 @@ class SyncAppfolioResourceJob implements ShouldQueue
             ]);
 
             $ingestionService->failSync($e->getMessage());
+
+            // Note: Alert handling is done in failed() method for permanent failures only.
+            // We don't call handleSyncCompleted here to avoid incrementing the failure
+            // counter on each retry attempt.
 
             throw $e;
         }
@@ -98,6 +110,11 @@ class SyncAppfolioResourceJob implements ShouldQueue
         ]);
 
         $this->syncRun->markAsFailed($exception->getMessage());
+
+        // Evaluate failure alerts
+        $alertService = app(SyncFailureAlertService::class);
+        $this->syncRun->refresh();
+        $alertService->handleSyncCompleted($this->syncRun);
     }
 
     /**

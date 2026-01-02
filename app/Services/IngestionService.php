@@ -33,6 +33,12 @@ class IngestionService
 
     private array $errors = [];
 
+    /** @var ResourceSyncTracker|null Current resource tracker */
+    private ?ResourceSyncTracker $currentTracker = null;
+
+    /** @var array<string, ResourceSyncTracker> Completed trackers by resource type */
+    private array $resourceTrackers = [];
+
     /** @var array<string, int> Cache of property external_id => id mappings */
     private array $propertyCache = [];
 
@@ -55,6 +61,8 @@ class IngestionService
         $this->processedCount = 0;
         $this->errorCount = 0;
         $this->errors = [];
+        $this->currentTracker = null;
+        $this->resourceTrackers = [];
         $this->propertyCache = [];
         $this->unitCache = [];
         $this->personCache = [];
@@ -95,7 +103,8 @@ class IngestionService
      */
     public function processResource(string $resourceType): void
     {
-        Log::info('Processing resource type', ['type' => $resourceType]);
+        // Create a new tracker for this resource type
+        $this->currentTracker = new ResourceSyncTracker($this->syncRun, $resourceType);
 
         $params = $this->buildQueryParams();
 
@@ -112,6 +121,11 @@ class IngestionService
 
         // Store raw data and normalize
         $this->processItems($resourceType, $data);
+
+        // Finish tracking and save metrics
+        $this->resourceTrackers[$resourceType] = $this->currentTracker;
+        $this->currentTracker->finish();
+        $this->currentTracker = null;
     }
 
     /**
@@ -152,22 +166,48 @@ class IngestionService
 
         foreach ($items as $item) {
             try {
-                DB::transaction(function () use ($resourceType, $item) {
+                $result = null;
+
+                DB::transaction(function () use ($resourceType, $item, &$result) {
                     // Store raw event
                     $this->storeRawEvent($resourceType, $item);
 
-                    // Normalize and upsert
-                    $this->normalizeAndUpsert($resourceType, $item);
+                    // Normalize and upsert - returns true if created, false if updated, null if skipped
+                    $result = $this->normalizeAndUpsert($resourceType, $item);
                 });
 
-                $this->processedCount++;
+                // Track result: created, updated, or skipped
+                if ($this->currentTracker) {
+                    if ($result === true) {
+                        $this->currentTracker->recordCreated();
+                        $this->processedCount++;
+                    } elseif ($result === false) {
+                        $this->currentTracker->recordUpdated();
+                        $this->processedCount++;
+                    } else {
+                        // null = skipped (e.g., missing related entity)
+                        $this->currentTracker->recordSkipped('Missing related entity');
+                    }
+                } else {
+                    if ($result !== null) {
+                        $this->processedCount++;
+                    }
+                }
             } catch (\Exception $e) {
                 $this->errorCount++;
-                Log::error('Failed to process item', [
-                    'type' => $resourceType,
-                    'item' => $item,
-                    'error' => $e->getMessage(),
-                ]);
+
+                // Track error with context
+                if ($this->currentTracker) {
+                    $this->currentTracker->recordError($e->getMessage(), [
+                        'item_id' => $item['id'] ?? $item['external_id'] ?? 'unknown',
+                    ]);
+                } else {
+                    Log::error('Failed to process item', [
+                        'type' => $resourceType,
+                        'item' => $item,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         }
 
@@ -358,10 +398,12 @@ class IngestionService
 
     /**
      * Normalize and upsert data to the appropriate table.
+     *
+     * @return bool|null True if record was created, false if updated, null if skipped
      */
-    private function normalizeAndUpsert(string $resourceType, array $item): void
+    private function normalizeAndUpsert(string $resourceType, array $item): ?bool
     {
-        match ($resourceType) {
+        return match ($resourceType) {
             'properties' => $this->upsertProperty($item),
             'units' => $this->upsertUnit($item),
             'people' => $this->upsertPerson($item),
@@ -377,8 +419,10 @@ class IngestionService
      *
      * TODO: Adjust field mappings based on actual AppFolio API response.
      * The field names below are placeholders.
+     *
+     * @return bool True if record was created, false if updated
      */
-    private function upsertProperty(array $item): void
+    private function upsertProperty(array $item): bool
     {
         // Map AppFolio fields to our schema
         // TODO: Update these mappings when API documentation is available
@@ -396,18 +440,22 @@ class IngestionService
 
         $externalId = (string) ($item['id'] ?? $item['property_id']);
 
-        Property::updateOrCreate(
+        $property = Property::updateOrCreate(
             ['external_id' => $externalId],
             $data
         );
+
+        return $property->wasRecentlyCreated;
     }
 
     /**
      * Upsert a unit record.
      *
      * TODO: Adjust field mappings based on actual AppFolio API response.
+     *
+     * @return bool|null True if record was created, false if updated, null if skipped
      */
-    private function upsertUnit(array $item): void
+    private function upsertUnit(array $item): ?bool
     {
         // Look up property using cache to avoid N+1 queries
         $propertyExternalId = (string) ($item['property_id'] ?? $item['property']['id'] ?? null);
@@ -419,7 +467,8 @@ class IngestionService
                 'unit_data' => $item,
             ]);
 
-            return;
+            // Return null since we're skipping
+            return null;
         }
 
         // Map AppFolio fields to our schema
@@ -437,10 +486,12 @@ class IngestionService
 
         $externalId = (string) ($item['id'] ?? $item['unit_id']);
 
-        Unit::updateOrCreate(
+        $unit = Unit::updateOrCreate(
             ['external_id' => $externalId],
             $data
         );
+
+        return $unit->wasRecentlyCreated;
     }
 
     /**
@@ -462,8 +513,10 @@ class IngestionService
      * Upsert a person record.
      *
      * TODO: Adjust field mappings based on actual AppFolio API response.
+     *
+     * @return bool True if record was created, false if updated
      */
-    private function upsertPerson(array $item): void
+    private function upsertPerson(array $item): bool
     {
         // Map AppFolio fields to our schema
         // TODO: Update these mappings when API documentation is available
@@ -477,10 +530,12 @@ class IngestionService
 
         $externalId = (string) ($item['id'] ?? $item['person_id']);
 
-        Person::updateOrCreate(
+        $person = Person::updateOrCreate(
             ['external_id' => $externalId],
             $data
         );
+
+        return $person->wasRecentlyCreated;
     }
 
     /**
@@ -502,8 +557,10 @@ class IngestionService
      * Upsert a lease record.
      *
      * TODO: Adjust field mappings based on actual AppFolio API response.
+     *
+     * @return bool|null True if record was created, false if updated, null if skipped
      */
-    private function upsertLease(array $item): void
+    private function upsertLease(array $item): ?bool
     {
         // Look up unit and person using cache to avoid N+1 queries
         $unitExternalId = (string) ($item['unit_id'] ?? $item['unit']['id'] ?? null);
@@ -515,7 +572,8 @@ class IngestionService
         if (! $unitId) {
             Log::warning('Unit not found for lease', ['unit_external_id' => $unitExternalId]);
 
-            return;
+            // Return null since we're skipping
+            return null;
         }
 
         // Map AppFolio fields to our schema
@@ -532,10 +590,12 @@ class IngestionService
 
         $externalId = (string) ($item['id'] ?? $item['lease_id']);
 
-        Lease::updateOrCreate(
+        $lease = Lease::updateOrCreate(
             ['external_id' => $externalId],
             $data
         );
+
+        return $lease->wasRecentlyCreated;
     }
 
     /**
@@ -557,8 +617,10 @@ class IngestionService
      * Upsert a ledger transaction record.
      *
      * TODO: Adjust field mappings based on actual AppFolio API response.
+     *
+     * @return bool True if record was created, false if updated
      */
-    private function upsertLedgerTransaction(array $item): void
+    private function upsertLedgerTransaction(array $item): bool
     {
         // Look up property and unit using cache to avoid N+1 queries
         $propertyExternalId = (string) ($item['property_id'] ?? $item['property']['id'] ?? null);
@@ -582,10 +644,12 @@ class IngestionService
 
         $externalId = (string) ($item['id'] ?? $item['transaction_id']);
 
-        LedgerTransaction::updateOrCreate(
+        $transaction = LedgerTransaction::updateOrCreate(
             ['external_id' => $externalId],
             $data
         );
+
+        return $transaction->wasRecentlyCreated;
     }
 
     /**
@@ -607,8 +671,10 @@ class IngestionService
      * Upsert a work order record.
      *
      * TODO: Adjust field mappings based on actual AppFolio API response.
+     *
+     * @return bool True if record was created, false if updated
      */
-    private function upsertWorkOrder(array $item): void
+    private function upsertWorkOrder(array $item): bool
     {
         // Look up property and unit using cache to avoid N+1 queries
         $propertyExternalId = (string) ($item['property_id'] ?? $item['property']['id'] ?? null);
@@ -632,10 +698,12 @@ class IngestionService
 
         $externalId = (string) ($item['id'] ?? $item['work_order_id']);
 
-        WorkOrder::updateOrCreate(
+        $workOrder = WorkOrder::updateOrCreate(
             ['external_id' => $externalId],
             $data
         );
+
+        return $workOrder->wasRecentlyCreated;
     }
 
     /**
