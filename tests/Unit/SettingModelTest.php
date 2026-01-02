@@ -223,4 +223,62 @@ class SettingModelTest extends TestCase
 
         $this->assertEquals('This is a test setting', $setting->description);
     }
+
+    public function test_null_value_is_cached_and_returned_correctly(): void
+    {
+        // Set a null value
+        Setting::set('null_test', 'key', null);
+
+        // First get should return null (not the default)
+        $value1 = Setting::get('null_test', 'key', 'default_value');
+        $this->assertNull($value1);
+
+        // After caching, should still return null (not the default)
+        $value2 = Setting::get('null_test', 'key', 'default_value');
+        $this->assertNull($value2);
+    }
+
+    public function test_decryption_failure_returns_default_not_ciphertext(): void
+    {
+        // Create a setting with a corrupted encrypted value
+        Setting::create([
+            'category' => 'decrypt_test',
+            'key' => 'corrupted',
+            'value' => 'not_valid_encrypted_data',
+            'encrypted' => true,
+        ]);
+
+        Cache::flush();
+
+        // Should return the default, not the corrupted value
+        $value = Setting::get('decrypt_test', 'corrupted', 'safe_default');
+
+        $this->assertEquals('safe_default', $value);
+        $this->assertNotEquals('not_valid_encrypted_data', $value);
+    }
+
+    public function test_clear_cache_clears_individual_and_category_caches(): void
+    {
+        Setting::set('clear_test', 'key1', 'value1');
+        Setting::set('clear_test', 'key2', 'value2');
+
+        // Access to populate cache
+        Setting::get('clear_test', 'key1');
+        Setting::get('clear_test', 'key2');
+        Setting::getCategory('clear_test');
+
+        // Directly update database
+        Setting::where('category', 'clear_test')
+            ->where('key', 'key1')
+            ->update(['value' => json_encode('updated_value1')]);
+
+        // Should still get cached value
+        $this->assertEquals('value1', Setting::get('clear_test', 'key1'));
+
+        // Clear all caches
+        Setting::clearCache();
+
+        // Should now get updated value
+        $this->assertEquals('updated_value1', Setting::get('clear_test', 'key1'));
+    }
 }

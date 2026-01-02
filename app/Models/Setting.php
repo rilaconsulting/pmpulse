@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Unified settings model for application configuration.
  *
  * Replaces sync_configurations and feature_flags tables with a flexible
- * key-value store organized by category.
+ * key/value store organized by category.
  */
 class Setting extends Model
 {
@@ -30,6 +31,11 @@ class Setting extends Model
      * Cache key prefix.
      */
     public const CACHE_PREFIX = 'settings:';
+
+    /**
+     * Sentinel value to distinguish between "not cached" and "cached as null".
+     */
+    private static ?\stdClass $cacheSentinel = null;
 
     protected $fillable = [
         'category',
@@ -48,6 +54,18 @@ class Setting extends Model
     }
 
     /**
+     * Get the cache sentinel instance.
+     */
+    private static function getCacheSentinel(): \stdClass
+    {
+        if (self::$cacheSentinel === null) {
+            self::$cacheSentinel = new \stdClass;
+        }
+
+        return self::$cacheSentinel;
+    }
+
+    /**
      * Get a setting value.
      *
      * @param  string  $category  The setting category (e.g., 'sync', 'features')
@@ -59,9 +77,12 @@ class Setting extends Model
     {
         $cacheKey = self::getCacheKey($category, $key);
 
-        // Check if we have a cached value
-        if (Cache::has($cacheKey)) {
-            return Cache::get($cacheKey) ?? $default;
+        // Use sentinel to distinguish between "not cached" and "cached as null"
+        $sentinel = self::getCacheSentinel();
+        $cached = Cache::get($cacheKey, $sentinel);
+
+        if ($cached !== $sentinel) {
+            return $cached;
         }
 
         // Query database
@@ -88,8 +109,11 @@ class Setting extends Model
                         $value = $decoded;
                     }
                 }
-            } catch (\Exception) {
-                // If decryption fails, return the raw value
+            } catch (\Exception $e) {
+                // If decryption fails, log the error and return the default value
+                Log::error("Failed to decrypt setting '{$category}.{$key}'", ['exception' => $e->getMessage()]);
+
+                return $default;
             }
         }
 
@@ -146,7 +170,7 @@ class Setting extends Model
      * Get all settings for a category.
      *
      * @param  string  $category  The setting category
-     * @return array<string, mixed> Key-value pairs of settings
+     * @return array<string, mixed> Key/value pairs of settings
      */
     public static function getCategory(string $category): array
     {
@@ -172,8 +196,11 @@ class Setting extends Model
                                 $value = $decoded;
                             }
                         }
-                    } catch (\Exception) {
-                        // If decryption fails, return raw value
+                    } catch (\Exception $e) {
+                        // If decryption fails, log the error and skip this setting
+                        Log::error("Failed to decrypt setting '{$category}.{$setting->key}'", ['exception' => $e->getMessage()]);
+
+                        continue;
                     }
                 }
 
@@ -222,11 +249,22 @@ class Setting extends Model
      */
     public static function forgetCategory(string $category): int
     {
+        // Get all keys before deleting so we can clear their caches
+        $keys = static::query()
+            ->where('category', $category)
+            ->pluck('key');
+
         $deleted = static::query()
             ->where('category', $category)
             ->delete();
 
-        self::forgetCategoryCache($category);
+        // Clear individual setting caches
+        foreach ($keys as $key) {
+            Cache::forget(self::getCacheKey($category, $key));
+        }
+
+        // Clear category cache
+        Cache::forget(self::CACHE_PREFIX."category:{$category}");
 
         return $deleted;
     }
@@ -253,8 +291,16 @@ class Setting extends Model
      */
     protected static function forgetCategoryCache(string $category): void
     {
+        // Get all keys in this category to clear individual caches
+        $keys = static::query()
+            ->where('category', $category)
+            ->pluck('key');
+
+        foreach ($keys as $key) {
+            Cache::forget(self::getCacheKey($category, $key));
+        }
+
         Cache::forget(self::CACHE_PREFIX."category:{$category}");
-        // Note: Individual setting caches in this category will expire naturally
     }
 
     /**
@@ -262,13 +308,19 @@ class Setting extends Model
      */
     public static function clearCache(): void
     {
-        // Get all unique categories and clear their caches
-        $categories = static::query()
-            ->distinct()
-            ->pluck('category');
+        // Get all settings and clear both individual and category caches
+        $settings = static::query()
+            ->select('category', 'key')
+            ->get();
 
-        foreach ($categories as $category) {
-            self::forgetCategoryCache($category);
+        $clearedCategories = [];
+        foreach ($settings as $setting) {
+            Cache::forget(self::getCacheKey($setting->category, $setting->key));
+
+            if (! in_array($setting->category, $clearedCategories, true)) {
+                Cache::forget(self::CACHE_PREFIX."category:{$setting->category}");
+                $clearedCategories[] = $setting->category;
+            }
         }
     }
 }

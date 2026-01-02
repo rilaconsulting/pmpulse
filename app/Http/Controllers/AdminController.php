@@ -75,15 +75,18 @@ class AdminController extends Controller
      */
     private function getSyncConfiguration(): array
     {
+        $businessHours = Setting::getCategory('business_hours');
+        $sync = Setting::getCategory('sync');
+
         return [
-            'business_hours_enabled' => Setting::get('business_hours', 'enabled', true),
-            'timezone' => Setting::get('business_hours', 'timezone', 'America/Los_Angeles'),
-            'start_hour' => Setting::get('business_hours', 'start_hour', 9),
-            'end_hour' => Setting::get('business_hours', 'end_hour', 17),
-            'weekdays_only' => Setting::get('business_hours', 'weekdays_only', true),
-            'business_hours_interval' => Setting::get('business_hours', 'business_hours_interval', 15),
-            'off_hours_interval' => Setting::get('business_hours', 'off_hours_interval', 60),
-            'full_sync_time' => Setting::get('sync', 'full_sync_time', '02:00'),
+            'business_hours_enabled' => $businessHours['enabled'] ?? true,
+            'timezone' => $businessHours['timezone'] ?? 'America/Los_Angeles',
+            'start_hour' => $businessHours['start_hour'] ?? 9,
+            'end_hour' => $businessHours['end_hour'] ?? 17,
+            'weekdays_only' => $businessHours['weekdays_only'] ?? true,
+            'business_hours_interval' => $businessHours['business_hours_interval'] ?? 15,
+            'off_hours_interval' => $businessHours['off_hours_interval'] ?? 60,
+            'full_sync_time' => $sync['full_sync_time'] ?? '02:00',
         ];
     }
 

@@ -98,7 +98,7 @@ class SettingsSeeder extends Seeder
             [
                 'key' => 'weekdays_only',
                 'value' => true,
-                'description' => 'Only treat Mon-Fri as business days',
+                'description' => 'Only treat Monday to Friday as business days',
             ],
             [
                 'key' => 'business_hours_interval',
@@ -108,7 +108,7 @@ class SettingsSeeder extends Seeder
             [
                 'key' => 'off_hours_interval',
                 'value' => 60,
-                'description' => 'Sync interval during off-hours (minutes)',
+                'description' => 'Sync interval during off hours (minutes)',
             ],
         ];
 
@@ -196,7 +196,7 @@ class SettingsSeeder extends Seeder
             [
                 'key' => 'dashboard_refresh',
                 'value' => true,
-                'description' => 'Enable auto-refresh on dashboard',
+                'description' => 'Enable automatic refresh on dashboard',
             ],
         ];
 
@@ -232,22 +232,24 @@ class SettingsSeeder extends Seeder
      */
     protected function seedCategory(string $category, array $settings): void
     {
-        foreach ($settings as $setting) {
-            // Only seed if setting doesn't exist
-            $exists = Setting::query()
-                ->where('category', $category)
-                ->where('key', $setting['key'])
-                ->exists();
+        // Fetch all existing keys in a single query to avoid N+1
+        $existingKeys = Setting::query()
+            ->where('category', $category)
+            ->pluck('key')
+            ->all();
 
-            if (! $exists) {
-                Setting::set(
-                    $category,
-                    $setting['key'],
-                    $setting['value'],
-                    encrypted: false,
-                    description: $setting['description']
-                );
+        foreach ($settings as $setting) {
+            if (in_array($setting['key'], $existingKeys, true)) {
+                continue;
             }
+
+            Setting::set(
+                $category,
+                $setting['key'],
+                $setting['value'],
+                encrypted: false,
+                description: $setting['description']
+            );
         }
     }
 }

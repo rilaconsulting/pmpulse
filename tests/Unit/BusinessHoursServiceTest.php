@@ -172,7 +172,7 @@ class BusinessHoursServiceTest extends TestCase
 
         $description = $this->service->getSyncModeDescription();
 
-        $this->assertStringContainsString('Off-hours mode', $description);
+        $this->assertStringContainsString('Off hours mode', $description);
         $this->assertStringContainsString('60 minutes', $description);
     }
 

@@ -12,6 +12,15 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * IMPORTANT: This migration permanently drops the legacy configuration tables.
+     *
+     * Before running this migration in production, ensure that any required data
+     * from the `sync_configurations` and `feature_flags` tables has been migrated
+     * to the unified `settings` table via the SettingsSeeder or manual migration.
+     *
+     * The SettingsSeeder will populate default values. Any custom configuration
+     * in the old tables should be manually transferred before running this migration.
      */
     public function up(): void
     {
