@@ -279,6 +279,47 @@ Key variables to configure:
 - `APPFOLIO_FULL_SYNC_TIME` - When to run full sync (default: 02:00)
 - `FEATURE_INCREMENTAL_SYNC` - Enable/disable incremental sync
 - `FEATURE_NOTIFICATIONS` - Enable/disable email alerts
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth credentials
+- `GOOGLE_REDIRECT_URI` - Google OAuth callback URL
+
+## Google SSO Authentication
+
+PMPulse supports Google SSO for user authentication. Users can be created with either password or Google SSO authentication.
+
+### Authentication Flow
+
+1. Admin creates user with `auth_provider='google'` and their Google email
+2. User clicks "Login with Google" on the login page
+3. User authenticates with Google
+4. System finds user by `google_id` or email and logs them in
+
+### Authentication Rules
+
+- Users with `auth_provider='password'` must use password login
+- Users with `auth_provider='google'` must use Google SSO
+- No account linking between authentication methods
+- Deactivated users cannot login via either method
+
+### Google Cloud Console Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project or select existing one
+3. Enable the Google+ API and Google Identity Platform
+4. Navigate to APIs & Services → Credentials
+5. Create OAuth 2.0 Client ID:
+   - Application type: Web application
+   - Authorized redirect URIs:
+     - Local: `http://localhost:8180/auth/google/callback`
+     - Staging: `https://staging.yourdomain.com/auth/google/callback`
+     - Production: `https://yourdomain.com/auth/google/callback`
+6. Copy Client ID and Client Secret to environment variables
+
+### Routes
+
+| Route | Purpose |
+|-------|---------|
+| `GET /auth/google` | Redirect to Google OAuth |
+| `GET /auth/google/callback` | Handle Google OAuth callback |
 
 ## Deployment
 
