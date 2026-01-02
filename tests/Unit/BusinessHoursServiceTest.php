@@ -1,33 +1,47 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit;
 
+use App\Models\Setting;
 use App\Services\BusinessHoursService;
 use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class BusinessHoursServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
     private BusinessHoursService $service;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Set up default business hours config
-        config([
-            'appfolio.business_hours' => [
-                'enabled' => true,
-                'timezone' => 'America/Los_Angeles',
-                'start_hour' => 9,
-                'end_hour' => 17,
-                'weekdays_only' => true,
-                'business_hours_interval' => 15,
-                'off_hours_interval' => 60,
-            ],
-        ]);
+        Cache::flush();
+
+        // Set up default business hours config using Setting model
+        $this->seedDefaultSettings();
 
         $this->service = new BusinessHoursService;
+    }
+
+    /**
+     * Seed default business hours settings for tests.
+     */
+    private function seedDefaultSettings(): void
+    {
+        Setting::set('business_hours', 'enabled', true);
+        Setting::set('business_hours', 'timezone', 'America/Los_Angeles');
+        Setting::set('business_hours', 'start_hour', 9);
+        Setting::set('business_hours', 'end_hour', 17);
+        Setting::set('business_hours', 'weekdays_only', true);
+        Setting::set('business_hours', 'business_hours_interval', 15);
+        Setting::set('business_hours', 'off_hours_interval', 60);
+        Setting::set('sync', 'incremental_sync_interval', 15);
     }
 
     public function test_is_business_hours_returns_true_during_weekday_business_hours(): void
@@ -64,7 +78,7 @@ class BusinessHoursServiceTest extends TestCase
 
     public function test_is_business_hours_returns_true_on_weekend_when_weekdays_only_disabled(): void
     {
-        config(['appfolio.business_hours.weekdays_only' => false]);
+        Setting::set('business_hours', 'weekdays_only', false);
         $this->service = new BusinessHoursService;
 
         // Saturday at 10:30 AM Pacific
@@ -75,7 +89,7 @@ class BusinessHoursServiceTest extends TestCase
 
     public function test_is_business_hours_returns_true_when_disabled(): void
     {
-        config(['appfolio.business_hours.enabled' => false]);
+        Setting::set('business_hours', 'enabled', false);
         $this->service = new BusinessHoursService;
 
         // Saturday at 2:00 AM - should still return true when disabled
@@ -158,7 +172,7 @@ class BusinessHoursServiceTest extends TestCase
 
         $description = $this->service->getSyncModeDescription();
 
-        $this->assertStringContainsString('Off-hours mode', $description);
+        $this->assertStringContainsString('Off hours mode', $description);
         $this->assertStringContainsString('60 minutes', $description);
     }
 

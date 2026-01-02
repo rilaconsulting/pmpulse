@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\AppfolioConnection;
-use App\Models\FeatureFlag;
+use App\Models\Setting;
 use App\Models\SyncFailureAlert;
 use App\Models\SyncRun;
 use App\Models\User;
@@ -98,7 +98,7 @@ class SyncFailureAlertService
     private function evaluateAndSendAlert(SyncFailureAlert $alert, SyncRun $syncRun): void
     {
         // Check if notifications are enabled
-        if (! FeatureFlag::isEnabled('notifications')) {
+        if (! Setting::isFeatureEnabled('notifications', true)) {
             Log::info('Notifications disabled, skipping sync failure alert');
 
             return;
@@ -163,7 +163,7 @@ class SyncFailureAlertService
      */
     private function getFailureThreshold(): int
     {
-        return (int) config('appfolio.alerts.failure_threshold', self::DEFAULT_FAILURE_THRESHOLD);
+        return (int) Setting::get('alerts', 'failure_threshold', self::DEFAULT_FAILURE_THRESHOLD);
     }
 
     /**
@@ -171,7 +171,7 @@ class SyncFailureAlertService
      */
     private function getAlertCooldownMinutes(): int
     {
-        return (int) config('appfolio.alerts.cooldown_minutes', self::DEFAULT_ALERT_COOLDOWN_MINUTES);
+        return (int) Setting::get('alerts', 'cooldown_minutes', self::DEFAULT_ALERT_COOLDOWN_MINUTES);
     }
 
     /**
@@ -181,11 +181,11 @@ class SyncFailureAlertService
      */
     private function getAlertRecipients(): array
     {
-        // Get from config if set
-        $configRecipients = config('appfolio.alerts.recipients');
-        if (! empty($configRecipients)) {
+        // Get from settings if set
+        $settingsRecipients = Setting::get('alerts', 'recipients');
+        if (! empty($settingsRecipients)) {
             // Trim whitespace from each recipient in case of spaces after commas
-            $recipients = is_array($configRecipients) ? $configRecipients : [$configRecipients];
+            $recipients = is_array($settingsRecipients) ? $settingsRecipients : [$settingsRecipients];
 
             return array_map('trim', $recipients);
         }

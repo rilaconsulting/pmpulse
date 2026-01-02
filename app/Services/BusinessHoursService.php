@@ -4,37 +4,33 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Models\SyncConfiguration;
+use App\Models\Setting;
 use Carbon\Carbon;
 
 /**
  * Service to determine if current time is within business hours.
  *
- * Used for optimizing sync frequency - frequent syncs during business hours,
- * less frequent syncs during off-hours to conserve API resources.
+ * Used for optimizing sync frequency: frequent syncs during business hours,
+ * less frequent syncs during off hours to conserve API resources.
  */
 class BusinessHoursService
 {
     /**
-     * Get the current configuration from database or environment.
+     * Get the current configuration from the Settings model.
      */
     protected function getConfig(): array
     {
-        // Try database first, fall back to config
-        try {
-            return SyncConfiguration::current();
-        } catch (\Exception) {
-            // Database not available, use config
-            return config('appfolio.business_hours', [
-                'enabled' => true,
-                'timezone' => 'America/Los_Angeles',
-                'start_hour' => 9,
-                'end_hour' => 17,
-                'weekdays_only' => true,
-                'business_hours_interval' => 15,
-                'off_hours_interval' => 60,
-            ]);
-        }
+        $settings = Setting::getCategory('business_hours');
+
+        return [
+            'enabled' => $settings['enabled'] ?? true,
+            'timezone' => $settings['timezone'] ?? 'America/Los_Angeles',
+            'start_hour' => $settings['start_hour'] ?? 9,
+            'end_hour' => $settings['end_hour'] ?? 17,
+            'weekdays_only' => $settings['weekdays_only'] ?? true,
+            'business_hours_interval' => $settings['business_hours_interval'] ?? 15,
+            'off_hours_interval' => $settings['off_hours_interval'] ?? 60,
+        ];
     }
 
     /**
@@ -50,7 +46,7 @@ class BusinessHoursService
 
         $now = Carbon::now($config['timezone']);
 
-        // Check if it's a weekday (Mon-Fri)
+        // Check if it's a weekday (Monday to Friday)
         if ($config['weekdays_only'] && $now->isWeekend()) {
             return false;
         }
@@ -69,7 +65,7 @@ class BusinessHoursService
         $config = $this->getConfig();
 
         if (! $config['enabled']) {
-            return config('appfolio.incremental_sync_interval', 15);
+            return (int) Setting::get('sync', 'incremental_sync_interval', 15);
         }
 
         return $this->isBusinessHours()
@@ -109,7 +105,9 @@ class BusinessHoursService
         $config = $this->getConfig();
 
         if (! $config['enabled']) {
-            return sprintf('Fixed interval: every %d minutes', config('appfolio.incremental_sync_interval', 15));
+            $interval = Setting::get('sync', 'incremental_sync_interval', 15);
+
+            return sprintf('Fixed interval: every %d minutes', $interval);
         }
 
         if ($this->isBusinessHours()) {
@@ -123,7 +121,7 @@ class BusinessHoursService
         }
 
         return sprintf(
-            'Off-hours mode: every %d minutes',
+            'Off hours mode: every %d minutes',
             $config['off_hours_interval']
         );
     }
