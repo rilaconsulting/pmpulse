@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\DashboardApiController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\SyncApiController;
+use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -38,4 +39,9 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('api.sync.alerts');
     Route::post('/sync/alerts/{alert}/acknowledge', [SyncApiController::class, 'acknowledgeAlert'])
         ->name('api.sync.alerts.acknowledge');
+
+    // User management (admin only)
+    Route::get('/users/roles', [UserController::class, 'roles'])
+        ->name('api.users.roles');
+    Route::apiResource('users', UserController::class);
 });
