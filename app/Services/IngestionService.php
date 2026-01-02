@@ -319,7 +319,7 @@ class IngestionService
     /**
      * Look up a property ID from cache or database.
      */
-    private function lookupPropertyId(string $externalId): ?int
+    private function lookupPropertyId(string $externalId): ?string
     {
         if (isset($this->propertyCache[$externalId])) {
             return $this->propertyCache[$externalId];
@@ -338,7 +338,7 @@ class IngestionService
     /**
      * Look up a unit ID from cache or database.
      */
-    private function lookupUnitId(string $externalId): ?int
+    private function lookupUnitId(string $externalId): ?string
     {
         if (isset($this->unitCache[$externalId])) {
             return $this->unitCache[$externalId];
@@ -357,7 +357,7 @@ class IngestionService
     /**
      * Look up a person ID from cache or database.
      */
-    private function lookupPersonId(string $externalId): ?int
+    private function lookupPersonId(string $externalId): ?string
     {
         if (isset($this->personCache[$externalId])) {
             return $this->personCache[$externalId];

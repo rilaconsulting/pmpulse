@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,11 +14,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('property_rollups', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->date('date');
-            $table->foreignId('property_id')
+            $table->foreignUuid('property_id')
                 ->constrained('properties')
-                ->onDelete('cascade');
+                ->cascadeOnDelete();
             $table->unsignedInteger('vacancy_count')->default(0);
             $table->unsignedInteger('total_units')->default(0);
             $table->decimal('occupancy_rate', 5, 2)->default(0);
