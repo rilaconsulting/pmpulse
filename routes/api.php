@@ -26,6 +26,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('api.dashboard.stats');
 
     // Sync operations
+    Route::get('/sync/health', [SyncApiController::class, 'health'])
+        ->name('api.sync.health');
     Route::get('/sync/history', [SyncApiController::class, 'history'])
         ->name('api.sync.history');
     Route::post('/sync/trigger', [SyncApiController::class, 'trigger'])

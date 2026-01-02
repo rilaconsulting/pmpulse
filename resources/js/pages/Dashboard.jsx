@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import Layout from '../components/Layout';
 import KpiCard from '../components/Dashboard/KpiCard';
-import SyncStatus from '../components/Dashboard/SyncStatus';
+import SyncHealthWidget from '../components/Dashboard/SyncHealthWidget';
 import OccupancyChart from '../components/Dashboard/OccupancyChart';
 import DelinquencyChart from '../components/Dashboard/DelinquencyChart';
 import {
@@ -11,7 +11,7 @@ import {
     UserGroupIcon,
 } from '@heroicons/react/24/outline';
 
-export default function Dashboard({ syncStatus, kpis, propertyRollups }) {
+export default function Dashboard({ syncStatus, syncHealth, kpis, propertyRollups }) {
     const currentKpis = kpis?.current;
 
     const formatCurrency = (value) => {
@@ -80,8 +80,8 @@ export default function Dashboard({ syncStatus, kpis, propertyRollups }) {
 
                 {/* Bottom Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Sync Status */}
-                    <SyncStatus syncStatus={syncStatus} />
+                    {/* Sync Health Widget */}
+                    <SyncHealthWidget initialData={syncHealth} />
 
                     {/* Property Rollups */}
                     <div className="lg:col-span-2 card">
