@@ -6,13 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\TriggerSyncRequest;
 use App\Jobs\SyncAppfolioResourceJob;
 use App\Models\AppfolioConnection;
+use App\Models\SyncFailureAlert;
 use App\Models\SyncRun;
+use App\Services\SyncFailureAlertService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SyncApiController extends Controller
 {
+    public function __construct(
+        private readonly SyncFailureAlertService $alertService
+    ) {}
+
     /**
      * Get sync run history.
      */
@@ -227,5 +233,41 @@ class SyncApiController extends Controller
             'message' => 'Sync job has been queued',
             'sync_run_id' => $syncRun->id,
         ], 202);
+    }
+
+    /**
+     * Get active sync failure alerts.
+     */
+    public function alerts(): JsonResponse
+    {
+        $activeAlerts = $this->alertService->getActiveAlerts();
+
+        $connection = AppfolioConnection::query()->first();
+        $alertStatus = $connection
+            ? $this->alertService->getAlertStatus($connection)
+            : ['has_alert' => false, 'consecutive_failures' => 0];
+
+        return response()->json([
+            'active_alerts' => $activeAlerts,
+            'current_status' => $alertStatus,
+            'config' => [
+                'failure_threshold' => config('appfolio.alerts.failure_threshold', 3),
+                'cooldown_minutes' => config('appfolio.alerts.cooldown_minutes', 60),
+            ],
+        ]);
+    }
+
+    /**
+     * Acknowledge a sync failure alert.
+     */
+    public function acknowledgeAlert(Request $request, SyncFailureAlert $alert): JsonResponse
+    {
+        $this->alertService->acknowledgeAlert($alert, $request->user());
+
+        return response()->json([
+            'message' => 'Alert acknowledged successfully',
+            'alert_id' => $alert->id,
+            'acknowledged_at' => $alert->acknowledged_at->toIso8601String(),
+        ]);
     }
 }

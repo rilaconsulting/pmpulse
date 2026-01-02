@@ -111,4 +111,25 @@ return [
         'work_orders',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Sync Failure Alerts Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure sync failure alert behavior including the number of
+    | consecutive failures before alerting and rate limiting.
+    |
+    */
+
+    'alerts' => [
+        // Number of consecutive failures before sending an alert
+        'failure_threshold' => (int) env('APPFOLIO_ALERT_FAILURE_THRESHOLD', 3),
+
+        // Minimum minutes between alert emails (prevents spam)
+        'cooldown_minutes' => (int) env('APPFOLIO_ALERT_COOLDOWN_MINUTES', 60),
+
+        // Override recipients (defaults to all users if not set)
+        'recipients' => env('APPFOLIO_ALERT_RECIPIENTS') ? explode(',', env('APPFOLIO_ALERT_RECIPIENTS')) : null,
+    ],
+
 ];
