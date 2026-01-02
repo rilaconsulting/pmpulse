@@ -15,35 +15,23 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Comment and close PR
+      - name: Change PR base to develop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_REF: ${{ github.head_ref }}
           REPO: ${{ github.repository }}
         run: |
-          # Add comment explaining the redirect
-          gh pr comment $PR_NUMBER --repo $REPO --body "## 🔄 PR Redirected to \`develop\`
+          # Change the base branch to develop
+          gh pr edit $PR_NUMBER --repo $REPO --base develop
+
+          # Add comment explaining the change
+          gh pr comment $PR_NUMBER --repo $REPO --body "## 🔄 PR Base Changed to \`develop\`
 
           This repository follows a **develop → main** workflow:
 
           1. All feature PRs should target the \`develop\` branch
           2. The \`main\` branch only receives promotions from \`develop\`
 
-          ### What to do:
+          The base branch has been automatically changed from \`main\` to \`develop\`."
 
-          Please close this PR and open a new one targeting \`develop\`:
-
-          \`\`\`bash
-          gh pr create --base develop --head ${HEAD_REF}
-          \`\`\`
-
-          Or use the GitHub UI to create a new PR with base branch set to \`develop\`.
-
-          ---
-          *This PR will be automatically closed.*"
-
-          # Close the PR
-          gh pr close $PR_NUMBER --repo $REPO
-
-          echo "PR #$PR_NUMBER closed and redirected to develop"
+          echo "PR #$PR_NUMBER base changed to develop"
