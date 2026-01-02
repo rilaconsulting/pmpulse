@@ -18,7 +18,8 @@ class UserSeeder extends Seeder
     {
         $adminRole = Role::where('name', Role::ADMIN)->first();
 
-        User::updateOrCreate(
+        // Use firstOrCreate to avoid overwriting password on subsequent runs
+        $user = User::firstOrCreate(
             ['email' => 'admin@pmpulse.local'],
             [
                 'name' => 'Admin User',
@@ -30,5 +31,10 @@ class UserSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+
+        // Only update role_id if user exists but has no role assigned
+        if ($user->wasRecentlyCreated === false && $user->role_id === null && $adminRole) {
+            $user->update(['role_id' => $adminRole->id]);
+        }
     }
 }

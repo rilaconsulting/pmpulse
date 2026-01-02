@@ -1,11 +1,23 @@
 import { Head, Link, useForm, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import { ArrowLeftIcon, EyeIcon, EyeSlashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 export default function Edit({ user, roles, canDeactivate }) {
     const [showPassword, setShowPassword] = useState(false);
     const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+
+    // Handle Escape key to close modal
+    const handleKeyDown = useCallback((e) => {
+        if (e.key === 'Escape' && showDeactivateModal) {
+            setShowDeactivateModal(false);
+        }
+    }, [showDeactivateModal]);
+
+    useEffect(() => {
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [handleKeyDown]);
 
     const { data, setData, patch, processing, errors } = useForm({
         name: user.name || '',
@@ -164,6 +176,7 @@ export default function Edit({ user, roles, canDeactivate }) {
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
                                             className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600"
+                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
                                         >
                                             {showPassword ? (
                                                 <EyeSlashIcon className="w-5 h-5" />
@@ -294,18 +307,27 @@ export default function Edit({ user, roles, canDeactivate }) {
 
             {/* Deactivate Confirmation Modal */}
             {showDeactivateModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="modal-title"
+                >
                     <div
                         className="fixed inset-0 bg-black/50"
                         onClick={() => setShowDeactivateModal(false)}
+                        aria-hidden="true"
                     />
-                    <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+                    <div
+                        className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="flex items-start gap-4">
                             <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                                 <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-gray-900">
+                                <h3 id="modal-title" className="text-lg font-semibold text-gray-900">
                                     Deactivate User
                                 </h3>
                                 <p className="mt-2 text-sm text-gray-500">

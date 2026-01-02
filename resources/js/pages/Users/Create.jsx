@@ -175,6 +175,7 @@ export default function Create({ roles }) {
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
                                             className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600"
+                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
                                         >
                                             {showPassword ? (
                                                 <EyeSlashIcon className="w-5 h-5" />

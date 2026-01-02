@@ -174,6 +174,7 @@ export default function Show({ user }) {
                                                 type="button"
                                                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                                                 className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600"
+                                                aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
                                             >
                                                 {showCurrentPassword ? (
                                                     <EyeSlashIcon className="w-5 h-5" />
@@ -204,6 +205,7 @@ export default function Show({ user }) {
                                                 type="button"
                                                 onClick={() => setShowNewPassword(!showNewPassword)}
                                                 className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600"
+                                                aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
                                             >
                                                 {showNewPassword ? (
                                                     <EyeSlashIcon className="w-5 h-5" />
@@ -293,8 +295,12 @@ export default function Show({ user }) {
                             <div>
                                 <dt className="text-gray-500">Account Status</dt>
                                 <dd className="mt-1">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        Active
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                        user.is_active
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-red-100 text-red-800'
+                                    }`}>
+                                        {user.is_active ? 'Active' : 'Inactive'}
                                     </span>
                                 </dd>
                             </div>

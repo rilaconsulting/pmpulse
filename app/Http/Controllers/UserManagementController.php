@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CreateUserRequest;
+use App\Http\Requests\DeactivateUserRequest;
+use App\Http\Requests\ListUsersRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\UserService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,28 +24,28 @@ class UserManagementController extends Controller
     /**
      * Display a listing of users.
      */
-    public function index(Request $request): Response
+    public function index(ListUsersRequest $request): Response
     {
         $query = User::with('role');
 
         // Filter by active status
-        if ($request->has('active') && $request->input('active') !== '') {
-            $query->where('is_active', filter_var($request->input('active'), FILTER_VALIDATE_BOOLEAN));
+        if ($request->has('active') && $request->validated('active') !== null) {
+            $query->where('is_active', $request->validated('active'));
         }
 
         // Filter by auth provider
         if ($request->filled('auth_provider')) {
-            $query->where('auth_provider', $request->input('auth_provider'));
+            $query->where('auth_provider', $request->validated('auth_provider'));
         }
 
         // Filter by role
         if ($request->filled('role_id')) {
-            $query->where('role_id', $request->input('role_id'));
+            $query->where('role_id', $request->validated('role_id'));
         }
 
         // Search by name or email
         if ($request->filled('search')) {
-            $search = $request->input('search');
+            $search = $request->validated('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
@@ -69,7 +70,7 @@ class UserManagementController extends Controller
     /**
      * Show the form for creating a new user.
      */
-    public function create(): Response
+    public function create(ListUsersRequest $request): Response
     {
         $roles = Role::orderBy('name')->get(['id', 'name', 'description']);
 
@@ -81,22 +82,9 @@ class UserManagementController extends Controller
     /**
      * Store a newly created user.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(CreateUserRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'role_id' => ['required', 'uuid', 'exists:user_roles,id'],
-            'auth_provider' => ['required', 'string', Rule::in([User::AUTH_PROVIDER_PASSWORD, User::AUTH_PROVIDER_GOOGLE])],
-            'password' => [
-                Rule::requiredIf($request->input('auth_provider') === User::AUTH_PROVIDER_PASSWORD),
-                'nullable',
-                'string',
-                Password::min(8)->mixedCase()->numbers(),
-            ],
-        ]);
-
-        $this->userService->createUser($validated, $request->user());
+        $this->userService->createUser($request->validated(), $request->user());
 
         return redirect()->route('users.index')
             ->with('success', 'User created successfully.');
@@ -105,7 +93,7 @@ class UserManagementController extends Controller
     /**
      * Show the form for editing the specified user.
      */
-    public function edit(User $user): Response
+    public function edit(ListUsersRequest $request, User $user): Response
     {
         $user->load('role');
         $roles = Role::orderBy('name')->get(['id', 'name', 'description']);
@@ -120,33 +108,12 @@ class UserManagementController extends Controller
     /**
      * Update the specified user.
      */
-    public function update(Request $request, User $user): RedirectResponse
+    public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'role_id' => ['required', 'uuid', 'exists:user_roles,id'],
-            'is_active' => ['sometimes', 'boolean'],
-            'password' => [
-                'nullable',
-                'string',
-                Password::min(8)->mixedCase()->numbers(),
-            ],
-        ]);
-
-        // Prevent deactivating self
+        // Prevent deactivating self (additional check beyond form request)
+        $validated = $request->validated();
         if (isset($validated['is_active']) && ! $validated['is_active'] && $user->id === auth()->id()) {
             return back()->withErrors(['is_active' => 'You cannot deactivate your own account.']);
-        }
-
-        // Prevent removing last admin
-        if ($this->userService->wouldRemoveLastAdmin($user, $validated['role_id'] ?? null)) {
-            return back()->withErrors(['role_id' => 'Cannot change role: this is the last admin user.']);
-        }
-
-        // Prevent deactivating last admin
-        if (isset($validated['is_active']) && ! $validated['is_active'] && $this->userService->isLastActiveAdmin($user)) {
-            return back()->withErrors(['is_active' => 'Cannot deactivate the last admin user.']);
         }
 
         $this->userService->updateUser($user, $validated);
@@ -158,18 +125,8 @@ class UserManagementController extends Controller
     /**
      * Deactivate the specified user.
      */
-    public function destroy(User $user): RedirectResponse
+    public function destroy(DeactivateUserRequest $request, User $user): RedirectResponse
     {
-        // Prevent deactivating self
-        if ($user->id === auth()->id()) {
-            return back()->withErrors(['user' => 'You cannot deactivate your own account.']);
-        }
-
-        // Prevent deactivating last admin
-        if ($this->userService->isLastActiveAdmin($user)) {
-            return back()->withErrors(['user' => 'Cannot deactivate the last admin user.']);
-        }
-
         $this->userService->deactivateUser($user);
 
         return redirect()->route('users.index')

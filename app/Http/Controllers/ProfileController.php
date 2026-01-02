@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Http\Requests\PasswordUpdateRequest;
+use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,15 +30,9 @@ class ProfileController extends Controller
     /**
      * Update the user's profile.
      */
-    public function update(Request $request): RedirectResponse
+    public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $user = $request->user();
-
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-        ]);
-
-        $user->update($validated);
+        $request->user()->update($request->validated());
 
         return back()->with('success', 'Profile updated successfully.');
     }
@@ -45,23 +40,16 @@ class ProfileController extends Controller
     /**
      * Update the user's password.
      */
-    public function updatePassword(Request $request): RedirectResponse
+    public function updatePassword(PasswordUpdateRequest $request): RedirectResponse
     {
         $user = $request->user();
 
-        // Only password users can change password
-        if ($user->auth_provider !== User::AUTH_PROVIDER_PASSWORD) {
-            return back()->withErrors(['password' => 'SSO users cannot change password.']);
-        }
-
-        $validated = $request->validate([
-            'current_password' => ['required', 'string', 'current_password'],
-            'password' => ['required', 'string', Password::min(8)->mixedCase()->numbers(), 'confirmed'],
-        ]);
-
         $user->update([
-            'password' => Hash::make($validated['password']),
+            'password' => Hash::make($request->validated('password')),
         ]);
+
+        // Invalidate all other sessions for security
+        Auth::logoutOtherDevices($request->validated('current_password'));
 
         return back()->with('success', 'Password updated successfully.');
     }

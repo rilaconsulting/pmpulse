@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import Layout from '../../components/Layout';
 import {
@@ -37,7 +37,7 @@ export default function Index({ users, roles, filters }) {
         setSearch('');
     };
 
-    const hasActiveFilters = filters.search || filters.active !== '' || filters.auth_provider || filters.role_id;
+    const hasActiveFilters = Boolean(filters.search) || (filters.active !== '' && filters.active !== null && filters.active !== undefined) || Boolean(filters.auth_provider) || Boolean(filters.role_id);
 
     return (
         <Layout>
