@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,16 +14,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('ledger_transactions', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('external_id')->unique(); // AppFolio transaction ID
-            $table->foreignId('property_id')
+            $table->foreignUuid('property_id')
                 ->nullable()
                 ->constrained('properties')
-                ->onDelete('set null');
-            $table->foreignId('unit_id')
+                ->nullOnDelete();
+            $table->foreignUuid('unit_id')
                 ->nullable()
                 ->constrained('units')
-                ->onDelete('set null');
+                ->nullOnDelete();
             $table->date('date');
             $table->string('type'); // charge, payment, credit, etc.
             $table->decimal('amount', 12, 2);

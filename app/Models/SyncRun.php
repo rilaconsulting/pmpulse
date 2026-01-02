@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SyncRun extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'appfolio_connection_id',
@@ -109,6 +112,101 @@ class SyncRun extends Model
             return null;
         }
 
-        return $this->ended_at->diffInSeconds($this->started_at);
+        return (int) $this->ended_at->diffInSeconds($this->started_at);
+    }
+
+    /**
+     * Get resource metrics from metadata.
+     *
+     * @return array<string, array{created: int, updated: int, skipped: int, errors: int, duration_ms: int}>
+     */
+    public function getResourceMetrics(): array
+    {
+        return $this->metadata['resource_metrics'] ?? [];
+    }
+
+    /**
+     * Update resource metrics in metadata.
+     */
+    public function updateResourceMetrics(string $resourceType, array $metrics): void
+    {
+        $metadata = $this->metadata ?? [];
+        $metadata['resource_metrics'] = $metadata['resource_metrics'] ?? [];
+        $metadata['resource_metrics'][$resourceType] = $metrics;
+        $this->update(['metadata' => $metadata]);
+    }
+
+    /**
+     * Add an error for a specific resource type.
+     */
+    public function addResourceError(string $resourceType, string $error): void
+    {
+        $metadata = $this->metadata ?? [];
+        $metadata['resource_errors'] = $metadata['resource_errors'] ?? [];
+        $metadata['resource_errors'][$resourceType] = $metadata['resource_errors'][$resourceType] ?? [];
+        $metadata['resource_errors'][$resourceType][] = [
+            'message' => $error,
+            'timestamp' => now()->toIso8601String(),
+        ];
+
+        // Keep only the last 10 errors per resource type
+        if (count($metadata['resource_errors'][$resourceType]) > 10) {
+            $metadata['resource_errors'][$resourceType] = array_slice(
+                $metadata['resource_errors'][$resourceType],
+                -10
+            );
+        }
+
+        $this->update(['metadata' => $metadata]);
+    }
+
+    /**
+     * Get errors for a specific resource type.
+     */
+    public function getResourceErrors(?string $resourceType = null): array
+    {
+        $errors = $this->metadata['resource_errors'] ?? [];
+
+        if ($resourceType !== null) {
+            return $errors[$resourceType] ?? [];
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Get a summary of the sync run for display.
+     */
+    public function getSummary(): array
+    {
+        $metrics = $this->getResourceMetrics();
+
+        $totalCreated = 0;
+        $totalUpdated = 0;
+        $totalSkipped = 0;
+        $totalErrors = 0;
+        $totalDuration = 0;
+
+        foreach ($metrics as $resource => $resourceMetrics) {
+            $totalCreated += $resourceMetrics['created'] ?? 0;
+            $totalUpdated += $resourceMetrics['updated'] ?? 0;
+            $totalSkipped += $resourceMetrics['skipped'] ?? 0;
+            $totalErrors += $resourceMetrics['errors'] ?? 0;
+            $totalDuration += $resourceMetrics['duration_ms'] ?? 0;
+        }
+
+        return [
+            'status' => $this->status,
+            'mode' => $this->mode,
+            'duration_seconds' => $this->duration,
+            'total_created' => $totalCreated,
+            'total_updated' => $totalUpdated,
+            'total_skipped' => $totalSkipped,
+            'total_errors' => $totalErrors,
+            'total_duration_ms' => $totalDuration,
+            'resources_synced' => $this->resources_synced,
+            'resource_metrics' => $metrics,
+            'resource_errors' => $this->getResourceErrors(),
+        ];
     }
 }

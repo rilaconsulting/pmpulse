@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('daily_kpis', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->date('date')->unique();
             $table->decimal('occupancy_rate', 5, 2)->default(0); // Percentage
             $table->unsignedInteger('vacancy_count')->default(0);

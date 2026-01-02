@@ -20,9 +20,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_REF: ${{ github.head_ref }}
+          REPO: ${{ github.repository }}
         run: |
           # Add comment explaining the redirect
-          gh pr comment $PR_NUMBER --body "## 🔄 PR Redirected to \`develop\`
+          gh pr comment $PR_NUMBER --repo $REPO --body "## 🔄 PR Redirected to \`develop\`
 
           This repository follows a **develop → main** workflow:
 
@@ -43,6 +44,6 @@ jobs:
           *This PR will be automatically closed.*"
 
           # Close the PR
-          gh pr close $PR_NUMBER
+          gh pr close $PR_NUMBER --repo $REPO
 
           echo "PR #$PR_NUMBER closed and redirected to develop"

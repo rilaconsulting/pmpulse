@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\AlertRule;
 use App\Models\DailyKpi;
-use App\Models\FeatureFlag;
+use App\Models\Setting;
 use App\Models\WorkOrder;
 use App\Notifications\AlertNotification;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +25,7 @@ class NotificationService
      */
     public function evaluateAlerts(): void
     {
-        if (! FeatureFlag::isEnabled('notifications')) {
+        if (! Setting::isFeatureEnabled('notifications', true)) {
             Log::info('Notifications are disabled via feature flag');
 
             return;

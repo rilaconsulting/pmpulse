@@ -3,6 +3,7 @@
 use App\Console\Commands\AnalyticsRefreshCommand;
 use App\Console\Commands\AppfolioSyncCommand;
 use App\Console\Commands\EvaluateAlertsCommand;
+use App\Services\BusinessHoursService;
 use Illuminate\Support\Facades\Schedule;
 
 /*
@@ -22,10 +23,21 @@ Schedule::command(AppfolioSyncCommand::class, ['--mode=full'])
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/sync.log'));
 
-// Incremental sync runs at the configured interval (default: every 15 minutes)
+// Incremental sync with business hours awareness
+// Runs every minute but only executes when the interval conditions are met:
+// - Business hours (9am-5pm Pacific weekdays): every 15 minutes
+// - Off-hours: every 60 minutes
 Schedule::command(AppfolioSyncCommand::class, ['--mode=incremental'])
-    ->everyFifteenMinutes()
-    ->when(fn () => config('features.incremental_sync', true))
+    ->everyMinute()
+    ->when(function () {
+        if (! config('features.incremental_sync', true)) {
+            return false;
+        }
+
+        $businessHours = app(BusinessHoursService::class);
+
+        return $businessHours->shouldSyncNow();
+    })
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/sync.log'));

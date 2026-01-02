@@ -24,19 +24,31 @@ class AppfolioClient
     private int $retryCount = 0;
 
     /**
-     * API endpoint paths.
-     *
-     * TODO: These are placeholder endpoints. Replace with actual AppFolio API paths
-     * when documentation becomes available. The structure may vary based on
-     * AppFolio's actual API design.
+     * Legacy API endpoint paths (placeholder).
+     * These are kept for backward compatibility during migration.
      */
     private const ENDPOINTS = [
-        'properties' => '/v1/properties',           // TODO: Verify actual endpoint
-        'units' => '/v1/units',                     // TODO: Verify actual endpoint
-        'people' => '/v1/people',                   // TODO: Verify actual endpoint
-        'leases' => '/v1/leases',                   // TODO: Verify actual endpoint
-        'ledger_transactions' => '/v1/ledger',      // TODO: Verify actual endpoint
-        'work_orders' => '/v1/work-orders',         // TODO: Verify actual endpoint
+        'properties' => '/v1/properties',
+        'units' => '/v1/units',
+        'people' => '/v1/people',
+        'leases' => '/v1/leases',
+        'ledger_transactions' => '/v1/ledger',
+        'work_orders' => '/v1/work-orders',
+    ];
+
+    /**
+     * AppFolio Reports API endpoints.
+     * These are the actual API endpoints from the OpenAPI spec.
+     * All endpoints use POST with JSON body parameters.
+     */
+    private const REPORT_ENDPOINTS = [
+        'property_directory' => '/api/v1/reports/property_directory.json',
+        'unit_directory' => '/api/v1/reports/unit_directory.json',
+        'vendor_directory' => '/api/v1/reports/vendor_directory.json',
+        'work_order' => '/api/v1/reports/work_order.json',
+        'expense_register' => '/api/v1/reports/expense_register.json',
+        'rent_roll' => '/api/v1/reports/rent_roll.json',
+        'delinquency' => '/api/v1/reports/delinquency.json',
     ];
 
     public function __construct()
@@ -318,5 +330,300 @@ class AppfolioClient
 
             return false;
         }
+    }
+
+    // =========================================================================
+    // AppFolio Reports API Methods
+    // =========================================================================
+
+    /**
+     * Fetch property directory from Reports API.
+     *
+     * Returns detailed property information including address, sqft, unit counts,
+     * portfolio, and year built.
+     *
+     * @param  array  $params  Request parameters:
+     *                         - paginate_results: bool (default true)
+     *                         - per_page: int (default 100, max 500)
+     *                         - property_id: array (optional, filter by property IDs)
+     */
+    public function getPropertyDirectory(array $params = []): array
+    {
+        $defaults = [
+            'paginate_results' => true,
+            'per_page' => config('appfolio.sync.batch_size', 100),
+        ];
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['property_directory'], array_merge($defaults, $params)) ?? [];
+    }
+
+    /**
+     * Fetch unit directory from Reports API.
+     *
+     * Returns detailed unit information including sqft, bedrooms, bathrooms,
+     * market rent, and current occupancy status.
+     *
+     * @param  array  $params  Request parameters:
+     *                         - paginate_results: bool (default true)
+     *                         - per_page: int (default 100, max 500)
+     *                         - property_id: array (optional, filter by property IDs)
+     *                         - unit_id: array (optional, filter by unit IDs)
+     */
+    public function getUnitDirectory(array $params = []): array
+    {
+        $defaults = [
+            'paginate_results' => true,
+            'per_page' => config('appfolio.sync.batch_size', 100),
+        ];
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['unit_directory'], array_merge($defaults, $params)) ?? [];
+    }
+
+    /**
+     * Fetch vendor directory from Reports API.
+     *
+     * Returns vendor profiles including company name, trades, contact info,
+     * and insurance/workers comp expiration dates.
+     *
+     * @param  array  $params  Request parameters:
+     *                         - paginate_results: bool (default true)
+     *                         - per_page: int (default 100, max 500)
+     *                         - vendor_id: array (optional, filter by vendor IDs)
+     */
+    public function getVendorDirectory(array $params = []): array
+    {
+        $defaults = [
+            'paginate_results' => true,
+            'per_page' => config('appfolio.sync.batch_size', 100),
+        ];
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['vendor_directory'], array_merge($defaults, $params)) ?? [];
+    }
+
+    /**
+     * Fetch work orders from Reports API.
+     *
+     * Returns work order details including vendor, costs, status, and dates.
+     *
+     * @param  array  $params  Request parameters:
+     *                         - paginate_results: bool (default true)
+     *                         - per_page: int (default 100, max 500)
+     *                         - from_date: string (YYYY-MM-DD, required for date range)
+     *                         - to_date: string (YYYY-MM-DD, required for date range)
+     *                         - property_id: array (optional)
+     *                         - status: string (optional: open, completed, cancelled)
+     */
+    public function getWorkOrderReport(array $params = []): array
+    {
+        $defaults = [
+            'paginate_results' => true,
+            'per_page' => config('appfolio.sync.batch_size', 100),
+        ];
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['work_order'], array_merge($defaults, $params)) ?? [];
+    }
+
+    /**
+     * Fetch expense register from Reports API.
+     *
+     * Returns expense records including GL account, vendor, amount, and dates.
+     * Used for utility cost tracking and vendor spend analysis.
+     *
+     * @param  array  $params  Request parameters:
+     *                         - paginate_results: bool (default true)
+     *                         - per_page: int (default 100, max 500)
+     *                         - from_date: string (YYYY-MM-DD, required)
+     *                         - to_date: string (YYYY-MM-DD, required)
+     *                         - property_id: array (optional)
+     *                         - gl_account_id: array (optional, filter by GL accounts)
+     */
+    public function getExpenseRegister(array $params = []): array
+    {
+        $defaults = [
+            'paginate_results' => true,
+            'per_page' => config('appfolio.sync.batch_size', 100),
+        ];
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['expense_register'], array_merge($defaults, $params)) ?? [];
+    }
+
+    /**
+     * Fetch rent roll from Reports API.
+     *
+     * Returns current lease and rent information for all units.
+     *
+     * @param  array  $params  Request parameters:
+     *                         - paginate_results: bool (default true)
+     *                         - per_page: int (default 100, max 500)
+     *                         - as_of_date: string (YYYY-MM-DD, default today)
+     *                         - property_id: array (optional)
+     */
+    public function getRentRoll(array $params = []): array
+    {
+        $defaults = [
+            'paginate_results' => true,
+            'per_page' => config('appfolio.sync.batch_size', 100),
+        ];
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['rent_roll'], array_merge($defaults, $params)) ?? [];
+    }
+
+    /**
+     * Fetch delinquency report from Reports API.
+     *
+     * Returns delinquent accounts with amounts owed and aging buckets.
+     *
+     * @param  array  $params  Request parameters:
+     *                         - paginate_results: bool (default true)
+     *                         - per_page: int (default 100, max 500)
+     *                         - as_of_date: string (YYYY-MM-DD, default today)
+     *                         - property_id: array (optional)
+     *                         - minimum_balance: float (optional, filter by minimum amount)
+     */
+    public function getDelinquency(array $params = []): array
+    {
+        $defaults = [
+            'paginate_results' => true,
+            'per_page' => config('appfolio.sync.batch_size', 100),
+        ];
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['delinquency'], array_merge($defaults, $params)) ?? [];
+    }
+
+    /**
+     * Fetch all pages of a paginated report endpoint.
+     *
+     * Handles pagination automatically by following next_page_url links.
+     *
+     * @param  string  $method  The report method name (e.g., 'getPropertyDirectory')
+     * @param  array  $params  Initial request parameters
+     * @param  callable|null  $onProgress  Optional callback for progress updates
+     *                                     Signature: function(int $page, int $recordsFetched, bool $hasMore)
+     * @param  int|null  $maxPages  Optional maximum number of pages to fetch (null = unlimited)
+     * @return array All results combined from all pages
+     *
+     * @throws \Exception If pagination fails after retries
+     */
+    public function fetchAllPages(
+        string $method,
+        array $params = [],
+        ?callable $onProgress = null,
+        ?int $maxPages = null
+    ): array {
+        if (! method_exists($this, $method)) {
+            throw new \InvalidArgumentException("Method {$method} does not exist");
+        }
+
+        $allResults = [];
+        $page = 1;
+        $totalRecords = 0;
+
+        try {
+            $response = $this->$method($params);
+
+            // Combine results from first page
+            if (isset($response['results'])) {
+                $allResults = array_merge($allResults, $response['results']);
+                $totalRecords = count($allResults);
+            }
+
+            $hasMore = ! empty($response['next_page_url']);
+
+            // Report progress for first page
+            if ($onProgress) {
+                $onProgress($page, $totalRecords, $hasMore);
+            }
+
+            // Follow pagination
+            while ($hasMore) {
+                $page++;
+
+                // Check max pages limit
+                if ($maxPages !== null && $page > $maxPages) {
+                    Log::info('Pagination stopped at max pages limit', [
+                        'method' => $method,
+                        'max_pages' => $maxPages,
+                        'records_fetched' => $totalRecords,
+                    ]);
+                    break;
+                }
+
+                Log::debug('Following pagination', [
+                    'method' => $method,
+                    'page' => $page,
+                    'url' => $response['next_page_url'],
+                ]);
+
+                // Make request to the next page URL directly
+                $response = $this->request('POST', $response['next_page_url'], []) ?? [];
+
+                if (isset($response['results'])) {
+                    $allResults = array_merge($allResults, $response['results']);
+                    $totalRecords = count($allResults);
+                }
+
+                $hasMore = ! empty($response['next_page_url']);
+
+                // Report progress
+                if ($onProgress) {
+                    $onProgress($page, $totalRecords, $hasMore);
+                }
+            }
+
+            Log::info('Pagination complete', [
+                'method' => $method,
+                'total_pages' => $page,
+                'total_records' => $totalRecords,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Pagination failed', [
+                'method' => $method,
+                'page' => $page,
+                'records_fetched' => $totalRecords,
+                'error' => $e->getMessage(),
+            ]);
+
+            // If we have some results, return them with a warning
+            if ($totalRecords > 0) {
+                Log::warning('Returning partial results due to pagination error', [
+                    'records_fetched' => $totalRecords,
+                ]);
+
+                return $allResults;
+            }
+
+            throw $e;
+        }
+
+        return $allResults;
+    }
+
+    /**
+     * Get pagination statistics for a report.
+     *
+     * Fetches just the first page to determine total count and page information.
+     *
+     * @param  string  $method  The report method name
+     * @param  array  $params  Request parameters
+     * @return array Pagination statistics including estimated total pages
+     */
+    public function getPaginationInfo(string $method, array $params = []): array
+    {
+        if (! method_exists($this, $method)) {
+            throw new \InvalidArgumentException("Method {$method} does not exist");
+        }
+
+        $params['per_page'] = 1; // Minimal request to get pagination info
+        $response = $this->$method($params);
+
+        $perPage = config('appfolio.sync.batch_size', 100);
+
+        return [
+            'has_results' => isset($response['results']) && count($response['results']) > 0,
+            'has_more_pages' => ! empty($response['next_page_url']),
+            'per_page' => $perPage,
+            // Note: AppFolio API doesn't provide total_count, so we can't estimate total pages
+        ];
     }
 }
