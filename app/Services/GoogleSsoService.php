@@ -14,9 +14,13 @@ class GoogleSsoService
      * Result codes for user resolution.
      */
     public const RESULT_SUCCESS = 'success';
+
     public const RESULT_NOT_FOUND = 'not_found';
+
     public const RESULT_PASSWORD_USER = 'password_user';
+
     public const RESULT_GOOGLE_ID_MISMATCH = 'google_id_mismatch';
+
     public const RESULT_INACTIVE = 'inactive';
 
     /**
