@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\AppfolioConnection;
+use App\Models\Setting;
 use App\Models\SyncRun;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,21 +14,17 @@ class SyncHealthApiTest extends TestCase
 
     private User $user;
 
-    private AppfolioConnection $connection;
-
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->user = User::factory()->create();
 
-        $this->connection = AppfolioConnection::create([
-            'name' => 'Test Connection',
-            'client_id' => 'test-client',
-            'client_secret_encrypted' => encrypt('test-secret'),
-            'api_base_url' => 'https://api.appfolio.test',
-            'status' => 'connected',
-        ]);
+        // Create AppFolio settings
+        Setting::set('appfolio', 'client_id', 'test-client');
+        Setting::set('appfolio', 'client_secret', 'test-secret', encrypted: true);
+        Setting::set('appfolio', 'database', 'testdb');
+        Setting::set('appfolio', 'status', 'connected');
     }
 
     public function test_sync_health_endpoint_requires_authentication(): void
@@ -67,7 +63,6 @@ class SyncHealthApiTest extends TestCase
     {
         // Create a sync run
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'full',
             'status' => 'completed',
             'started_at' => now()->subHour(),
@@ -95,7 +90,6 @@ class SyncHealthApiTest extends TestCase
         // Create 8 completed and 2 failed runs
         for ($i = 0; $i < 8; $i++) {
             SyncRun::create([
-                'appfolio_connection_id' => $this->connection->id,
                 'mode' => 'incremental',
                 'status' => 'completed',
                 'started_at' => now()->subHours($i),
@@ -106,7 +100,6 @@ class SyncHealthApiTest extends TestCase
 
         for ($i = 0; $i < 2; $i++) {
             SyncRun::create([
-                'appfolio_connection_id' => $this->connection->id,
                 'mode' => 'incremental',
                 'status' => 'failed',
                 'started_at' => now()->subDays(1)->subHours($i),
@@ -129,7 +122,6 @@ class SyncHealthApiTest extends TestCase
     public function test_sync_health_aggregates_resource_metrics(): void
     {
         SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'full',
             'status' => 'completed',
             'started_at' => now()->subHour(),
@@ -155,7 +147,6 @@ class SyncHealthApiTest extends TestCase
     public function test_sync_health_includes_recent_errors(): void
     {
         SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'full',
             'status' => 'completed',
             'started_at' => now()->subHour(),
@@ -186,7 +177,6 @@ class SyncHealthApiTest extends TestCase
     {
         // Create a run from 10 days ago (should be excluded with days=7)
         SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'full',
             'status' => 'completed',
             'started_at' => now()->subDays(10),
@@ -196,7 +186,6 @@ class SyncHealthApiTest extends TestCase
 
         // Create a run from 3 days ago (should be included)
         SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'incremental',
             'status' => 'completed',
             'started_at' => now()->subDays(3),

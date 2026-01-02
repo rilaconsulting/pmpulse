@@ -15,7 +15,6 @@ class SyncFailureAlert extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'appfolio_connection_id',
         'consecutive_failures',
         'last_alert_sent_at',
         'acknowledged_at',
@@ -30,14 +29,6 @@ class SyncFailureAlert extends Model
             'acknowledged_at' => 'datetime',
             'failure_details' => 'array',
         ];
-    }
-
-    /**
-     * Get the connection this alert belongs to.
-     */
-    public function connection(): BelongsTo
-    {
-        return $this->belongsTo(AppfolioConnection::class, 'appfolio_connection_id');
     }
 
     /**
@@ -136,16 +127,21 @@ class SyncFailureAlert extends Model
     }
 
     /**
-     * Get or create an alert tracker for a connection.
+     * Get or create the singleton alert tracker.
+     *
+     * Since this is a single-tenant app, we only need one alert tracker.
      */
-    public static function forConnection(AppfolioConnection $connection): self
+    public static function getInstance(): self
     {
-        return self::firstOrCreate(
-            ['appfolio_connection_id' => $connection->id],
-            [
-                'consecutive_failures' => 0,
-                'failure_details' => null,
-            ]
-        );
+        $existing = self::query()->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        return self::create([
+            'consecutive_failures' => 0,
+            'failure_details' => null,
+        ]);
     }
 }

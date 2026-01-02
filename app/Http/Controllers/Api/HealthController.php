@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\AppfolioConnection;
 use App\Models\SyncRun;
+use App\Services\AppfolioClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class HealthController extends Controller
 {
+    public function __construct(
+        private readonly AppfolioClient $appfolioClient
+    ) {}
+
     /**
      * Health check endpoint.
      *
@@ -57,12 +61,12 @@ class HealthController extends Controller
         }
 
         // Check AppFolio connection status
-        $connection = AppfolioConnection::query()->first();
-        if ($connection) {
+        if ($this->appfolioClient->isConfigured()) {
+            $status = $this->appfolioClient->getStatus();
             $health['checks']['appfolio'] = [
-                'status' => $connection->status === 'connected' ? 'healthy' : 'warning',
-                'connection_status' => $connection->status,
-                'last_success_at' => $connection->last_success_at?->toIso8601String(),
+                'status' => $status === 'connected' ? 'healthy' : 'warning',
+                'connection_status' => $status,
+                'last_success_at' => $this->appfolioClient->getLastSuccessAt(),
             ];
         } else {
             $health['checks']['appfolio'] = [

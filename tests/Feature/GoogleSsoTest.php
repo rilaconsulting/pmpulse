@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use App\Services\GoogleSsoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,6 +29,11 @@ class GoogleSsoTest extends TestCase
             ['name' => Role::VIEWER],
             ['description' => 'Viewer', 'permissions' => ['view']]
         );
+
+        // Enable Google SSO for tests
+        Setting::set('google_sso', 'enabled', true);
+        Setting::set('google_sso', 'client_id', 'test-client-id');
+        Setting::set('google_sso', 'client_secret', 'test-client-secret', encrypted: true);
     }
 
     private function mockSocialiteUser(string $email, string $id, ?string $name = 'Test User'): SocialiteUser
@@ -46,6 +52,21 @@ class GoogleSsoTest extends TestCase
 
         $response->assertRedirect();
         $this->assertStringContainsString('accounts.google.com', $response->headers->get('Location'));
+    }
+
+    public function test_google_redirect_fails_when_not_configured(): void
+    {
+        // Disable Google SSO
+        Setting::set('google_sso', 'enabled', false);
+
+        // Clear env config by setting to empty
+        config(['services.google.client_id' => null]);
+        config(['services.google.client_secret' => null]);
+
+        $response = $this->get(route('auth.google'));
+
+        $response->assertRedirect(route('login'));
+        $response->assertSessionHasErrors('google');
     }
 
     public function test_google_callback_logs_in_sso_user(): void

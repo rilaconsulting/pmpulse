@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Models\AppfolioConnection;
 use App\Models\Setting;
 use App\Models\SyncFailureAlert;
 use App\Models\SyncRun;
@@ -36,31 +35,22 @@ class SyncFailureAlertService
      */
     public function handleSyncCompleted(SyncRun $syncRun): void
     {
-        $connection = $syncRun->connection;
-
-        if (! $connection) {
-            Log::warning('SyncRun has no associated connection', ['sync_run_id' => $syncRun->id]);
-
-            return;
-        }
-
         if ($syncRun->status === 'completed') {
-            $this->handleSuccess($connection);
+            $this->handleSuccess();
         } elseif ($syncRun->status === 'failed') {
-            $this->handleFailure($connection, $syncRun);
+            $this->handleFailure($syncRun);
         }
     }
 
     /**
      * Handle a successful sync.
      */
-    private function handleSuccess(AppfolioConnection $connection): void
+    private function handleSuccess(): void
     {
-        $alert = SyncFailureAlert::forConnection($connection);
+        $alert = SyncFailureAlert::getInstance();
 
         if ($alert->consecutive_failures > 0) {
             Log::info('Sync succeeded, resetting failure count', [
-                'connection_id' => $connection->id,
                 'previous_failures' => $alert->consecutive_failures,
             ]);
 
@@ -71,9 +61,9 @@ class SyncFailureAlertService
     /**
      * Handle a failed sync.
      */
-    private function handleFailure(AppfolioConnection $connection, SyncRun $syncRun): void
+    private function handleFailure(SyncRun $syncRun): void
     {
-        $alert = SyncFailureAlert::forConnection($connection);
+        $alert = SyncFailureAlert::getInstance();
 
         // Record the failure with details
         $alert->recordFailure([
@@ -84,7 +74,6 @@ class SyncFailureAlertService
         ]);
 
         Log::info('Sync failure recorded', [
-            'connection_id' => $connection->id,
             'consecutive_failures' => $alert->consecutive_failures,
         ]);
 
@@ -145,7 +134,6 @@ class SyncFailureAlertService
         }
 
         Log::info('Sending sync failure alert', [
-            'connection_id' => $alert->appfolio_connection_id,
             'consecutive_failures' => $alert->consecutive_failures,
             'recipients' => $recipients,
         ]);
@@ -206,17 +194,16 @@ class SyncFailureAlertService
 
         Log::info('Sync failure alert acknowledged', [
             'alert_id' => $alert->id,
-            'connection_id' => $alert->appfolio_connection_id,
             'acknowledged_by' => $user->id,
         ]);
     }
 
     /**
-     * Get the current alert status for a connection.
+     * Get the current alert status.
      */
-    public function getAlertStatus(AppfolioConnection $connection): array
+    public function getAlertStatus(): array
     {
-        $alert = SyncFailureAlert::where('appfolio_connection_id', $connection->id)->first();
+        $alert = SyncFailureAlert::query()->first();
 
         if (! $alert) {
             return [
@@ -243,13 +230,10 @@ class SyncFailureAlertService
     {
         return SyncFailureAlert::where('consecutive_failures', '>', 0)
             ->whereNull('acknowledged_at')
-            ->with('connection')
             ->get()
             ->map(function ($alert) {
                 return [
                     'id' => $alert->id,
-                    'connection_id' => $alert->appfolio_connection_id,
-                    'connection_name' => $alert->connection->name ?? 'Unknown',
                     'consecutive_failures' => $alert->consecutive_failures,
                     'last_alert_sent_at' => $alert->last_alert_sent_at?->toIso8601String(),
                     'failure_details' => $alert->failure_details,

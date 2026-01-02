@@ -1,9 +1,9 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
-import Layout from '../../components/Layout';
+import AdminLayout from './Index';
 import { ArrowLeftIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
-export default function Create({ roles }) {
+export default function UserCreate({ roles }) {
     const [showPassword, setShowPassword] = useState(false);
 
     const { data, setData, post, processing, errors } = useForm({
@@ -16,24 +16,22 @@ export default function Create({ roles }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post('/users');
+        post('/admin/users');
     };
 
     return (
-        <Layout>
-            <Head title="Create User" />
-
+        <AdminLayout currentTab="users">
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center gap-4">
                     <Link
-                        href="/users"
+                        href="/admin/users"
                         className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                     >
                         <ArrowLeftIcon className="w-5 h-5" />
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Create User</h1>
+                        <h2 className="text-lg font-medium text-gray-900">Create User</h2>
                         <p className="mt-1 text-sm text-gray-500">
                             Add a new user to the system
                         </p>
@@ -195,7 +193,7 @@ export default function Create({ roles }) {
 
                             {/* Actions */}
                             <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                                <Link href="/users" className="btn-secondary">
+                                <Link href="/admin/users" className="btn-secondary">
                                     Cancel
                                 </Link>
                                 <button
@@ -210,6 +208,6 @@ export default function Create({ roles }) {
                     </div>
                 </div>
             </div>
-        </Layout>
+        </AdminLayout>
     );
 }
