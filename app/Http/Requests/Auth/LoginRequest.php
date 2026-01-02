@@ -44,30 +44,46 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        // Check if user exists and verify auth provider
-        $user = User::where('email', $this->input('email'))->first();
+        // Attempt authentication first to prevent user enumeration via timing attacks.
+        // This ensures the password hash check happens regardless of auth_provider.
+        $authResult = Auth::attempt($this->only('email', 'password'), $this->boolean('remember'));
 
-        if ($user) {
-            // Check if user is active
-            if (! $user->is_active) {
-                RateLimiter::hit($this->throttleKey());
+        if (! $authResult) {
+            // Check if user exists to provide helpful auth provider guidance
+            // Note: This is done AFTER password check to avoid enumeration via timing
+            $user = User::where('email', $this->input('email'))->first();
 
-                throw ValidationException::withMessages([
-                    'email' => 'Your account has been deactivated. Please contact an administrator.',
-                ]);
-            }
+            RateLimiter::hit($this->throttleKey());
 
-            // Check if user uses SSO authentication
-            if ($user->auth_provider === User::AUTH_PROVIDER_GOOGLE) {
-                RateLimiter::hit($this->throttleKey());
-
+            // Provide SSO guidance only for SSO users (acceptable UX trade-off for internal app)
+            if ($user && $user->auth_provider === User::AUTH_PROVIDER_GOOGLE) {
                 throw ValidationException::withMessages([
                     'email' => 'This account uses Google SSO. Please click "Login with Google" to sign in.',
                 ]);
             }
+
+            throw ValidationException::withMessages([
+                'email' => trans('auth.failed'),
+            ]);
         }
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        // User authenticated - now check if they should be allowed to log in
+        /** @var User $user */
+        $user = Auth::user();
+
+        // Check if user is SSO-only (logout and reject if they should use SSO)
+        if ($user->auth_provider === User::AUTH_PROVIDER_GOOGLE) {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => 'This account uses Google SSO. Please click "Login with Google" to sign in.',
+            ]);
+        }
+
+        // Check if user is active (logout and reject if deactivated)
+        if (! $user->is_active) {
+            Auth::logout();
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([

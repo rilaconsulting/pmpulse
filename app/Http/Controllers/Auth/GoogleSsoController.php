@@ -5,74 +5,87 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Services\GoogleSsoService;
+use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
-use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Laravel\Socialite\Contracts\Factory as SocialiteFactory;
+use Laravel\Socialite\Two\InvalidStateException;
 
 class GoogleSsoController extends Controller
 {
+    public function __construct(
+        private readonly SocialiteFactory $socialite,
+        private readonly Guard $auth,
+        private readonly GoogleSsoService $ssoService,
+    ) {}
+
     /**
      * Redirect the user to Google's OAuth page.
      */
     public function redirect(): RedirectResponse
     {
-        return Socialite::driver('google')->redirect();
+        return $this->socialite->driver('google')
+            ->scopes(['openid', 'email', 'profile'])
+            ->redirect();
     }
 
     /**
      * Handle the callback from Google OAuth.
      */
-    public function callback(): RedirectResponse
+    public function callback(Request $request): RedirectResponse
     {
         try {
-            $googleUser = Socialite::driver('google')->user();
+            $googleUser = $this->socialite->driver('google')->user();
+        } catch (InvalidStateException $e) {
+            Log::error('Google SSO failed due to invalid state.', ['exception' => $e]);
+
+            return redirect()->route('login')
+                ->withErrors(['google' => 'Authentication failed due to an invalid state. Please try again.']);
         } catch (\Exception $e) {
+            Log::error('Google SSO authentication failed.', ['exception' => $e]);
+
             return redirect()->route('login')
                 ->withErrors(['google' => 'Failed to authenticate with Google. Please try again.']);
         }
 
-        // First, try to find user by google_id
-        $user = User::where('google_id', $googleUser->getId())->first();
+        // Validate Google user data
+        $googleEmail = $googleUser->getEmail();
+        $googleId = $googleUser->getId();
 
-        // If not found by google_id, try to find by email (only for SSO users)
-        if (! $user) {
-            $user = User::where('email', $googleUser->getEmail())
-                ->where('auth_provider', User::AUTH_PROVIDER_GOOGLE)
-                ->first();
+        if (! $googleEmail || ! $googleId) {
+            Log::warning('Google SSO returned incomplete user data.', [
+                'has_email' => (bool) $googleEmail,
+                'has_id' => (bool) $googleId,
+            ]);
 
-            // Update google_id if found by email
-            if ($user && ! $user->google_id) {
-                $user->update(['google_id' => $googleUser->getId()]);
-            }
+            return redirect()->route('login')
+                ->withErrors(['google' => 'Google did not provide required account information. Please ensure your Google account has a verified email address.']);
         }
 
-        // Check if user exists but uses password authentication
-        $passwordUser = User::where('email', $googleUser->getEmail())
-            ->where('auth_provider', User::AUTH_PROVIDER_PASSWORD)
-            ->first();
+        // Resolve user via service
+        $resolution = $this->ssoService->resolveUser($googleUser);
 
-        if ($passwordUser) {
+        if ($resolution['result'] !== GoogleSsoService::RESULT_SUCCESS) {
             return redirect()->route('login')
-                ->withErrors(['google' => 'This email is registered with password authentication. Please use the password login form.']);
+                ->withErrors(['google' => $resolution['message']]);
         }
 
-        // User not found - they need to be created by an admin first
-        if (! $user) {
-            return redirect()->route('login')
-                ->withErrors(['google' => 'No account found for this Google account. Please contact an administrator to create your account.']);
-        }
+        $user = $resolution['user'];
 
-        // Check if user is active
-        if (! $user->is_active) {
+        // Validate user can log in
+        $validation = $this->ssoService->validateUserForLogin($user);
+
+        if (! $validation['valid']) {
             return redirect()->route('login')
-                ->withErrors(['google' => 'Your account has been deactivated. Please contact an administrator.']);
+                ->withErrors(['google' => $validation['message']]);
         }
 
         // Log the user in
-        Auth::login($user, remember: true);
+        $this->auth->login($user, remember: true);
 
-        session()->regenerate();
+        $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'));
     }

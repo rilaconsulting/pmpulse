@@ -304,7 +304,7 @@ PMPulse supports Google SSO for user authentication. Users can be created with e
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
 2. Create a new project or select existing one
-3. Enable the Google+ API and Google Identity Platform
+3. Configure the OAuth consent screen (APIs & Services → OAuth consent screen)
 4. Navigate to APIs & Services → Credentials
 5. Create OAuth 2.0 Client ID:
    - Application type: Web application
