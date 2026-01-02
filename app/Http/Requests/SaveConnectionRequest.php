@@ -27,10 +27,9 @@ class SaveConnectionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
             'client_id' => ['required', 'string', 'max:255'],
             'client_secret' => ['nullable', 'string', 'max:500'],
-            'api_base_url' => ['required', 'url', 'max:255'],
+            'database' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9][a-z0-9\-]*[a-z0-9]$/i'],
         ];
     }
 
@@ -42,10 +41,9 @@ class SaveConnectionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'A connection name is required.',
             'client_id.required' => 'The AppFolio client ID is required.',
-            'api_base_url.required' => 'The API base URL is required.',
-            'api_base_url.url' => 'The API base URL must be a valid URL.',
+            'database.required' => 'The AppFolio database name is required.',
+            'database.regex' => 'The database name should only contain letters, numbers, and hyphens (e.g., "sutro" or "my-company").',
         ];
     }
 }

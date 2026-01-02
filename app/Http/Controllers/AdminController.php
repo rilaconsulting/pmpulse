@@ -12,16 +12,15 @@ use App\Http\Requests\SaveConnectionRequest;
 use App\Http\Requests\SaveSyncConfigurationRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Jobs\SyncAppfolioResourceJob;
-use App\Models\AppfolioConnection;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\SyncRun;
 use App\Models\User;
+use App\Services\AppfolioClient;
 use App\Services\BusinessHoursService;
 use App\Services\UserService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -40,7 +39,8 @@ class AdminController extends Controller
     ];
 
     public function __construct(
-        private readonly UserService $userService
+        private readonly UserService $userService,
+        private readonly AppfolioClient $appfolioClient
     ) {}
 
     // ========================================
@@ -168,8 +168,8 @@ class AdminController extends Controller
      */
     public function integrations(BusinessHoursService $businessHoursService): Response
     {
-        // Get current connection settings (mask the secret)
-        $connection = AppfolioConnection::query()->first();
+        // Get current connection settings from settings table
+        $appfolioSettings = Setting::getCategory('appfolio');
 
         // Get sync run history (last 20 runs)
         $syncHistory = SyncRun::query()
@@ -180,17 +180,22 @@ class AdminController extends Controller
         // Get sync configuration from Settings
         $syncConfig = $this->getSyncConfiguration();
 
+        $connection = null;
+        if (! empty($appfolioSettings['client_id'])) {
+            $database = $appfolioSettings['database'] ?? null;
+            $connection = [
+                'client_id' => $appfolioSettings['client_id'],
+                'database' => $database,
+                'api_base_url' => $database ? "https://{$database}.appfolio.com" : null,
+                'status' => $appfolioSettings['status'] ?? 'configured',
+                'last_success_at' => $appfolioSettings['last_success_at'] ?? null,
+                'last_error' => $appfolioSettings['last_error'] ?? null,
+                'has_secret' => ! empty($appfolioSettings['client_secret']),
+            ];
+        }
+
         return Inertia::render('Admin/Integrations', [
-            'connection' => $connection ? [
-                'id' => $connection->id,
-                'name' => $connection->name,
-                'client_id' => $connection->client_id,
-                'api_base_url' => $connection->api_base_url,
-                'status' => $connection->status,
-                'last_success_at' => $connection->last_success_at,
-                'last_error' => $connection->last_error,
-                'has_secret' => ! empty($connection->client_secret_encrypted),
-            ] : null,
+            'connection' => $connection,
             'syncHistory' => $syncHistory->toArray(),
             'syncConfiguration' => $syncConfig,
             'syncStatus' => $businessHoursService->getConfiguration(),
@@ -225,19 +230,15 @@ class AdminController extends Controller
     {
         $validated = $request->validated();
 
-        $connection = AppfolioConnection::query()->first() ?? new AppfolioConnection;
-
-        $connection->name = $validated['name'];
-        $connection->client_id = $validated['client_id'];
-        $connection->api_base_url = $validated['api_base_url'];
+        Setting::set('appfolio', 'client_id', $validated['client_id']);
+        Setting::set('appfolio', 'database', $validated['database']);
 
         // Only update secret if provided
         if (! empty($validated['client_secret'])) {
-            $connection->client_secret_encrypted = Crypt::encryptString($validated['client_secret']);
+            Setting::set('appfolio', 'client_secret', $validated['client_secret'], encrypted: true);
         }
 
-        $connection->status = 'configured';
-        $connection->save();
+        Setting::set('appfolio', 'status', 'configured');
 
         return back()->with('success', 'Connection settings saved successfully.');
     }
@@ -251,15 +252,12 @@ class AdminController extends Controller
             'mode' => ['required', 'in:incremental,full'],
         ]);
 
-        $connection = AppfolioConnection::query()->first();
-
-        if (! $connection) {
+        if (! $this->appfolioClient->isConfigured()) {
             return back()->with('error', 'Please configure AppFolio connection first.');
         }
 
         // Create a new sync run
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $connection->id,
             'mode' => $validated['mode'],
             'status' => 'pending',
             'started_at' => now(),

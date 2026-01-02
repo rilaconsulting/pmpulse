@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Jobs\SyncAppfolioResourceJob;
-use App\Models\AppfolioConnection;
 use App\Models\SyncRun;
+use App\Services\AppfolioClient;
 use Illuminate\Console\Command;
 
 class AppfolioSyncCommand extends Command
@@ -24,7 +24,7 @@ class AppfolioSyncCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(): int
+    public function handle(AppfolioClient $client): int
     {
         $mode = $this->option('mode');
 
@@ -34,16 +34,8 @@ class AppfolioSyncCommand extends Command
             return self::FAILURE;
         }
 
-        $connection = AppfolioConnection::first();
-
-        if (! $connection) {
-            $this->error('No AppFolio connection configured. Please configure one in the Admin panel.');
-
-            return self::FAILURE;
-        }
-
-        if (! $connection->isConfigured()) {
-            $this->error('AppFolio connection is not fully configured. Please add credentials in the Admin panel.');
+        if (! $client->isConfigured()) {
+            $this->error('AppFolio connection is not configured. Please configure it in the Admin panel.');
 
             return self::FAILURE;
         }
@@ -63,7 +55,6 @@ class AppfolioSyncCommand extends Command
 
         // Create sync run
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $connection->id,
             'mode' => $mode,
             'status' => 'pending',
             'started_at' => now(),

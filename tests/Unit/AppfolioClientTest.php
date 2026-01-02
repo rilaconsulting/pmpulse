@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Models\AppfolioConnection;
+use App\Models\Setting;
 use App\Services\AppfolioClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -18,14 +18,11 @@ class AppfolioClientTest extends TestCase
     {
         parent::setUp();
 
-        // Create a configured connection
-        AppfolioConnection::create([
-            'name' => 'Test Connection',
-            'client_id' => 'test-client-id',
-            'client_secret_encrypted' => encrypt('test-client-secret'),
-            'api_base_url' => 'https://api.appfolio.test',
-            'status' => 'configured',
-        ]);
+        // Create configured AppFolio settings
+        Setting::set('appfolio', 'client_id', 'test-client-id');
+        Setting::set('appfolio', 'client_secret', 'test-client-secret', encrypted: true);
+        Setting::set('appfolio', 'database', 'testdb');
+        Setting::set('appfolio', 'status', 'configured');
 
         $this->client = new AppfolioClient;
     }
@@ -37,42 +34,10 @@ class AppfolioClientTest extends TestCase
 
     public function test_is_configured_returns_false_when_no_connection(): void
     {
-        AppfolioConnection::truncate();
+        Setting::forgetCategory('appfolio');
         $client = new AppfolioClient;
 
         $this->assertFalse($client->isConfigured());
-    }
-
-    public function test_get_properties_returns_array_on_success(): void
-    {
-        Http::fake([
-            'api.appfolio.test/*' => Http::response([
-                'data' => [
-                    ['id' => '1', 'name' => 'Property 1'],
-                    ['id' => '2', 'name' => 'Property 2'],
-                ],
-            ], 200),
-        ]);
-
-        $result = $this->client->getProperties();
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('data', $result);
-        $this->assertCount(2, $result['data']);
-    }
-
-    public function test_get_properties_includes_pagination_params(): void
-    {
-        Http::fake([
-            'api.appfolio.test/*' => Http::response(['data' => []], 200),
-        ]);
-
-        $this->client->getProperties(['page' => 2, 'per_page' => 50]);
-
-        Http::assertSent(function ($request) {
-            return str_contains($request->url(), 'page=2')
-                && str_contains($request->url(), 'per_page=50');
-        });
     }
 
     public function test_handles_rate_limit_with_retry(): void
@@ -85,10 +50,10 @@ class AppfolioClientTest extends TestCase
                 return Http::response('Rate limited', 429, ['Retry-After' => '1']);
             }
 
-            return Http::response(['data' => []], 200);
+            return Http::response(['results' => []], 200);
         });
 
-        $result = $this->client->getProperties();
+        $result = $this->client->getPropertyDirectory();
 
         $this->assertIsArray($result);
         $this->assertEquals(2, $callCount);
@@ -104,10 +69,10 @@ class AppfolioClientTest extends TestCase
                 return Http::response('Server error', 500);
             }
 
-            return Http::response(['data' => []], 200);
+            return Http::response(['results' => []], 200);
         });
 
-        $result = $this->client->getProperties();
+        $result = $this->client->getPropertyDirectory();
 
         $this->assertIsArray($result);
         $this->assertEquals(2, $callCount);
@@ -116,45 +81,19 @@ class AppfolioClientTest extends TestCase
     public function test_throws_exception_on_client_error(): void
     {
         Http::fake([
-            'api.appfolio.test/*' => Http::response('Not found', 404),
+            'testdb.appfolio.com/*' => Http::response('Not found', 404),
         ]);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('AppFolio API error: 404');
 
-        $this->client->getProperties();
-    }
-
-    public function test_get_units_calls_correct_endpoint(): void
-    {
-        Http::fake([
-            'api.appfolio.test/v1/units*' => Http::response(['data' => []], 200),
-        ]);
-
-        $this->client->getUnits();
-
-        Http::assertSent(function ($request) {
-            return str_contains($request->url(), '/v1/units');
-        });
-    }
-
-    public function test_get_work_orders_calls_correct_endpoint(): void
-    {
-        Http::fake([
-            'api.appfolio.test/v1/work-orders*' => Http::response(['data' => []], 200),
-        ]);
-
-        $this->client->getWorkOrders();
-
-        Http::assertSent(function ($request) {
-            return str_contains($request->url(), '/v1/work-orders');
-        });
+        $this->client->getPropertyDirectory();
     }
 
     public function test_test_connection_returns_true_on_success(): void
     {
         Http::fake([
-            'api.appfolio.test/*' => Http::response(['data' => []], 200),
+            'testdb.appfolio.com/*' => Http::response(['results' => []], 200),
         ]);
 
         $result = $this->client->testConnection();
@@ -165,7 +104,7 @@ class AppfolioClientTest extends TestCase
     public function test_test_connection_returns_false_on_failure(): void
     {
         Http::fake([
-            'api.appfolio.test/*' => Http::response('Error', 500),
+            'testdb.appfolio.com/*' => Http::response('Error', 500),
         ]);
 
         // Override max retries for faster test
@@ -183,7 +122,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_property_directory_calls_correct_endpoint(): void
     {
         Http::fake([
-            'api.appfolio.test/api/v1/reports/property_directory.json' => Http::response([
+            'testdb.appfolio.com/api/v1/reports/property_directory.json' => Http::response([
                 'results' => [
                     ['property_id' => 1, 'property_name' => 'Test Property'],
                 ],
@@ -204,7 +143,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_unit_directory_calls_correct_endpoint(): void
     {
         Http::fake([
-            'api.appfolio.test/api/v1/reports/unit_directory.json' => Http::response([
+            'testdb.appfolio.com/api/v1/reports/unit_directory.json' => Http::response([
                 'results' => [
                     ['unit_id' => 1, 'unit_name' => '101'],
                 ],
@@ -224,7 +163,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_vendor_directory_calls_correct_endpoint(): void
     {
         Http::fake([
-            'api.appfolio.test/api/v1/reports/vendor_directory.json' => Http::response([
+            'testdb.appfolio.com/api/v1/reports/vendor_directory.json' => Http::response([
                 'results' => [
                     ['vendor_id' => 1, 'company_name' => 'Test Vendor'],
                 ],
@@ -244,7 +183,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_expense_register_calls_correct_endpoint(): void
     {
         Http::fake([
-            'api.appfolio.test/api/v1/reports/expense_register.json' => Http::response([
+            'testdb.appfolio.com/api/v1/reports/expense_register.json' => Http::response([
                 'results' => [
                     ['expense_id' => 1, 'amount' => '100.00'],
                 ],
@@ -267,7 +206,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_work_order_report_calls_correct_endpoint(): void
     {
         Http::fake([
-            'api.appfolio.test/api/v1/reports/work_order.json' => Http::response([
+            'testdb.appfolio.com/api/v1/reports/work_order.json' => Http::response([
                 'results' => [
                     ['work_order_id' => 1, 'status' => 'open'],
                 ],
@@ -290,7 +229,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_rent_roll_calls_correct_endpoint(): void
     {
         Http::fake([
-            'api.appfolio.test/api/v1/reports/rent_roll.json' => Http::response([
+            'testdb.appfolio.com/api/v1/reports/rent_roll.json' => Http::response([
                 'results' => [],
             ], 200),
         ]);
@@ -308,7 +247,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_delinquency_calls_correct_endpoint(): void
     {
         Http::fake([
-            'api.appfolio.test/api/v1/reports/delinquency.json' => Http::response([
+            'testdb.appfolio.com/api/v1/reports/delinquency.json' => Http::response([
                 'results' => [],
             ], 200),
         ]);
@@ -442,7 +381,7 @@ class AppfolioClientTest extends TestCase
     public function test_report_endpoints_include_default_pagination_params(): void
     {
         Http::fake([
-            'api.appfolio.test/*' => Http::response(['results' => []], 200),
+            'testdb.appfolio.com/*' => Http::response(['results' => []], 200),
         ]);
 
         $this->client->getPropertyDirectory();
@@ -458,7 +397,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_pagination_info_returns_expected_structure(): void
     {
         Http::fake([
-            'api.appfolio.test/*' => Http::response([
+            'testdb.appfolio.com/*' => Http::response([
                 'results' => [['id' => 1]],
                 'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
             ], 200),
