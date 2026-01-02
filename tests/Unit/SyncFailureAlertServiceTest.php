@@ -1,14 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit;
 
 use App\Models\AppfolioConnection;
-use App\Models\FeatureFlag;
+use App\Models\Setting;
 use App\Models\SyncFailureAlert;
 use App\Models\SyncRun;
 use App\Models\User;
 use App\Services\SyncFailureAlertService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -24,6 +27,8 @@ class SyncFailureAlertServiceTest extends TestCase
     {
         parent::setUp();
 
+        Cache::flush();
+
         $this->service = new SyncFailureAlertService;
 
         $this->connection = AppfolioConnection::create([
@@ -34,11 +39,8 @@ class SyncFailureAlertServiceTest extends TestCase
             'status' => 'connected',
         ]);
 
-        // Enable notifications
-        FeatureFlag::create([
-            'name' => 'notifications',
-            'enabled' => true,
-        ]);
+        // Enable notifications via Setting
+        Setting::set('features', 'notifications', true);
 
         // Create a user for recipients
         User::factory()->create();
@@ -88,8 +90,8 @@ class SyncFailureAlertServiceTest extends TestCase
 
     public function test_alert_sent_after_threshold_reached(): void
     {
-        // Set threshold to 3
-        config(['appfolio.alerts.failure_threshold' => 3]);
+        // Set threshold to 3 via Setting
+        Setting::set('alerts', 'failure_threshold', 3);
 
         // Create 2 failures first
         $alert = SyncFailureAlert::create([
@@ -116,7 +118,7 @@ class SyncFailureAlertServiceTest extends TestCase
 
     public function test_no_alert_before_threshold(): void
     {
-        config(['appfolio.alerts.failure_threshold' => 3]);
+        Setting::set('alerts', 'failure_threshold', 3);
 
         $syncRun = SyncRun::create([
             'appfolio_connection_id' => $this->connection->id,
@@ -133,8 +135,8 @@ class SyncFailureAlertServiceTest extends TestCase
 
     public function test_alert_rate_limited(): void
     {
-        config(['appfolio.alerts.failure_threshold' => 1]);
-        config(['appfolio.alerts.cooldown_minutes' => 60]);
+        Setting::set('alerts', 'failure_threshold', 1);
+        Setting::set('alerts', 'cooldown_minutes', 60);
 
         // Create an alert that was just sent
         $alert = SyncFailureAlert::create([
@@ -159,8 +161,8 @@ class SyncFailureAlertServiceTest extends TestCase
 
     public function test_alert_sent_after_cooldown(): void
     {
-        config(['appfolio.alerts.failure_threshold' => 1]);
-        config(['appfolio.alerts.cooldown_minutes' => 60]);
+        Setting::set('alerts', 'failure_threshold', 1);
+        Setting::set('alerts', 'cooldown_minutes', 60);
 
         // Create an alert that was sent 2 hours ago
         $alert = SyncFailureAlert::create([
@@ -187,7 +189,7 @@ class SyncFailureAlertServiceTest extends TestCase
 
     public function test_acknowledged_alert_cleared_on_new_failure(): void
     {
-        config(['appfolio.alerts.failure_threshold' => 1]);
+        Setting::set('alerts', 'failure_threshold', 1);
 
         $user = User::first();
 
@@ -270,9 +272,9 @@ class SyncFailureAlertServiceTest extends TestCase
 
     public function test_no_alert_when_notifications_disabled(): void
     {
-        FeatureFlag::where('name', 'notifications')->update(['enabled' => false]);
+        Setting::set('features', 'notifications', false);
 
-        config(['appfolio.alerts.failure_threshold' => 1]);
+        Setting::set('alerts', 'failure_threshold', 1);
 
         SyncFailureAlert::create([
             'appfolio_connection_id' => $this->connection->id,
