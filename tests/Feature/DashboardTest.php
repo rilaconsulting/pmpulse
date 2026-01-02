@@ -31,17 +31,66 @@ class DashboardTest extends TestCase
         );
     }
 
-    public function test_admin_page_loads_for_authenticated_user(): void
+    public function test_admin_page_redirects_to_users(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->admin()->create();
 
         $response = $this->actingAs($user)->get('/admin');
 
+        $response->assertRedirect('/admin/users');
+    }
+
+    public function test_admin_users_page_loads_for_admin(): void
+    {
+        $user = User::factory()->admin()->create();
+
+        $response = $this->actingAs($user)->get('/admin/users');
+
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
-            ->component('Admin')
+            ->component('Admin/Users')
+            ->has('users')
+            ->has('roles')
+            ->has('filters')
+        );
+    }
+
+    public function test_admin_integrations_page_loads_for_admin(): void
+    {
+        $user = User::factory()->admin()->create();
+
+        $response = $this->actingAs($user)->get('/admin/integrations');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Integrations')
             ->has('connection')
             ->has('syncHistory')
+        );
+    }
+
+    public function test_admin_authentication_page_loads_for_admin(): void
+    {
+        $user = User::factory()->admin()->create();
+
+        $response = $this->actingAs($user)->get('/admin/authentication');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Authentication')
+            ->has('googleSso')
+        );
+    }
+
+    public function test_admin_settings_page_loads_for_admin(): void
+    {
+        $user = User::factory()->admin()->create();
+
+        $response = $this->actingAs($user)->get('/admin/settings');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Admin/Settings')
             ->has('features')
         );
     }

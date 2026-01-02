@@ -4,13 +4,21 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CreateUserRequest;
+use App\Http\Requests\DeactivateUserRequest;
+use App\Http\Requests\ListUsersRequest;
+use App\Http\Requests\SaveAuthenticationRequest;
 use App\Http\Requests\SaveConnectionRequest;
 use App\Http\Requests\SaveSyncConfigurationRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Jobs\SyncAppfolioResourceJob;
 use App\Models\AppfolioConnection;
+use App\Models\Role;
 use App\Models\Setting;
 use App\Models\SyncRun;
+use App\Models\User;
 use App\Services\BusinessHoursService;
+use App\Services\UserService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -31,10 +39,134 @@ class AdminController extends Controller
         'Pacific/Honolulu' => 'Hawaii Time (HT)',
     ];
 
+    public function __construct(
+        private readonly UserService $userService
+    ) {}
+
+    // ========================================
+    // Users Management
+    // ========================================
+
     /**
-     * Display the admin page.
+     * Display a listing of users.
      */
-    public function index(BusinessHoursService $businessHoursService): Response
+    public function users(ListUsersRequest $request): Response
+    {
+        $query = User::with('role');
+
+        // Filter by active status
+        if ($request->has('active') && $request->validated('active') !== null) {
+            $query->where('is_active', $request->validated('active'));
+        }
+
+        // Filter by auth provider
+        if ($request->filled('auth_provider')) {
+            $query->where('auth_provider', $request->validated('auth_provider'));
+        }
+
+        // Filter by role
+        if ($request->filled('role_id')) {
+            $query->where('role_id', $request->validated('role_id'));
+        }
+
+        // Search by name or email
+        if ($request->filled('search')) {
+            $search = $request->validated('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->orderBy('name')->paginate(15)->withQueryString();
+        $roles = Role::orderBy('name')->get(['id', 'name', 'description']);
+
+        return Inertia::render('Admin/Users', [
+            'users' => $users,
+            'roles' => $roles,
+            'filters' => [
+                'search' => $request->input('search', ''),
+                'active' => $request->input('active', ''),
+                'auth_provider' => $request->input('auth_provider', ''),
+                'role_id' => $request->input('role_id', ''),
+            ],
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new user.
+     */
+    public function usersCreate(ListUsersRequest $request): Response
+    {
+        $roles = Role::orderBy('name')->get(['id', 'name', 'description']);
+
+        return Inertia::render('Admin/UserCreate', [
+            'roles' => $roles,
+        ]);
+    }
+
+    /**
+     * Store a newly created user.
+     */
+    public function usersStore(CreateUserRequest $request): RedirectResponse
+    {
+        $this->userService->createUser($request->validated(), $request->user());
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User created successfully.');
+    }
+
+    /**
+     * Show the form for editing the specified user.
+     */
+    public function usersEdit(ListUsersRequest $request, User $user): Response
+    {
+        $user->load('role');
+        $roles = Role::orderBy('name')->get(['id', 'name', 'description']);
+
+        return Inertia::render('Admin/UserEdit', [
+            'user' => $user,
+            'roles' => $roles,
+            'canDeactivate' => ! $this->userService->isLastActiveAdmin($user) && $user->id !== auth()->id(),
+        ]);
+    }
+
+    /**
+     * Update the specified user.
+     */
+    public function usersUpdate(UpdateUserRequest $request, User $user): RedirectResponse
+    {
+        // Prevent deactivating self (additional check beyond form request)
+        $validated = $request->validated();
+        if (isset($validated['is_active']) && ! $validated['is_active'] && $user->id === auth()->id()) {
+            return back()->withErrors(['is_active' => 'You cannot deactivate your own account.']);
+        }
+
+        $this->userService->updateUser($user, $validated);
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User updated successfully.');
+    }
+
+    /**
+     * Deactivate the specified user.
+     */
+    public function usersDestroy(DeactivateUserRequest $request, User $user): RedirectResponse
+    {
+        $this->userService->deactivateUser($user);
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User deactivated successfully.');
+    }
+
+    // ========================================
+    // Integrations (AppFolio)
+    // ========================================
+
+    /**
+     * Display the integrations page.
+     */
+    public function integrations(BusinessHoursService $businessHoursService): Response
     {
         // Get current connection settings (mask the secret)
         $connection = AppfolioConnection::query()->first();
@@ -48,7 +180,7 @@ class AdminController extends Controller
         // Get sync configuration from Settings
         $syncConfig = $this->getSyncConfiguration();
 
-        return Inertia::render('Admin', [
+        return Inertia::render('Admin/Integrations', [
             'connection' => $connection ? [
                 'id' => $connection->id,
                 'name' => $connection->name,
@@ -60,10 +192,6 @@ class AdminController extends Controller
                 'has_secret' => ! empty($connection->client_secret_encrypted),
             ] : null,
             'syncHistory' => $syncHistory->toArray(),
-            'features' => [
-                'incremental_sync' => Setting::isFeatureEnabled('incremental_sync', true),
-                'notifications' => Setting::isFeatureEnabled('notifications', true),
-            ],
             'syncConfiguration' => $syncConfig,
             'syncStatus' => $businessHoursService->getConfiguration(),
             'timezones' => self::TIMEZONES,
@@ -164,5 +292,62 @@ class AdminController extends Controller
         Setting::set('sync', 'full_sync_time', $validated['full_sync_time']);
 
         return back()->with('success', 'Sync configuration saved. Changes will take effect on next scheduler run.');
+    }
+
+    // ========================================
+    // Authentication (Google SSO)
+    // ========================================
+
+    /**
+     * Display the authentication settings page.
+     */
+    public function authentication(): Response
+    {
+        $googleConfig = Setting::getCategory('google_sso');
+
+        return Inertia::render('Admin/Authentication', [
+            'googleSso' => [
+                'enabled' => $googleConfig['enabled'] ?? false,
+                'client_id' => $googleConfig['client_id'] ?? '',
+                'has_secret' => ! empty($googleConfig['client_secret']),
+                'configured' => ! empty($googleConfig['client_id']) && ! empty($googleConfig['client_secret']),
+                'redirect_uri' => url('/auth/google/callback'),
+            ],
+        ]);
+    }
+
+    /**
+     * Save authentication settings.
+     */
+    public function saveAuthentication(SaveAuthenticationRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        Setting::set('google_sso', 'enabled', $validated['google_enabled']);
+        Setting::set('google_sso', 'client_id', $validated['google_client_id']);
+
+        // Only update secret if provided
+        if (! empty($validated['google_client_secret'])) {
+            Setting::set('google_sso', 'client_secret', $validated['google_client_secret'], encrypted: true);
+        }
+
+        return back()->with('success', 'Authentication settings saved successfully.');
+    }
+
+    // ========================================
+    // Settings
+    // ========================================
+
+    /**
+     * Display the general settings page.
+     */
+    public function settings(): Response
+    {
+        return Inertia::render('Admin/Settings', [
+            'features' => [
+                'incremental_sync' => Setting::isFeatureEnabled('incremental_sync', true),
+                'notifications' => Setting::isFeatureEnabled('notifications', true),
+            ],
+        ]);
     }
 }

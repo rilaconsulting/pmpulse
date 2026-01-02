@@ -5,7 +5,6 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleSsoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -39,19 +38,32 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
-    // Admin
-    Route::get('/admin', [AdminController::class, 'index'])
-        ->name('admin');
-    Route::post('/admin/connection', [AdminController::class, 'saveConnection'])
-        ->name('admin.connection.save');
-    Route::post('/admin/sync', [AdminController::class, 'triggerSync'])
-        ->name('admin.sync');
-    Route::post('/admin/sync-configuration', [AdminController::class, 'saveSyncConfiguration'])
-        ->name('admin.sync-configuration.save');
+    // Admin (consolidated with tabs)
+    Route::prefix('admin')->name('admin.')->group(function () {
+        // Redirect /admin to /admin/users
+        Route::redirect('/', '/admin/users');
 
-    // User Management (admin only)
-    Route::resource('users', UserManagementController::class)
-        ->except(['show']);
+        // Users management
+        Route::get('/users', [AdminController::class, 'users'])->name('users.index');
+        Route::get('/users/create', [AdminController::class, 'usersCreate'])->name('users.create');
+        Route::post('/users', [AdminController::class, 'usersStore'])->name('users.store');
+        Route::get('/users/{user}/edit', [AdminController::class, 'usersEdit'])->name('users.edit');
+        Route::patch('/users/{user}', [AdminController::class, 'usersUpdate'])->name('users.update');
+        Route::delete('/users/{user}', [AdminController::class, 'usersDestroy'])->name('users.destroy');
+
+        // Integrations (AppFolio)
+        Route::get('/integrations', [AdminController::class, 'integrations'])->name('integrations');
+        Route::post('/integrations/connection', [AdminController::class, 'saveConnection'])->name('integrations.connection');
+        Route::post('/integrations/sync', [AdminController::class, 'triggerSync'])->name('integrations.sync');
+        Route::post('/integrations/sync-configuration', [AdminController::class, 'saveSyncConfiguration'])->name('integrations.sync-configuration');
+
+        // Authentication (Google SSO)
+        Route::get('/authentication', [AdminController::class, 'authentication'])->name('authentication');
+        Route::post('/authentication', [AdminController::class, 'saveAuthentication'])->name('authentication.save');
+
+        // Settings
+        Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+    });
 
     // Profile (all authenticated users)
     Route::get('/profile', [ProfileController::class, 'show'])
