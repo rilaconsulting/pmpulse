@@ -7,7 +7,6 @@ namespace Tests\Unit;
 use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Crypt;
 use Tests\TestCase;
 
 class SettingModelTest extends TestCase

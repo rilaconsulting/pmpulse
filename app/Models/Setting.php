@@ -150,7 +150,7 @@ class Setting extends Model
      */
     public static function getCategory(string $category): array
     {
-        $cacheKey = self::CACHE_PREFIX . "category:{$category}";
+        $cacheKey = self::CACHE_PREFIX."category:{$category}";
 
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($category) {
             $settings = static::query()
@@ -236,7 +236,7 @@ class Setting extends Model
      */
     protected static function getCacheKey(string $category, string $key): string
     {
-        return self::CACHE_PREFIX . "{$category}:{$key}";
+        return self::CACHE_PREFIX."{$category}:{$key}";
     }
 
     /**
@@ -245,7 +245,7 @@ class Setting extends Model
     protected static function forgetCache(string $category, string $key): void
     {
         Cache::forget(self::getCacheKey($category, $key));
-        Cache::forget(self::CACHE_PREFIX . "category:{$category}");
+        Cache::forget(self::CACHE_PREFIX."category:{$category}");
     }
 
     /**
@@ -253,7 +253,7 @@ class Setting extends Model
      */
     protected static function forgetCategoryCache(string $category): void
     {
-        Cache::forget(self::CACHE_PREFIX . "category:{$category}");
+        Cache::forget(self::CACHE_PREFIX."category:{$category}");
         // Note: Individual setting caches in this category will expire naturally
     }
 
