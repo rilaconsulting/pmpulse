@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\SaveConnectionRequest;
+use App\Http\Requests\SaveSyncConfigurationRequest;
 use App\Jobs\SyncAppfolioResourceJob;
 use App\Models\AppfolioConnection;
 use App\Models\SyncConfiguration;
@@ -121,18 +122,9 @@ class AdminController extends Controller
     /**
      * Save sync configuration settings.
      */
-    public function saveSyncConfiguration(Request $request): RedirectResponse
+    public function saveSyncConfiguration(SaveSyncConfigurationRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'business_hours_enabled' => ['required', 'boolean'],
-            'timezone' => ['required', 'string', 'timezone'],
-            'start_hour' => ['required', 'integer', 'min:0', 'max:23'],
-            'end_hour' => ['required', 'integer', 'min:1', 'max:24', 'gt:start_hour'],
-            'weekdays_only' => ['required', 'boolean'],
-            'business_hours_interval' => ['required', 'integer', 'min:5', 'max:60'],
-            'off_hours_interval' => ['required', 'integer', 'min:15', 'max:240'],
-            'full_sync_time' => ['required', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/'],
-        ]);
+        $validated = $request->validated();
 
         $config = SyncConfiguration::query()->first() ?? new SyncConfiguration;
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Notifications;
 
 use App\Models\SyncFailureAlert;
@@ -67,7 +69,7 @@ class SyncFailureNotification extends Notification implements ShouldQueue
             foreach (array_slice($failureDetails, -3) as $failure) {
                 $timestamp = $failure['timestamp'] ?? 'Unknown time';
                 $details = $failure['details']['error'] ?? 'No details available';
-                $message->line("- {$timestamp}: {$details}");
+                $message->line("• {$timestamp}: {$details}");
             }
             $message->line('');
         }

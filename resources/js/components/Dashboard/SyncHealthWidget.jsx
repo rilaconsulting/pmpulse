@@ -14,7 +14,6 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    Legend,
 } from 'recharts';
 
 export default function SyncHealthWidget({ initialData }) {
@@ -64,21 +63,6 @@ export default function SyncHealthWidget({ initialData }) {
         }
     };
 
-    const getStatusText = (status) => {
-        switch (status) {
-            case 'completed':
-                return 'Completed';
-            case 'failed':
-                return 'Failed';
-            case 'running':
-                return 'Running';
-            case 'pending':
-                return 'Pending';
-            default:
-                return 'Unknown';
-        }
-    };
-
     const getConnectionStatusBadge = (status) => {
         const styles = {
             connected: 'bg-green-100 text-green-800',
@@ -99,12 +83,6 @@ export default function SyncHealthWidget({ initialData }) {
                 {labels[status] || 'Unknown'}
             </span>
         );
-    };
-
-    const formatDate = (dateString) => {
-        if (!dateString) return 'Never';
-        const date = new Date(dateString);
-        return date.toLocaleString();
     };
 
     const formatRelativeTime = (dateString) => {
@@ -158,7 +136,7 @@ export default function SyncHealthWidget({ initialData }) {
         );
     }
 
-    const { connection, lastRun, lastSuccessAt, period, chartData, resourceTotals, recentErrors } = data;
+    const { connection, lastRun, period, chartData, resourceTotals, recentErrors } = data;
 
     return (
         <div className="card">

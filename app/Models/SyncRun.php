@@ -200,6 +200,7 @@ class SyncRun extends Model
             'total_updated' => $totalUpdated,
             'total_skipped' => $totalSkipped,
             'total_errors' => $totalErrors,
+            'total_duration_ms' => $totalDuration,
             'resources_synced' => $this->resources_synced,
             'resource_metrics' => $metrics,
             'resource_errors' => $this->getResourceErrors(),

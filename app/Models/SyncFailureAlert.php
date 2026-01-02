@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 class SyncFailureAlert extends Model
 {
@@ -60,12 +63,16 @@ class SyncFailureAlert extends Model
             $currentDetails = array_slice($currentDetails, -10);
         }
 
+        // Use atomic increment to prevent race conditions
         $this->update([
-            'consecutive_failures' => $this->consecutive_failures + 1,
+            'consecutive_failures' => DB::raw('consecutive_failures + 1'),
             'failure_details' => $currentDetails,
             'acknowledged_at' => null, // Clear acknowledgment on new failure
             'acknowledged_by' => null,
         ]);
+
+        // Refresh the model to get the updated consecutive_failures value
+        $this->refresh();
     }
 
     /**
@@ -115,7 +122,8 @@ class SyncFailureAlert extends Model
             return true;
         }
 
-        return $this->last_alert_sent_at->diffInMinutes(now()) >= $minMinutesBetweenAlerts;
+        // Use absolute difference to handle potential clock skew
+        return abs($this->last_alert_sent_at->diffInMinutes(now())) >= $minMinutesBetweenAlerts;
     }
 
     /**

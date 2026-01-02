@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\AppfolioConnection;
@@ -182,10 +184,14 @@ class SyncFailureAlertService
         // Get from config if set
         $configRecipients = config('appfolio.alerts.recipients');
         if (! empty($configRecipients)) {
-            return is_array($configRecipients) ? $configRecipients : [$configRecipients];
+            // Trim whitespace from each recipient in case of spaces after commas
+            $recipients = is_array($configRecipients) ? $configRecipients : [$configRecipients];
+
+            return array_map('trim', $recipients);
         }
 
-        // Fall back to all admin users
+        // Fall back to all users (single-tenant app, all users are effectively admins)
+        // TODO: When user roles are implemented, filter by admin role here
         return User::query()
             ->pluck('email')
             ->toArray();

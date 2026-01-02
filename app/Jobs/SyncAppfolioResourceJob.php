@@ -91,9 +91,9 @@ class SyncAppfolioResourceJob implements ShouldQueue
 
             $ingestionService->failSync($e->getMessage());
 
-            // Handle failure alert (this is also called in failed() for permanent failures)
-            $this->syncRun->refresh();
-            $alertService->handleSyncCompleted($this->syncRun);
+            // Note: Alert handling is done in failed() method for permanent failures only.
+            // We don't call handleSyncCompleted here to avoid incrementing the failure
+            // counter on each retry attempt.
 
             throw $e;
         }

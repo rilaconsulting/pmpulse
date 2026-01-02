@@ -22,9 +22,9 @@ export default function SyncConfigurationForm({ syncConfiguration, syncStatus, t
         label: i === 0 ? '12:00 AM' : i === 12 ? '12:00 PM' : i < 12 ? `${i}:00 AM` : `${i - 12}:00 PM`,
     }));
 
-    const endHourOptions = Array.from({ length: 24 }, (_, i) => ({
+    const endHourOptions = Array.from({ length: 23 }, (_, i) => ({
         value: i + 1,
-        label: i + 1 === 24 ? '12:00 AM (next day)' : i + 1 === 12 ? '12:00 PM' : i + 1 < 12 ? `${i + 1}:00 AM` : `${i + 1 - 12}:00 PM`,
+        label: i + 1 === 12 ? '12:00 PM' : i + 1 < 12 ? `${i + 1}:00 AM` : `${i + 1 - 12}:00 PM`,
     }));
 
     return (
