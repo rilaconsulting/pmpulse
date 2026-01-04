@@ -93,6 +93,14 @@ class UpdateUserRequest extends FormRequest
 
             $userService = app(UserService::class);
 
+            // Check if trying to deactivate own account
+            if ($this->has('is_active') && $this->boolean('is_active') === false && $user->id === $this->user()->id) {
+                $validator->errors()->add(
+                    'is_active',
+                    'You cannot deactivate your own account.'
+                );
+            }
+
             // Check if trying to deactivate last admin
             if ($this->has('is_active') && $this->boolean('is_active') === false) {
                 if ($userService->isLastActiveAdmin($user)) {

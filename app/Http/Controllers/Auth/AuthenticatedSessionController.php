@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Models\Setting;
+use App\Services\AuthenticationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,30 +13,18 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
+    public function __construct(
+        private readonly AuthenticationService $authService,
+    ) {}
+
     /**
      * Display the login view.
      */
     public function create(): Response
     {
         return Inertia::render('Auth/Login', [
-            'googleSsoEnabled' => $this->isGoogleSsoEnabled(),
+            'googleSsoEnabled' => $this->authService->isGoogleSsoEnabled(),
         ]);
-    }
-
-    /**
-     * Check if Google SSO is enabled and configured.
-     */
-    private function isGoogleSsoEnabled(): bool
-    {
-        $googleConfig = Setting::getCategory('google_sso');
-
-        // Check database settings first
-        if (! empty($googleConfig['enabled']) && ! empty($googleConfig['client_id']) && ! empty($googleConfig['client_secret'])) {
-            return true;
-        }
-
-        // Fall back to env config
-        return ! empty(config('services.google.client_id')) && ! empty(config('services.google.client_secret'));
     }
 
     /**

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Setting;
+use App\Services\AuthenticationService;
 use App\Services\GoogleSsoService;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Http\RedirectResponse;
@@ -20,6 +20,7 @@ class GoogleSsoController extends Controller
         private readonly SocialiteFactory $socialite,
         private readonly Guard $auth,
         private readonly GoogleSsoService $ssoService,
+        private readonly AuthenticationService $authService,
     ) {}
 
     /**
@@ -28,7 +29,7 @@ class GoogleSsoController extends Controller
     public function redirect(): RedirectResponse
     {
         // Check if Google SSO is enabled
-        if (! $this->isGoogleSsoEnabled()) {
+        if (! $this->authService->isGoogleSsoEnabled()) {
             return redirect()->route('login')
                 ->withErrors(['google' => 'Google SSO is not configured. Please contact your administrator.']);
         }
@@ -36,22 +37,6 @@ class GoogleSsoController extends Controller
         return $this->socialite->driver('google')
             ->scopes(['openid', 'email', 'profile'])
             ->redirect();
-    }
-
-    /**
-     * Check if Google SSO is enabled and configured.
-     */
-    private function isGoogleSsoEnabled(): bool
-    {
-        $googleConfig = Setting::getCategory('google_sso');
-
-        // Check database settings first
-        if (! empty($googleConfig['enabled']) && ! empty($googleConfig['client_id']) && ! empty($googleConfig['client_secret'])) {
-            return true;
-        }
-
-        // Fall back to env config
-        return ! empty(config('services.google.client_id')) && ! empty(config('services.google.client_secret'));
     }
 
     /**

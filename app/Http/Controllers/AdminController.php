@@ -136,13 +136,7 @@ class AdminController extends Controller
      */
     public function usersUpdate(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        // Prevent deactivating self (additional check beyond form request)
-        $validated = $request->validated();
-        if (isset($validated['is_active']) && ! $validated['is_active'] && $user->id === auth()->id()) {
-            return back()->withErrors(['is_active' => 'You cannot deactivate your own account.']);
-        }
-
-        $this->userService->updateUser($user, $validated);
+        $this->userService->updateUser($user, $request->validated());
 
         return redirect()->route('admin.users.index')
             ->with('success', 'User updated successfully.');
@@ -321,12 +315,19 @@ class AdminController extends Controller
     {
         $validated = $request->validated();
 
-        Setting::set('google_sso', 'enabled', $validated['google_enabled']);
-        Setting::set('google_sso', 'client_id', $validated['google_client_id']);
+        $settingsToUpdate = [
+            'enabled' => $validated['google_enabled'],
+            'client_id' => $validated['google_client_id'],
+        ];
 
         // Only update secret if provided
         if (! empty($validated['google_client_secret'])) {
-            Setting::set('google_sso', 'client_secret', $validated['google_client_secret'], encrypted: true);
+            $settingsToUpdate['client_secret'] = $validated['google_client_secret'];
+        }
+
+        foreach ($settingsToUpdate as $key => $value) {
+            $isSecret = ($key === 'client_secret');
+            Setting::set('google_sso', $key, $value, encrypted: $isSecret);
         }
 
         return back()->with('success', 'Authentication settings saved successfully.');
