@@ -162,6 +162,8 @@ class AdminController extends Controller
      */
     public function integrations(BusinessHoursService $businessHoursService): Response
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         // Get current connection settings from settings table
         $appfolioSettings = Setting::getCategory('appfolio');
 
@@ -295,6 +297,8 @@ class AdminController extends Controller
      */
     public function authentication(): Response
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         $googleConfig = Setting::getCategory('google_sso');
 
         return Inertia::render('Admin/Authentication', [
@@ -317,8 +321,12 @@ class AdminController extends Controller
 
         $settingsToUpdate = [
             'enabled' => $validated['google_enabled'],
-            'client_id' => $validated['google_client_id'],
         ];
+
+        // Only update client_id if provided (don't overwrite with empty string)
+        if (! empty($validated['google_client_id'])) {
+            $settingsToUpdate['client_id'] = $validated['google_client_id'];
+        }
 
         // Only update secret if provided
         if (! empty($validated['google_client_secret'])) {
@@ -342,6 +350,8 @@ class AdminController extends Controller
      */
     public function settings(): Response
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         return Inertia::render('Admin/Settings', [
             'features' => [
                 'incremental_sync' => Setting::isFeatureEnabled('incremental_sync', true),

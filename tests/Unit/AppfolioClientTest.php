@@ -122,7 +122,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_property_directory_calls_correct_endpoint(): void
     {
         Http::fake([
-            'testdb.appfolio.com/api/v1/reports/property_directory.json' => Http::response([
+            'testdb.appfolio.com/api/v2/reports/property_directory.json' => Http::response([
                 'results' => [
                     ['property_id' => 1, 'property_name' => 'Test Property'],
                 ],
@@ -133,7 +133,7 @@ class AppfolioClientTest extends TestCase
 
         Http::assertSent(function ($request) {
             return $request->method() === 'POST'
-                && str_contains($request->url(), '/api/v1/reports/property_directory.json');
+                && str_contains($request->url(), '/api/v2/reports/property_directory.json');
         });
 
         $this->assertIsArray($result);
@@ -143,7 +143,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_unit_directory_calls_correct_endpoint(): void
     {
         Http::fake([
-            'testdb.appfolio.com/api/v1/reports/unit_directory.json' => Http::response([
+            'testdb.appfolio.com/api/v2/reports/unit_directory.json' => Http::response([
                 'results' => [
                     ['unit_id' => 1, 'unit_name' => '101'],
                 ],
@@ -154,7 +154,7 @@ class AppfolioClientTest extends TestCase
 
         Http::assertSent(function ($request) {
             return $request->method() === 'POST'
-                && str_contains($request->url(), '/api/v1/reports/unit_directory.json');
+                && str_contains($request->url(), '/api/v2/reports/unit_directory.json');
         });
 
         $this->assertIsArray($result);
@@ -163,7 +163,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_vendor_directory_calls_correct_endpoint(): void
     {
         Http::fake([
-            'testdb.appfolio.com/api/v1/reports/vendor_directory.json' => Http::response([
+            'testdb.appfolio.com/api/v2/reports/vendor_directory.json' => Http::response([
                 'results' => [
                     ['vendor_id' => 1, 'company_name' => 'Test Vendor'],
                 ],
@@ -174,7 +174,7 @@ class AppfolioClientTest extends TestCase
 
         Http::assertSent(function ($request) {
             return $request->method() === 'POST'
-                && str_contains($request->url(), '/api/v1/reports/vendor_directory.json');
+                && str_contains($request->url(), '/api/v2/reports/vendor_directory.json');
         });
 
         $this->assertIsArray($result);
@@ -183,7 +183,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_expense_register_calls_correct_endpoint(): void
     {
         Http::fake([
-            'testdb.appfolio.com/api/v1/reports/expense_register.json' => Http::response([
+            'testdb.appfolio.com/api/v2/reports/expense_register.json' => Http::response([
                 'results' => [
                     ['expense_id' => 1, 'amount' => '100.00'],
                 ],
@@ -197,7 +197,7 @@ class AppfolioClientTest extends TestCase
 
         Http::assertSent(function ($request) {
             return $request->method() === 'POST'
-                && str_contains($request->url(), '/api/v1/reports/expense_register.json');
+                && str_contains($request->url(), '/api/v2/reports/expense_register.json');
         });
 
         $this->assertIsArray($result);
@@ -206,7 +206,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_work_order_report_calls_correct_endpoint(): void
     {
         Http::fake([
-            'testdb.appfolio.com/api/v1/reports/work_order.json' => Http::response([
+            'testdb.appfolio.com/api/v2/reports/work_order.json' => Http::response([
                 'results' => [
                     ['work_order_id' => 1, 'status' => 'open'],
                 ],
@@ -220,7 +220,7 @@ class AppfolioClientTest extends TestCase
 
         Http::assertSent(function ($request) {
             return $request->method() === 'POST'
-                && str_contains($request->url(), '/api/v1/reports/work_order.json');
+                && str_contains($request->url(), '/api/v2/reports/work_order.json');
         });
 
         $this->assertIsArray($result);
@@ -229,7 +229,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_rent_roll_calls_correct_endpoint(): void
     {
         Http::fake([
-            'testdb.appfolio.com/api/v1/reports/rent_roll.json' => Http::response([
+            'testdb.appfolio.com/api/v2/reports/rent_roll.json' => Http::response([
                 'results' => [],
             ], 200),
         ]);
@@ -238,7 +238,7 @@ class AppfolioClientTest extends TestCase
 
         Http::assertSent(function ($request) {
             return $request->method() === 'POST'
-                && str_contains($request->url(), '/api/v1/reports/rent_roll.json');
+                && str_contains($request->url(), '/api/v2/reports/rent_roll.json');
         });
 
         $this->assertIsArray($result);
@@ -247,7 +247,7 @@ class AppfolioClientTest extends TestCase
     public function test_get_delinquency_calls_correct_endpoint(): void
     {
         Http::fake([
-            'testdb.appfolio.com/api/v1/reports/delinquency.json' => Http::response([
+            'testdb.appfolio.com/api/v2/reports/delinquency.json' => Http::response([
                 'results' => [],
             ], 200),
         ]);
@@ -256,7 +256,7 @@ class AppfolioClientTest extends TestCase
 
         Http::assertSent(function ($request) {
             return $request->method() === 'POST'
-                && str_contains($request->url(), '/api/v1/reports/delinquency.json');
+                && str_contains($request->url(), '/api/v2/reports/delinquency.json');
         });
 
         $this->assertIsArray($result);
@@ -272,7 +272,7 @@ class AppfolioClientTest extends TestCase
             if ($callCount === 1) {
                 return Http::response([
                     'results' => [['id' => 1], ['id' => 2]],
-                    'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
+                    'next_page_url' => '/api/v2/reports/property_directory.json?page=2',
                 ], 200);
             }
 
@@ -299,7 +299,7 @@ class AppfolioClientTest extends TestCase
             if ($callCount === 1) {
                 return Http::response([
                     'results' => [['id' => 1], ['id' => 2]],
-                    'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
+                    'next_page_url' => '/api/v2/reports/property_directory.json?page=2',
                 ], 200);
             }
 
@@ -341,7 +341,7 @@ class AppfolioClientTest extends TestCase
             // Always return more pages
             return Http::response([
                 'results' => [['id' => $callCount]],
-                'next_page_url' => '/api/v1/reports/property_directory.json?page='.($callCount + 1),
+                'next_page_url' => '/api/v2/reports/property_directory.json?page='.($callCount + 1),
             ], 200);
         });
 
@@ -361,7 +361,7 @@ class AppfolioClientTest extends TestCase
             if ($callCount === 1) {
                 return Http::response([
                     'results' => [['id' => 1], ['id' => 2]],
-                    'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
+                    'next_page_url' => '/api/v2/reports/property_directory.json?page=2',
                 ], 200);
             }
 
@@ -399,7 +399,7 @@ class AppfolioClientTest extends TestCase
         Http::fake([
             'testdb.appfolio.com/*' => Http::response([
                 'results' => [['id' => 1]],
-                'next_page_url' => '/api/v1/reports/property_directory.json?page=2',
+                'next_page_url' => '/api/v2/reports/property_directory.json?page=2',
             ], 200),
         ]);
 
