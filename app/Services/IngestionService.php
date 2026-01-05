@@ -110,14 +110,15 @@ class IngestionService
 
         $params = $this->buildQueryParams();
 
-        // Fetch data from AppFolio
+        // Fetch data from AppFolio Reports API V2
         $data = match ($resourceType) {
-            'properties' => $this->appfolioClient->getProperties($params),
-            'units' => $this->appfolioClient->getUnits($params),
-            'people' => $this->appfolioClient->getPeople($params),
-            'leases' => $this->appfolioClient->getLeases($params),
-            'ledger_transactions' => $this->appfolioClient->getLedgerTransactions($params),
-            'work_orders' => $this->appfolioClient->getWorkOrders($params),
+            'properties' => $this->appfolioClient->getPropertyDirectory($params),
+            'units' => $this->appfolioClient->getUnitDirectory($params),
+            'vendors' => $this->appfolioClient->getVendorDirectory($params),
+            'work_orders' => $this->appfolioClient->getWorkOrderReport($params),
+            'expenses' => $this->appfolioClient->getExpenseRegister($params),
+            'rent_roll' => $this->appfolioClient->getRentRoll($params),
+            'delinquency' => $this->appfolioClient->getDelinquency($params),
             default => throw new \InvalidArgumentException("Unknown resource type: {$resourceType}"),
         };
 
@@ -153,9 +154,9 @@ class IngestionService
      */
     private function processItems(string $resourceType, array $data): void
     {
-        // TODO: Adjust based on actual AppFolio API response structure
-        // This assumes the response has a 'data' key with an array of items
-        $items = $data['data'] ?? $data;
+        // AppFolio Reports API V2 returns results under the 'results' key
+        // If paginate_results=false, the response is just an array of rows
+        $items = $data['results'] ?? $data;
 
         if (! is_array($items)) {
             Log::warning('No items found for resource type', ['type' => $resourceType]);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Models\AppfolioConnection;
 use App\Models\Setting;
 use App\Models\SyncFailureAlert;
 use App\Models\SyncRun;
@@ -21,8 +20,6 @@ class SyncFailureAlertServiceTest extends TestCase
 
     private SyncFailureAlertService $service;
 
-    private AppfolioConnection $connection;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -30,14 +27,6 @@ class SyncFailureAlertServiceTest extends TestCase
         Cache::flush();
 
         $this->service = new SyncFailureAlertService;
-
-        $this->connection = AppfolioConnection::create([
-            'name' => 'Test Connection',
-            'client_id' => 'test-client',
-            'client_secret_encrypted' => encrypt('test-secret'),
-            'api_base_url' => 'https://api.appfolio.test',
-            'status' => 'connected',
-        ]);
 
         // Enable notifications via Setting
         Setting::set('features', 'notifications', true);
@@ -52,13 +41,11 @@ class SyncFailureAlertServiceTest extends TestCase
     {
         // Create an existing alert with failures
         $alert = SyncFailureAlert::create([
-            'appfolio_connection_id' => $this->connection->id,
             'consecutive_failures' => 2,
         ]);
 
         // Create a successful sync run
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'incremental',
             'status' => 'completed',
             'started_at' => now(),
@@ -74,7 +61,6 @@ class SyncFailureAlertServiceTest extends TestCase
     public function test_failed_sync_increments_failure_count(): void
     {
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'incremental',
             'status' => 'failed',
             'started_at' => now(),
@@ -84,7 +70,7 @@ class SyncFailureAlertServiceTest extends TestCase
 
         $this->service->handleSyncCompleted($syncRun);
 
-        $alert = SyncFailureAlert::where('appfolio_connection_id', $this->connection->id)->first();
+        $alert = SyncFailureAlert::query()->first();
         $this->assertEquals(1, $alert->consecutive_failures);
     }
 
@@ -95,13 +81,11 @@ class SyncFailureAlertServiceTest extends TestCase
 
         // Create 2 failures first
         $alert = SyncFailureAlert::create([
-            'appfolio_connection_id' => $this->connection->id,
             'consecutive_failures' => 2,
         ]);
 
         // Create the 3rd failure
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'incremental',
             'status' => 'failed',
             'started_at' => now(),
@@ -121,7 +105,6 @@ class SyncFailureAlertServiceTest extends TestCase
         Setting::set('alerts', 'failure_threshold', 3);
 
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'incremental',
             'status' => 'failed',
             'started_at' => now(),
@@ -140,13 +123,11 @@ class SyncFailureAlertServiceTest extends TestCase
 
         // Create an alert that was just sent
         $alert = SyncFailureAlert::create([
-            'appfolio_connection_id' => $this->connection->id,
             'consecutive_failures' => 1,
             'last_alert_sent_at' => now(),
         ]);
 
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'incremental',
             'status' => 'failed',
             'started_at' => now(),
@@ -166,13 +147,11 @@ class SyncFailureAlertServiceTest extends TestCase
 
         // Create an alert that was sent 2 hours ago
         $alert = SyncFailureAlert::create([
-            'appfolio_connection_id' => $this->connection->id,
             'consecutive_failures' => 1,
             'last_alert_sent_at' => now()->subMinutes(120),
         ]);
 
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'incremental',
             'status' => 'failed',
             'started_at' => now(),
@@ -195,14 +174,12 @@ class SyncFailureAlertServiceTest extends TestCase
 
         // Create an acknowledged alert
         $alert = SyncFailureAlert::create([
-            'appfolio_connection_id' => $this->connection->id,
             'consecutive_failures' => 5,
             'acknowledged_at' => now(),
             'acknowledged_by' => $user->id,
         ]);
 
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'incremental',
             'status' => 'failed',
             'started_at' => now(),
@@ -226,7 +203,6 @@ class SyncFailureAlertServiceTest extends TestCase
     {
         $user = User::first();
         $alert = SyncFailureAlert::create([
-            'appfolio_connection_id' => $this->connection->id,
             'consecutive_failures' => 3,
         ]);
 
@@ -241,7 +217,6 @@ class SyncFailureAlertServiceTest extends TestCase
     {
         // Create an unacknowledged alert with failures
         SyncFailureAlert::create([
-            'appfolio_connection_id' => $this->connection->id,
             'consecutive_failures' => 3,
         ]);
 
@@ -254,7 +229,6 @@ class SyncFailureAlertServiceTest extends TestCase
     public function test_failure_details_stored(): void
     {
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'incremental',
             'status' => 'failed',
             'started_at' => now(),
@@ -265,7 +239,7 @@ class SyncFailureAlertServiceTest extends TestCase
 
         $this->service->handleSyncCompleted($syncRun);
 
-        $alert = SyncFailureAlert::where('appfolio_connection_id', $this->connection->id)->first();
+        $alert = SyncFailureAlert::query()->first();
         $this->assertNotEmpty($alert->failure_details);
         $this->assertArrayHasKey('error', $alert->failure_details[0]['details']);
     }
@@ -277,12 +251,10 @@ class SyncFailureAlertServiceTest extends TestCase
         Setting::set('alerts', 'failure_threshold', 1);
 
         SyncFailureAlert::create([
-            'appfolio_connection_id' => $this->connection->id,
             'consecutive_failures' => 5,
         ]);
 
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $this->connection->id,
             'mode' => 'incremental',
             'status' => 'failed',
             'started_at' => now(),

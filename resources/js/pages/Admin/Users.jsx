@@ -1,6 +1,6 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import Layout from '../../components/Layout';
+import AdminLayout from './Index';
 import {
     PlusIcon,
     PencilIcon,
@@ -10,14 +10,14 @@ import {
     ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 
-export default function Index({ users, roles, filters }) {
+export default function Users({ users, roles, filters }) {
     const [search, setSearch] = useState(filters.search || '');
 
     const handleFilter = (key, value) => {
-        router.get('/users', {
+        router.get('/admin/users', {
             ...filters,
             [key]: value,
-            page: 1, // Reset to first page on filter change
+            page: 1,
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -30,7 +30,7 @@ export default function Index({ users, roles, filters }) {
     };
 
     const clearFilters = () => {
-        router.get('/users', {}, {
+        router.get('/admin/users', {}, {
             preserveState: true,
             preserveScroll: true,
         });
@@ -40,19 +40,17 @@ export default function Index({ users, roles, filters }) {
     const hasActiveFilters = Boolean(filters.search) || (filters.active !== '' && filters.active !== null && filters.active !== undefined) || Boolean(filters.auth_provider) || Boolean(filters.role_id);
 
     return (
-        <Layout>
-            <Head title="Users" />
-
+        <AdminLayout currentTab="users">
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Users</h1>
+                        <h2 className="text-lg font-medium text-gray-900">User Management</h2>
                         <p className="mt-1 text-sm text-gray-500">
-                            Manage user accounts and permissions
+                            Create, edit, and manage user accounts
                         </p>
                     </div>
-                    <Link href="/users/create" className="btn-primary flex items-center">
+                    <Link href="/admin/users/create" className="btn-primary flex items-center">
                         <PlusIcon className="w-5 h-5 mr-2" />
                         Add User
                     </Link>
@@ -233,7 +231,7 @@ export default function Index({ users, roles, filters }) {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <Link
-                                                    href={`/users/${user.id}/edit`}
+                                                    href={`/admin/users/${user.id}/edit`}
                                                     className="text-blue-600 hover:text-blue-900 inline-flex items-center"
                                                 >
                                                     <PencilIcon className="w-4 h-4 mr-1" />
@@ -279,6 +277,6 @@ export default function Index({ users, roles, filters }) {
                     )}
                 </div>
             </div>
-        </Layout>
+        </AdminLayout>
     );
 }

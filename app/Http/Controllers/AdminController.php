@@ -4,16 +4,23 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CreateUserRequest;
+use App\Http\Requests\DeactivateUserRequest;
+use App\Http\Requests\ListUsersRequest;
+use App\Http\Requests\SaveAuthenticationRequest;
 use App\Http\Requests\SaveConnectionRequest;
 use App\Http\Requests\SaveSyncConfigurationRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Jobs\SyncAppfolioResourceJob;
-use App\Models\AppfolioConnection;
+use App\Models\Role;
 use App\Models\Setting;
 use App\Models\SyncRun;
+use App\Models\User;
+use App\Services\AppfolioClient;
 use App\Services\BusinessHoursService;
+use App\Services\UserService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,13 +38,134 @@ class AdminController extends Controller
         'Pacific/Honolulu' => 'Hawaii Time (HT)',
     ];
 
+    public function __construct(
+        private readonly UserService $userService,
+        private readonly AppfolioClient $appfolioClient
+    ) {}
+
+    // ========================================
+    // Users Management
+    // ========================================
+
     /**
-     * Display the admin page.
+     * Display a listing of users.
      */
-    public function index(BusinessHoursService $businessHoursService): Response
+    public function users(ListUsersRequest $request): Response
     {
-        // Get current connection settings (mask the secret)
-        $connection = AppfolioConnection::query()->first();
+        $query = User::with('role');
+
+        // Filter by active status
+        if ($request->has('active') && $request->validated('active') !== null) {
+            $query->where('is_active', $request->validated('active'));
+        }
+
+        // Filter by auth provider
+        if ($request->filled('auth_provider')) {
+            $query->where('auth_provider', $request->validated('auth_provider'));
+        }
+
+        // Filter by role
+        if ($request->filled('role_id')) {
+            $query->where('role_id', $request->validated('role_id'));
+        }
+
+        // Search by name or email
+        if ($request->filled('search')) {
+            $search = $request->validated('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->orderBy('name')->paginate(15)->withQueryString();
+        $roles = Role::orderBy('name')->get(['id', 'name', 'description']);
+
+        return Inertia::render('Admin/Users', [
+            'users' => $users,
+            'roles' => $roles,
+            'filters' => [
+                'search' => $request->input('search', ''),
+                'active' => $request->input('active', ''),
+                'auth_provider' => $request->input('auth_provider', ''),
+                'role_id' => $request->input('role_id', ''),
+            ],
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new user.
+     */
+    public function usersCreate(ListUsersRequest $request): Response
+    {
+        $roles = Role::orderBy('name')->get(['id', 'name', 'description']);
+
+        return Inertia::render('Admin/UserCreate', [
+            'roles' => $roles,
+        ]);
+    }
+
+    /**
+     * Store a newly created user.
+     */
+    public function usersStore(CreateUserRequest $request): RedirectResponse
+    {
+        $this->userService->createUser($request->validated(), $request->user());
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User created successfully.');
+    }
+
+    /**
+     * Show the form for editing the specified user.
+     */
+    public function usersEdit(ListUsersRequest $request, User $user): Response
+    {
+        $user->load('role');
+        $roles = Role::orderBy('name')->get(['id', 'name', 'description']);
+
+        return Inertia::render('Admin/UserEdit', [
+            'user' => $user,
+            'roles' => $roles,
+            'canDeactivate' => ! $this->userService->isLastActiveAdmin($user) && $user->id !== auth()->id(),
+        ]);
+    }
+
+    /**
+     * Update the specified user.
+     */
+    public function usersUpdate(UpdateUserRequest $request, User $user): RedirectResponse
+    {
+        $this->userService->updateUser($user, $request->validated());
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User updated successfully.');
+    }
+
+    /**
+     * Deactivate the specified user.
+     */
+    public function usersDestroy(DeactivateUserRequest $request, User $user): RedirectResponse
+    {
+        $this->userService->deactivateUser($user);
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User deactivated successfully.');
+    }
+
+    // ========================================
+    // Integrations (AppFolio)
+    // ========================================
+
+    /**
+     * Display the integrations page.
+     */
+    public function integrations(BusinessHoursService $businessHoursService): Response
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        // Get current connection settings from settings table
+        $appfolioSettings = Setting::getCategory('appfolio');
 
         // Get sync run history (last 20 runs)
         $syncHistory = SyncRun::query()
@@ -48,22 +176,23 @@ class AdminController extends Controller
         // Get sync configuration from Settings
         $syncConfig = $this->getSyncConfiguration();
 
-        return Inertia::render('Admin', [
-            'connection' => $connection ? [
-                'id' => $connection->id,
-                'name' => $connection->name,
-                'client_id' => $connection->client_id,
-                'api_base_url' => $connection->api_base_url,
-                'status' => $connection->status,
-                'last_success_at' => $connection->last_success_at,
-                'last_error' => $connection->last_error,
-                'has_secret' => ! empty($connection->client_secret_encrypted),
-            ] : null,
+        $connection = null;
+        if (! empty($appfolioSettings['client_id'])) {
+            $database = $appfolioSettings['database'] ?? null;
+            $connection = [
+                'client_id' => $appfolioSettings['client_id'],
+                'database' => $database,
+                'api_base_url' => $database ? "https://{$database}.appfolio.com" : null,
+                'status' => $appfolioSettings['status'] ?? 'configured',
+                'last_success_at' => $appfolioSettings['last_success_at'] ?? null,
+                'last_error' => $appfolioSettings['last_error'] ?? null,
+                'has_secret' => ! empty($appfolioSettings['client_secret']),
+            ];
+        }
+
+        return Inertia::render('Admin/Integrations', [
+            'connection' => $connection,
             'syncHistory' => $syncHistory->toArray(),
-            'features' => [
-                'incremental_sync' => Setting::isFeatureEnabled('incremental_sync', true),
-                'notifications' => Setting::isFeatureEnabled('notifications', true),
-            ],
             'syncConfiguration' => $syncConfig,
             'syncStatus' => $businessHoursService->getConfiguration(),
             'timezones' => self::TIMEZONES,
@@ -97,19 +226,15 @@ class AdminController extends Controller
     {
         $validated = $request->validated();
 
-        $connection = AppfolioConnection::query()->first() ?? new AppfolioConnection;
-
-        $connection->name = $validated['name'];
-        $connection->client_id = $validated['client_id'];
-        $connection->api_base_url = $validated['api_base_url'];
+        Setting::set('appfolio', 'client_id', $validated['client_id']);
+        Setting::set('appfolio', 'database', $validated['database']);
 
         // Only update secret if provided
         if (! empty($validated['client_secret'])) {
-            $connection->client_secret_encrypted = Crypt::encryptString($validated['client_secret']);
+            Setting::set('appfolio', 'client_secret', $validated['client_secret'], encrypted: true);
         }
 
-        $connection->status = 'configured';
-        $connection->save();
+        Setting::set('appfolio', 'status', 'configured');
 
         return back()->with('success', 'Connection settings saved successfully.');
     }
@@ -123,15 +248,12 @@ class AdminController extends Controller
             'mode' => ['required', 'in:incremental,full'],
         ]);
 
-        $connection = AppfolioConnection::query()->first();
-
-        if (! $connection) {
+        if (! $this->appfolioClient->isConfigured()) {
             return back()->with('error', 'Please configure AppFolio connection first.');
         }
 
         // Create a new sync run
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $connection->id,
             'mode' => $validated['mode'],
             'status' => 'pending',
             'started_at' => now(),
@@ -164,5 +286,77 @@ class AdminController extends Controller
         Setting::set('sync', 'full_sync_time', $validated['full_sync_time']);
 
         return back()->with('success', 'Sync configuration saved. Changes will take effect on next scheduler run.');
+    }
+
+    // ========================================
+    // Authentication (Google SSO)
+    // ========================================
+
+    /**
+     * Display the authentication settings page.
+     */
+    public function authentication(): Response
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $googleConfig = Setting::getCategory('google_sso');
+
+        return Inertia::render('Admin/Authentication', [
+            'googleSso' => [
+                'enabled' => $googleConfig['enabled'] ?? false,
+                'client_id' => $googleConfig['client_id'] ?? '',
+                'has_secret' => ! empty($googleConfig['client_secret']),
+                'configured' => ! empty($googleConfig['client_id']) && ! empty($googleConfig['client_secret']),
+                'redirect_uri' => url('/auth/google/callback'),
+            ],
+        ]);
+    }
+
+    /**
+     * Save authentication settings.
+     */
+    public function saveAuthentication(SaveAuthenticationRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        $settingsToUpdate = [
+            'enabled' => $validated['google_enabled'],
+        ];
+
+        // Only update client_id if provided (don't overwrite with empty string)
+        if (! empty($validated['google_client_id'])) {
+            $settingsToUpdate['client_id'] = $validated['google_client_id'];
+        }
+
+        // Only update secret if provided
+        if (! empty($validated['google_client_secret'])) {
+            $settingsToUpdate['client_secret'] = $validated['google_client_secret'];
+        }
+
+        foreach ($settingsToUpdate as $key => $value) {
+            $isSecret = ($key === 'client_secret');
+            Setting::set('google_sso', $key, $value, encrypted: $isSecret);
+        }
+
+        return back()->with('success', 'Authentication settings saved successfully.');
+    }
+
+    // ========================================
+    // Settings
+    // ========================================
+
+    /**
+     * Display the general settings page.
+     */
+    public function settings(): Response
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        return Inertia::render('Admin/Settings', [
+            'features' => [
+                'incremental_sync' => Setting::isFeatureEnabled('incremental_sync', true),
+                'notifications' => Setting::isFeatureEnabled('notifications', true),
+            ],
+        ]);
     }
 }

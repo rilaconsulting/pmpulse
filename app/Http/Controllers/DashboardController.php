@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AppfolioConnection;
 use App\Models\DailyKpi;
 use App\Models\SyncRun;
 use App\Services\AnalyticsService;
+use App\Services\AppfolioClient;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -13,7 +13,8 @@ use Inertia\Response;
 class DashboardController extends Controller
 {
     public function __construct(
-        private readonly AnalyticsService $analyticsService
+        private readonly AnalyticsService $analyticsService,
+        private readonly AppfolioClient $appfolioClient
     ) {}
 
     /**
@@ -25,9 +26,6 @@ class DashboardController extends Controller
         $latestSync = SyncRun::query()
             ->latest('started_at')
             ->first();
-
-        // Get AppFolio connection status
-        $connection = AppfolioConnection::query()->first();
 
         // Get the latest KPIs
         $latestKpis = DailyKpi::query()
@@ -44,13 +42,13 @@ class DashboardController extends Controller
         $propertyRollups = $this->analyticsService->getPropertyRollups();
 
         // Get sync health data for the widget
-        $syncHealth = $this->getSyncHealthData($connection, $latestSync);
+        $syncHealth = $this->getSyncHealthData($latestSync);
 
         return Inertia::render('Dashboard', [
             'syncStatus' => [
                 'lastRun' => $latestSync?->toArray(),
-                'connectionStatus' => $connection?->status ?? 'not_configured',
-                'lastSuccessAt' => $connection?->last_success_at,
+                'connectionStatus' => $this->appfolioClient->getStatus(),
+                'lastSuccessAt' => $this->appfolioClient->getLastSuccessAt(),
             ],
             'syncHealth' => $syncHealth,
             'kpis' => [
@@ -64,7 +62,7 @@ class DashboardController extends Controller
     /**
      * Get sync health data for the dashboard widget.
      */
-    private function getSyncHealthData(?AppfolioConnection $connection, ?SyncRun $lastRun): array
+    private function getSyncHealthData(?SyncRun $lastRun): array
     {
         $days = 7;
         $periodStart = now()->subDays($days)->startOfDay();
@@ -148,8 +146,8 @@ class DashboardController extends Controller
 
         return [
             'connection' => [
-                'status' => $connection?->status ?? 'not_configured',
-                'last_success_at' => $connection?->last_success_at?->toIso8601String(),
+                'status' => $this->appfolioClient->getStatus(),
+                'last_success_at' => $this->appfolioClient->getLastSuccessAt(),
             ],
             'lastRun' => $lastRun ? [
                 'id' => $lastRun->id,

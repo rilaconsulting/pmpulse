@@ -2,7 +2,6 @@
 
 namespace Tests\Unit;
 
-use App\Models\AppfolioConnection;
 use App\Models\SyncRun;
 use App\Services\ResourceSyncTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,16 +17,7 @@ class ResourceSyncTrackerTest extends TestCase
     {
         parent::setUp();
 
-        $connection = AppfolioConnection::create([
-            'name' => 'Test Connection',
-            'client_id' => 'test-client',
-            'client_secret_encrypted' => encrypt('test-secret'),
-            'api_base_url' => 'https://api.appfolio.test',
-            'status' => 'configured',
-        ]);
-
         $this->syncRun = SyncRun::create([
-            'appfolio_connection_id' => $connection->id,
             'mode' => 'full',
             'status' => 'running',
             'started_at' => now(),

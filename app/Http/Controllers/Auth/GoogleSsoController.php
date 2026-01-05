@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\AuthenticationService;
 use App\Services\GoogleSsoService;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +20,7 @@ class GoogleSsoController extends Controller
         private readonly SocialiteFactory $socialite,
         private readonly Guard $auth,
         private readonly GoogleSsoService $ssoService,
+        private readonly AuthenticationService $authService,
     ) {}
 
     /**
@@ -26,6 +28,12 @@ class GoogleSsoController extends Controller
      */
     public function redirect(): RedirectResponse
     {
+        // Check if Google SSO is enabled
+        if (! $this->authService->isGoogleSsoEnabled()) {
+            return redirect()->route('login')
+                ->withErrors(['google' => 'Google SSO is not configured. Please contact your administrator.']);
+        }
+
         return $this->socialite->driver('google')
             ->scopes(['openid', 'email', 'profile'])
             ->redirect();

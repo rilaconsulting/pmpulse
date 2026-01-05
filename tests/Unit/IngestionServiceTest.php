@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Models\AppfolioConnection;
 use App\Models\Property;
+use App\Models\Setting;
 use App\Models\SyncRun;
 use App\Services\IngestionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -22,18 +22,14 @@ class IngestionServiceTest extends TestCase
     {
         parent::setUp();
 
-        // Create connection
-        $connection = AppfolioConnection::create([
-            'name' => 'Test Connection',
-            'client_id' => 'test-client-id',
-            'client_secret_encrypted' => encrypt('test-client-secret'),
-            'api_base_url' => 'https://api.appfolio.test',
-            'status' => 'configured',
-        ]);
+        // Create AppFolio settings
+        Setting::set('appfolio', 'client_id', 'test-client-id');
+        Setting::set('appfolio', 'client_secret', 'test-client-secret', encrypted: true);
+        Setting::set('appfolio', 'database', 'testdb');
+        Setting::set('appfolio', 'status', 'configured');
 
         // Create sync run
         $this->syncRun = SyncRun::create([
-            'appfolio_connection_id' => $connection->id,
             'mode' => 'full',
             'status' => 'pending',
             'started_at' => now(),
@@ -46,7 +42,7 @@ class IngestionServiceTest extends TestCase
     {
         Http::fake([
             '*' => Http::response([
-                'data' => [
+                'results' => [
                     [
                         'id' => 'prop-123',
                         'name' => 'Test Property',
@@ -81,7 +77,7 @@ class IngestionServiceTest extends TestCase
 
         Http::fake([
             '*' => Http::response([
-                'data' => [
+                'results' => [
                     [
                         'id' => 'prop-123',
                         'name' => 'Updated Name',
@@ -107,7 +103,7 @@ class IngestionServiceTest extends TestCase
     {
         Http::fake([
             '*' => Http::response([
-                'data' => [
+                'results' => [
                     ['id' => 'prop-123', 'name' => 'Test Property'],
                 ],
             ], 200),
@@ -134,7 +130,7 @@ class IngestionServiceTest extends TestCase
 
         Http::fake([
             '*' => Http::response([
-                'data' => [
+                'results' => [
                     [
                         'id' => 'unit-456',
                         'property_id' => 'prop-123',
@@ -168,7 +164,7 @@ class IngestionServiceTest extends TestCase
 
         Http::fake([
             '*' => Http::response([
-                'data' => [
+                'results' => [
                     ['id' => 'unit-1', 'property_id' => 'prop-123', 'unit_number' => '1', 'status' => 'occupied'],
                     ['id' => 'unit-2', 'property_id' => 'prop-123', 'unit_number' => '2', 'status' => 'available'],
                     ['id' => 'unit-3', 'property_id' => 'prop-123', 'unit_number' => '3', 'status' => 'maintenance'],
@@ -188,7 +184,7 @@ class IngestionServiceTest extends TestCase
     public function test_sync_run_marked_as_completed(): void
     {
         Http::fake([
-            '*' => Http::response(['data' => []], 200),
+            '*' => Http::response(['results' => []], 200),
         ]);
 
         $this->service->startSync($this->syncRun);
@@ -213,7 +209,7 @@ class IngestionServiceTest extends TestCase
     public function test_handles_empty_response(): void
     {
         Http::fake([
-            '*' => Http::response(['data' => []], 200),
+            '*' => Http::response(['results' => []], 200),
         ]);
 
         $this->service->startSync($this->syncRun);
@@ -228,21 +224,23 @@ class IngestionServiceTest extends TestCase
     {
         // Create incremental sync run
         $incrementalSyncRun = SyncRun::create([
-            'appfolio_connection_id' => $this->syncRun->appfolio_connection_id,
             'mode' => 'incremental',
             'status' => 'pending',
             'started_at' => now(),
         ]);
 
         Http::fake([
-            '*' => Http::response(['data' => []], 200),
+            '*' => Http::response(['results' => []], 200),
         ]);
 
         $this->service->startSync($incrementalSyncRun);
         $this->service->processResource('properties');
 
         Http::assertSent(function ($request) {
-            return str_contains($request->url(), 'modified_since');
+            // For POST requests, check if modified_since is in the JSON body
+            $body = json_decode($request->body(), true);
+
+            return isset($body['modified_since']);
         });
     }
 }

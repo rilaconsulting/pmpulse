@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TriggerSyncRequest;
 use App\Jobs\SyncAppfolioResourceJob;
-use App\Models\AppfolioConnection;
 use App\Models\SyncFailureAlert;
 use App\Models\SyncRun;
+use App\Services\AppfolioClient;
 use App\Services\SyncFailureAlertService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\DB;
 class SyncApiController extends Controller
 {
     public function __construct(
-        private readonly SyncFailureAlertService $alertService
+        private readonly SyncFailureAlertService $alertService,
+        private readonly AppfolioClient $appfolioClient
     ) {}
 
     /**
@@ -45,8 +46,6 @@ class SyncApiController extends Controller
     {
         $days = $request->integer('days', 7);
         $days = min(max($days, 1), 30);
-
-        $connection = AppfolioConnection::query()->first();
 
         // Get the last run
         $lastRun = SyncRun::query()
@@ -170,8 +169,8 @@ class SyncApiController extends Controller
 
         return response()->json([
             'connection' => [
-                'status' => $connection?->status ?? 'not_configured',
-                'last_success_at' => $connection?->last_success_at?->toIso8601String(),
+                'status' => $this->appfolioClient->getStatus(),
+                'last_success_at' => $this->appfolioClient->getLastSuccessAt(),
             ],
             'lastRun' => $lastRun ? [
                 'id' => $lastRun->id,
@@ -206,9 +205,7 @@ class SyncApiController extends Controller
     {
         $validated = $request->validated();
 
-        $connection = AppfolioConnection::query()->first();
-
-        if (! $connection) {
+        if (! $this->appfolioClient->isConfigured()) {
             return response()->json([
                 'error' => 'AppFolio connection not configured',
             ], 422);
@@ -216,7 +213,6 @@ class SyncApiController extends Controller
 
         // Create a new sync run
         $syncRun = SyncRun::create([
-            'appfolio_connection_id' => $connection->id,
             'mode' => $validated['mode'],
             'status' => 'pending',
             'started_at' => now(),
@@ -241,11 +237,7 @@ class SyncApiController extends Controller
     public function alerts(): JsonResponse
     {
         $activeAlerts = $this->alertService->getActiveAlerts();
-
-        $connection = AppfolioConnection::query()->first();
-        $alertStatus = $connection
-            ? $this->alertService->getAlertStatus($connection)
-            : ['has_alert' => false, 'consecutive_failures' => 0];
+        $alertStatus = $this->alertService->getAlertStatus();
 
         return response()->json([
             'active_alerts' => $activeAlerts,
