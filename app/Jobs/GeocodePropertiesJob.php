@@ -87,11 +87,13 @@ class GeocodePropertiesJob implements ShouldQueue
 
         $geocoded = 0;
         $failed = 0;
+        $skipped = 0;
 
         foreach ($properties as $property) {
             // Check rate limit before each geocode
             if ($geocodingService->getRemainingAttempts() <= 0) {
                 Log::info('Geocoding rate limit reached, stopping batch');
+                $skipped = $properties->count() - $geocoded - $failed;
 
                 break;
             }
@@ -108,7 +110,7 @@ class GeocodePropertiesJob implements ShouldQueue
         Log::info('Property geocoding completed', [
             'geocoded' => $geocoded,
             'failed' => $failed,
-            'remaining' => $properties->count() - $geocoded - $failed,
+            'skipped' => $skipped,
         ]);
 
         // If there are more properties to geocode, dispatch another job

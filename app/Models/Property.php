@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -57,15 +58,18 @@ class Property extends Model
     /**
      * Scope to get properties that need geocoding.
      */
-    public function scopeNeedsGeocoding($query)
+    public function scopeNeedsGeocoding(Builder $query): Builder
     {
-        return $query->whereNull('latitude')->orWhereNull('longitude');
+        return $query->where(function (Builder $q): void {
+            $q->whereNull('latitude')
+                ->orWhereNull('longitude');
+        });
     }
 
     /**
      * Scope to get properties with coordinates.
      */
-    public function scopeHasCoordinates($query)
+    public function scopeHasCoordinates(Builder $query): Builder
     {
         return $query->whereNotNull('latitude')->whereNotNull('longitude');
     }
@@ -120,7 +124,7 @@ class Property extends Model
     /**
      * Scope to get only active properties.
      */
-    public function scopeActive($query)
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
