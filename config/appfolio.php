@@ -117,6 +117,7 @@ return [
         'properties',
         'units',
         'work_orders',
+        'expenses',
     ],
 
     /*

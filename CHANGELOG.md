@@ -7,23 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
 ### Added
-New features
-
-### Changed
-Changes in existing functionality
-
-### Fixed
-Bug fixes
-
-### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
--->
+- Utility expense tracking with GL account to utility type mappings
+- Admin interface for configuring utility account mappings (water, electric, gas, garbage, sewer)
+- Automatic categorization of synced expenses as utility costs based on configured GL accounts
+- Expense register sync from AppFolio with date range filtering
+- Utility expenses table for normalized cost tracking per property
 
 ---
 

@@ -50,8 +50,12 @@ class IngestionService
     /** @var array<string, int> Cache of person external_id => id mappings */
     private array $personCache = [];
 
+    /** @var array Raw expense data to be processed for utility mapping */
+    private array $expenseData = [];
+
     public function __construct(
-        private readonly AppfolioClient $appfolioClient
+        private readonly AppfolioClient $appfolioClient,
+        private readonly UtilityExpenseService $utilityExpenseService
     ) {}
 
     /**
@@ -68,6 +72,7 @@ class IngestionService
         $this->propertyCache = [];
         $this->unitCache = [];
         $this->personCache = [];
+        $this->expenseData = [];
 
         $syncRun->markAsRunning();
 
@@ -108,7 +113,7 @@ class IngestionService
         // Create a new tracker for this resource type
         $this->currentTracker = new ResourceSyncTracker($this->syncRun, $resourceType);
 
-        $params = $this->buildQueryParams();
+        $params = $this->buildQueryParams($resourceType);
 
         // Fetch data from AppFolio Reports API V2
         $data = match ($resourceType) {
@@ -132,16 +137,35 @@ class IngestionService
     }
 
     /**
-     * Build query parameters based on sync mode.
+     * Build query parameters based on sync mode and resource type.
+     *
+     * Different resource types require different parameters:
+     * - expenses: requires from_date and to_date
+     * - work_orders: requires from_date and to_date
+     * - others: use modified_since for incremental sync
      */
-    private function buildQueryParams(): array
+    private function buildQueryParams(string $resourceType = ''): array
     {
         $params = [
             'per_page' => config('appfolio.sync.batch_size', 100),
         ];
 
-        if ($this->syncRun->mode === 'incremental') {
-            // For incremental sync, only fetch recently modified records
+        // Resources that require date range parameters
+        $dateRangeResources = ['expenses', 'work_orders'];
+
+        if (in_array($resourceType, $dateRangeResources, true)) {
+            // For date range resources, always use from_date and to_date
+            if ($this->syncRun->mode === 'incremental') {
+                $days = config('appfolio.sync.incremental_days', 7);
+                $params['from_date'] = now()->subDays($days)->format('Y-m-d');
+            } else {
+                // Full sync: look back configured number of days
+                $days = config('appfolio.sync.full_sync_lookback_days', 365);
+                $params['from_date'] = now()->subDays($days)->format('Y-m-d');
+            }
+            $params['to_date'] = now()->format('Y-m-d');
+        } elseif ($this->syncRun->mode === 'incremental') {
+            // For other resources, use modified_since for incremental sync
             $days = config('appfolio.sync.incremental_days', 7);
             $params['modified_since'] = now()->subDays($days)->toIso8601String();
         }
@@ -162,6 +186,11 @@ class IngestionService
             Log::warning('No items found for resource type', ['type' => $resourceType]);
 
             return;
+        }
+
+        // Collect expense data for utility expense processing
+        if ($resourceType === 'expenses') {
+            $this->expenseData = array_merge($this->expenseData, $items);
         }
 
         // Prefetch related entities to avoid N+1 queries
@@ -811,6 +840,9 @@ class IngestionService
      */
     public function completeSync(): void
     {
+        // Process utility expenses if we have expense data
+        $this->processUtilityExpenses();
+
         if ($this->errorCount > 0) {
             $errorSummary = implode("\n", array_slice($this->errors, 0, 10));
             if (count($this->errors) > 10) {
@@ -838,6 +870,34 @@ class IngestionService
             'processed' => $this->processedCount,
             'errors' => $this->errorCount,
         ]);
+    }
+
+    /**
+     * Process collected expense data to create utility expense records.
+     */
+    private function processUtilityExpenses(): void
+    {
+        if (empty($this->expenseData)) {
+            return;
+        }
+
+        try {
+            $stats = $this->utilityExpenseService->processExpenses($this->expenseData);
+
+            Log::info('Utility expenses processed during sync', [
+                'sync_run_id' => $this->syncRun->id,
+                'created' => $stats['created'],
+                'updated' => $stats['updated'],
+                'skipped' => $stats['skipped'],
+                'unmatched' => $stats['unmatched'],
+            ]);
+        } catch (\Exception $e) {
+            $this->errors[] = "Failed to process utility expenses: {$e->getMessage()}";
+            Log::error('Failed to process utility expenses', [
+                'sync_run_id' => $this->syncRun->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
