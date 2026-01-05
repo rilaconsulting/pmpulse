@@ -10,13 +10,10 @@ class SaveConnectionRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     *
-     * Note: For this single-tenant application, all authenticated users
-     * are trusted admins. In a multi-tenant setup, add role checks here.
      */
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        return $this->user()?->isAdmin() === true;
     }
 
     /**

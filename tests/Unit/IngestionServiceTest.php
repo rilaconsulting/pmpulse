@@ -237,7 +237,10 @@ class IngestionServiceTest extends TestCase
         $this->service->processResource('properties');
 
         Http::assertSent(function ($request) {
-            return str_contains($request->url(), 'modified_since');
+            // For POST requests, check if modified_since is in the JSON body
+            $body = json_decode($request->body(), true);
+
+            return isset($body['modified_since']);
         });
     }
 }
