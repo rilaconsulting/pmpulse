@@ -5,16 +5,18 @@ export default function ConnectionForm({ connection }) {
     const [showSecret, setShowSecret] = useState(false);
 
     const { data, setData, post, processing, errors } = useForm({
-        name: connection?.name || 'Primary Connection',
+        database: connection?.database || '',
         client_id: connection?.client_id || '',
         client_secret: '',
-        api_base_url: connection?.api_base_url || 'https://api.appfolio.com',
     });
 
     const handleSubmit = (e) => {
         e.preventDefault();
         post('/admin/integrations/connection');
     };
+
+    // Generate preview URL from database name
+    const previewUrl = data.database ? `https://${data.database}.appfolio.com` : '';
 
     return (
         <div className="card">
@@ -27,20 +29,28 @@ export default function ConnectionForm({ connection }) {
             <div className="card-body">
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label htmlFor="name" className="label">
-                            Connection Name
+                        <label htmlFor="database" className="label">
+                            Database Name
                         </label>
                         <input
                             type="text"
-                            id="name"
+                            id="database"
                             className="input"
-                            value={data.name}
-                            onChange={(e) => setData('name', e.target.value)}
-                            placeholder="e.g., Primary Connection"
+                            value={data.database}
+                            onChange={(e) => setData('database', e.target.value.toLowerCase())}
+                            placeholder="e.g., sutro"
                         />
-                        {errors.name && (
-                            <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                        {previewUrl && (
+                            <p className="mt-1 text-sm text-gray-500">
+                                API URL: <span className="font-mono text-gray-700">{previewUrl}</span>
+                            </p>
                         )}
+                        {errors.database && (
+                            <p className="mt-1 text-sm text-red-600">{errors.database}</p>
+                        )}
+                        <p className="mt-1 text-xs text-gray-400">
+                            The subdomain from your AppFolio URL (e.g., "sutro" from sutro.appfolio.com)
+                        </p>
                     </div>
 
                     <div>
@@ -88,23 +98,6 @@ export default function ConnectionForm({ connection }) {
                         </div>
                         {errors.client_secret && (
                             <p className="mt-1 text-sm text-red-600">{errors.client_secret}</p>
-                        )}
-                    </div>
-
-                    <div>
-                        <label htmlFor="api_base_url" className="label">
-                            API Base URL
-                        </label>
-                        <input
-                            type="url"
-                            id="api_base_url"
-                            className="input"
-                            value={data.api_base_url}
-                            onChange={(e) => setData('api_base_url', e.target.value)}
-                            placeholder="https://api.appfolio.com"
-                        />
-                        {errors.api_base_url && (
-                            <p className="mt-1 text-sm text-red-600">{errors.api_base_url}</p>
                         )}
                     </div>
 

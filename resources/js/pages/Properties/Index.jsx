@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import Layout from '../../components/Layout';
 import {
     MagnifyingGlassIcon,
@@ -10,10 +10,16 @@ import {
     ChevronDownIcon,
     BuildingOfficeIcon,
     MapPinIcon,
+    ListBulletIcon,
+    MapIcon,
 } from '@heroicons/react/24/outline';
 
-export default function PropertiesIndex({ properties, portfolios, propertyTypes, filters }) {
+// Lazy load the map component to avoid SSR issues
+const PropertyMap = lazy(() => import('../../components/PropertyMap'));
+
+export default function PropertiesIndex({ properties, portfolios, propertyTypes, filters, googleMapsApiKey }) {
     const [search, setSearch] = useState(filters.search || '');
+    const [viewMode, setViewMode] = useState('table'); // 'table' or 'map'
 
     const handleFilter = (key, value) => {
         router.get('/properties', {
@@ -99,6 +105,32 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                         <p className="mt-1 text-sm text-gray-500">
                             Manage and view all properties in your portfolio
                         </p>
+                    </div>
+                    <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('table')}
+                            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                viewMode === 'table'
+                                    ? 'bg-white text-gray-900 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            <ListBulletIcon className="w-4 h-4" />
+                            Table
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('map')}
+                            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                viewMode === 'map'
+                                    ? 'bg-white text-gray-900 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            <MapIcon className="w-4 h-4" />
+                            Map
+                        </button>
                     </div>
                 </div>
 
@@ -205,7 +237,20 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                     </div>
                 </div>
 
+                {/* Map View */}
+                {viewMode === 'map' && (
+                    <Suspense fallback={
+                        <div className="card p-8 text-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                            <p className="mt-2 text-gray-500">Loading map...</p>
+                        </div>
+                    }>
+                        <PropertyMap properties={properties.data} apiKey={googleMapsApiKey} />
+                    </Suspense>
+                )}
+
                 {/* Properties Table */}
+                {viewMode === 'table' && (
                 <div className="card">
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
@@ -370,6 +415,7 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                         </div>
                     )}
                 </div>
+                )}
             </div>
         </Layout>
     );

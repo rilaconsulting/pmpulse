@@ -1,5 +1,6 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useState } from 'react';
+import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Layout from '../../components/Layout';
 import {
     BuildingOfficeIcon,
@@ -11,11 +12,67 @@ import {
     CalendarIcon,
     Square3Stack3DIcon,
     CurrencyDollarIcon,
+    FlagIcon,
+    PlusIcon,
+    XMarkIcon,
+    ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 
-export default function PropertyShow({ property, stats }) {
+export default function PropertyShow({ property, stats, flagTypes, appfolioUrl, googleMapsApiKey }) {
+    const { auth } = usePage().props;
+    const isAdmin = auth?.user?.role?.name === 'admin';
+
     const [unitFilter, setUnitFilter] = useState('all');
     const [unitSort, setUnitSort] = useState({ field: 'unit_number', direction: 'asc' });
+    const [showAddFlagModal, setShowAddFlagModal] = useState(false);
+    const [deletingFlagId, setDeletingFlagId] = useState(null);
+
+    // Form for adding flags
+    const { data, setData, post, processing, errors, reset } = useForm({
+        flag_type: '',
+        reason: '',
+    });
+
+    const handleAddFlag = (e) => {
+        e.preventDefault();
+        post(`/properties/${property.id}/flags`, {
+            onSuccess: () => {
+                reset();
+                setShowAddFlagModal(false);
+            },
+        });
+    };
+
+    const handleDeleteFlag = (flagId) => {
+        if (!confirm('Are you sure you want to remove this flag?')) return;
+        setDeletingFlagId(flagId);
+        router.delete(`/properties/${property.id}/flags/${flagId}`, {
+            onFinish: () => setDeletingFlagId(null),
+        });
+    };
+
+    // Get available flag types (not already on property)
+    const existingFlagTypes = (property.flags || []).map(f => f.flag_type);
+    const availableFlagTypes = Object.entries(flagTypes || {}).filter(
+        ([key]) => !existingFlagTypes.includes(key)
+    );
+
+    const getFlagBadgeClass = (flagType) => {
+        switch (flagType) {
+            case 'hoa':
+                return 'bg-blue-100 text-blue-800';
+            case 'tenant_pays_utilities':
+                return 'bg-purple-100 text-purple-800';
+            case 'exclude_from_reports':
+                return 'bg-red-100 text-red-800';
+            case 'under_renovation':
+                return 'bg-orange-100 text-orange-800';
+            case 'sold':
+                return 'bg-gray-100 text-gray-800';
+            default:
+                return 'bg-yellow-100 text-yellow-800';
+        }
+    };
 
     // Filter units
     const filteredUnits = property.units?.filter(unit => {
@@ -138,7 +195,7 @@ export default function PropertyShow({ property, stats }) {
                                     <BuildingOfficeIcon className="w-8 h-8 text-blue-600" />
                                 </div>
                                 <div className="ml-5">
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 flex-wrap">
                                         <h1 className="text-2xl font-semibold text-gray-900">
                                             {property.name}
                                         </h1>
@@ -149,6 +206,50 @@ export default function PropertyShow({ property, stats }) {
                                         }`}>
                                             {property.is_active ? 'Active' : 'Inactive'}
                                         </span>
+                                        {appfolioUrl && (
+                                            <a
+                                                href={appfolioUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                                            >
+                                                <ArrowTopRightOnSquareIcon className="w-3 h-3" />
+                                                AppFolio
+                                            </a>
+                                        )}
+                                        {/* Property Flags */}
+                                        {(property.flags || []).map((flag) => (
+                                            <span
+                                                key={flag.id}
+                                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getFlagBadgeClass(flag.flag_type)}`}
+                                                title={flag.reason || undefined}
+                                            >
+                                                <FlagIcon className="w-3 h-3" />
+                                                {flagTypes?.[flag.flag_type] || flag.flag_type}
+                                                {isAdmin && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteFlag(flag.id)}
+                                                        disabled={deletingFlagId === flag.id}
+                                                        className="ml-1 hover:opacity-75 focus:outline-none"
+                                                        title="Remove flag"
+                                                    >
+                                                        <XMarkIcon className="w-3 h-3" />
+                                                    </button>
+                                                )}
+                                            </span>
+                                        ))}
+                                        {/* Add Flag Button (Admin Only) */}
+                                        {isAdmin && availableFlagTypes.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAddFlagModal(true)}
+                                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                                            >
+                                                <PlusIcon className="w-3 h-3" />
+                                                Add Flag
+                                            </button>
+                                        )}
                                     </div>
                                     {property.address_line1 && (
                                         <div className="flex items-center mt-1 text-gray-500">
@@ -317,13 +418,39 @@ export default function PropertyShow({ property, stats }) {
                         </div>
                     </div>
 
-                    {/* Map Placeholder */}
+                    {/* Map */}
                     <div className="lg:col-span-2 card">
                         <div className="card-header">
                             <h2 className="text-lg font-medium text-gray-900">Location</h2>
                         </div>
                         <div className="card-body">
-                            {property.latitude && property.longitude ? (
+                            {property.latitude && property.longitude && googleMapsApiKey ? (
+                                <div className="aspect-video rounded-lg overflow-hidden">
+                                    <LoadScript googleMapsApiKey={googleMapsApiKey}>
+                                        <GoogleMap
+                                            mapContainerStyle={{ width: '100%', height: '100%' }}
+                                            center={{
+                                                lat: parseFloat(property.latitude),
+                                                lng: parseFloat(property.longitude),
+                                            }}
+                                            zoom={16}
+                                            options={{
+                                                streetViewControl: true,
+                                                mapTypeControl: true,
+                                                fullscreenControl: true,
+                                            }}
+                                        >
+                                            <Marker
+                                                position={{
+                                                    lat: parseFloat(property.latitude),
+                                                    lng: parseFloat(property.longitude),
+                                                }}
+                                                title={property.name}
+                                            />
+                                        </GoogleMap>
+                                    </LoadScript>
+                                </div>
+                            ) : property.latitude && property.longitude ? (
                                 <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
                                     <div className="text-center">
                                         <MapPinIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
@@ -432,6 +559,114 @@ export default function PropertyShow({ property, stats }) {
                     </div>
                 </div>
             </div>
+
+            {/* Add Flag Modal */}
+            {showAddFlagModal && (
+                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        {/* Background overlay */}
+                        <div
+                            className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                            aria-hidden="true"
+                            onClick={() => {
+                                reset();
+                                setShowAddFlagModal(false);
+                            }}
+                        />
+
+                        {/* Center modal */}
+                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                        <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-medium text-gray-900" id="modal-title">
+                                    Add Property Flag
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        reset();
+                                        setShowAddFlagModal(false);
+                                    }}
+                                    className="text-gray-400 hover:text-gray-500"
+                                >
+                                    <XMarkIcon className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleAddFlag}>
+                                <div className="space-y-4">
+                                    {/* Flag Type Select */}
+                                    <div>
+                                        <label htmlFor="flag_type" className="block text-sm font-medium text-gray-700">
+                                            Flag Type
+                                        </label>
+                                        <select
+                                            id="flag_type"
+                                            className={`mt-1 input ${errors.flag_type ? 'border-red-300' : ''}`}
+                                            value={data.flag_type}
+                                            onChange={(e) => setData('flag_type', e.target.value)}
+                                            required
+                                        >
+                                            <option value="">Select a flag type...</option>
+                                            {availableFlagTypes.map(([key, label]) => (
+                                                <option key={key} value={key}>
+                                                    {label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {errors.flag_type && (
+                                            <p className="mt-1 text-sm text-red-600">{errors.flag_type}</p>
+                                        )}
+                                    </div>
+
+                                    {/* Reason (Optional) */}
+                                    <div>
+                                        <label htmlFor="reason" className="block text-sm font-medium text-gray-700">
+                                            Reason (Optional)
+                                        </label>
+                                        <textarea
+                                            id="reason"
+                                            className={`mt-1 input ${errors.reason ? 'border-red-300' : ''}`}
+                                            value={data.reason}
+                                            onChange={(e) => setData('reason', e.target.value)}
+                                            rows={3}
+                                            maxLength={500}
+                                            placeholder="Add a reason for this flag..."
+                                        />
+                                        {errors.reason && (
+                                            <p className="mt-1 text-sm text-red-600">{errors.reason}</p>
+                                        )}
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            {data.reason.length}/500 characters
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 sm:mt-6 flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            reset();
+                                            setShowAddFlagModal(false);
+                                        }}
+                                        className="flex-1 btn btn-secondary"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={processing || !data.flag_type}
+                                        className="flex-1 btn btn-primary"
+                                    >
+                                        {processing ? 'Adding...' : 'Add Flag'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Layout>
     );
 }

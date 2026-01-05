@@ -383,8 +383,8 @@ class IngestionService
      */
     private function storeRawEvent(string $resourceType, array $item): void
     {
-        // TODO: Adjust 'id' field name based on actual AppFolio response
-        $externalId = (string) ($item['id'] ?? $item['external_id'] ?? null);
+        // Get the external ID field based on resource type
+        $externalId = $this->extractExternalId($resourceType, $item);
 
         if (empty($externalId)) {
             throw new \InvalidArgumentException('Item is missing an external ID and cannot be processed.');
@@ -397,6 +397,37 @@ class IngestionService
             'payload_json' => $item,
             'pulled_at' => now(),
         ]);
+    }
+
+    /**
+     * Extract the external ID from an item based on resource type.
+     *
+     * AppFolio Reports API V2 uses different ID field names:
+     * - property_directory: property_id
+     * - unit_directory: unit_id
+     * - vendor_directory: vendor_id
+     * - work_order: work_order_id
+     * - expense_register: expense_id
+     * - rent_roll: lease_id or unit_id
+     * - delinquency: unit_id
+     */
+    private function extractExternalId(string $resourceType, array $item): ?string
+    {
+        $idField = match ($resourceType) {
+            'properties' => 'property_id',
+            'units' => 'unit_id',
+            'vendors' => 'vendor_id',
+            'work_orders' => 'work_order_id',
+            'expenses' => 'expense_id',
+            'rent_roll' => 'lease_id',
+            'delinquency' => 'unit_id',
+            default => 'id',
+        };
+
+        // Try the specific ID field first, then fallback to 'id'
+        $value = $item[$idField] ?? $item['id'] ?? null;
+
+        return $value !== null ? (string) $value : null;
     }
 
     /**
@@ -427,8 +458,15 @@ class IngestionService
     private function upsertProperty(array $item): bool
     {
         // Map AppFolio property_directory fields to our schema
+        // Note: property_name is often null in AppFolio - use property_address or property_street as fallback
+        $name = $item['property_name']
+            ?? $item['property_address']
+            ?? $item['property']
+            ?? $item['property_street']
+            ?? 'Unknown Property';
+
         $data = [
-            'name' => $item['property_name'] ?? $item['name'] ?? 'Unknown Property',
+            'name' => $name,
             'address_line1' => $item['property_street'] ?? $item['address'] ?? null,
             'address_line2' => $item['property_street2'] ?? $item['address2'] ?? null,
             'city' => $item['property_city'] ?? $item['city'] ?? null,
@@ -436,7 +474,8 @@ class IngestionService
             'zip' => $item['property_zip'] ?? $item['zip'] ?? null,
             'property_type' => $item['property_type'] ?? $item['type'] ?? 'residential',
             'unit_count' => $item['units'] ?? $item['number_of_units'] ?? $item['unit_count'] ?? 0,
-            'is_active' => $item['active'] ?? $item['is_active'] ?? true,
+            // visibility = "Active" means is_active = true
+            'is_active' => ($item['visibility'] ?? 'Active') === 'Active',
             // Enhanced fields from property_directory
             'portfolio' => $item['portfolio'] ?? null,
             'portfolio_id' => isset($item['portfolio_id']) ? (int) $item['portfolio_id'] : null,
@@ -479,18 +518,21 @@ class IngestionService
         }
 
         // Map AppFolio unit_directory fields to our schema
+        // Note: rentable is "Yes"/"No" string, visibility is "Active"/"Inactive"
         $data = [
             'property_id' => $propertyId,
             'unit_number' => $item['unit_name'] ?? $item['unit_number'] ?? $item['name'] ?? 'Unknown',
-            'unit_type' => $item['unit_type'] ?? null,
+            'unit_type' => $item['unit_type'] ?? $item['billed_as'] ?? null,
             'sqft' => isset($item['sqft']) ? (int) $item['sqft'] : null,
             'bedrooms' => isset($item['bedrooms']) ? (int) $item['bedrooms'] : null,
-            'bathrooms' => $item['bathrooms'] ?? null,
+            'bathrooms' => isset($item['bathrooms']) ? (float) $item['bathrooms'] : null,
             'status' => $this->mapUnitStatus($item['unit_status'] ?? $item['status'] ?? 'vacant'),
-            'market_rent' => $item['market_rent'] ?? $item['rent'] ?? null,
-            'advertised_rent' => $item['advertised_rent'] ?? null,
-            'is_active' => $item['active'] ?? $item['is_active'] ?? true,
-            'rentable' => $item['rentable'] ?? true,
+            'market_rent' => isset($item['market_rent']) ? (float) $item['market_rent'] : null,
+            'advertised_rent' => isset($item['advertised_rent']) ? (float) $item['advertised_rent'] : null,
+            // visibility = "Active" means is_active = true
+            'is_active' => ($item['visibility'] ?? 'Active') === 'Active',
+            // rentable is "Yes"/"No" string
+            'rentable' => ($item['rentable'] ?? 'Yes') === 'Yes',
         ];
 
         $externalId = (string) ($item['unit_id'] ?? $item['id']);
@@ -679,33 +721,36 @@ class IngestionService
     /**
      * Upsert a work order record.
      *
-     * TODO: Adjust field mappings based on actual AppFolio API response.
+     * Maps AppFolio work_order.json response fields to our schema.
      *
      * @return bool True if record was created, false if updated
      */
     private function upsertWorkOrder(array $item): bool
     {
         // Look up property and unit using cache to avoid N+1 queries
-        $propertyExternalId = (string) ($item['property_id'] ?? $item['property']['id'] ?? null);
+        $propertyExternalId = (string) ($item['property_id'] ?? null);
         $propertyId = $propertyExternalId ? $this->lookupPropertyId($propertyExternalId) : null;
 
-        $unitExternalId = (string) ($item['unit_id'] ?? $item['unit']['id'] ?? null);
+        // unit_id can be null for building-wide work orders
+        $unitExternalId = $item['unit_id'] ? (string) $item['unit_id'] : null;
         $unitId = $unitExternalId ? $this->lookupUnitId($unitExternalId) : null;
 
         // Map AppFolio fields to our schema
-        // TODO: Update these mappings when API documentation is available
+        // created_at = when the work order was created
+        // completed_on = when the work was completed
+        // job_description = main description of the work
         $data = [
             'property_id' => $propertyId,
             'unit_id' => $unitId,
-            'opened_at' => $item['opened_at'] ?? $item['created_at'] ?? $item['date_created'] ?? now(),
-            'closed_at' => $item['closed_at'] ?? $item['completed_at'] ?? $item['date_completed'] ?? null,
+            'opened_at' => $item['created_at'] ?? now(),
+            'closed_at' => $item['completed_on'] ?? $item['work_completed_on'] ?? null,
             'status' => $this->mapWorkOrderStatus($item['status'] ?? 'open'),
             'priority' => $this->mapWorkOrderPriority($item['priority'] ?? 'normal'),
-            'category' => $item['category'] ?? $item['work_type'] ?? $item['type'] ?? null,
-            'description' => $item['description'] ?? $item['details'] ?? $item['notes'] ?? null,
+            'category' => $item['work_order_type'] ?? $item['work_order_issue'] ?? null,
+            'description' => $item['job_description'] ?? $item['service_request_description'] ?? $item['instructions'] ?? null,
         ];
 
-        $externalId = (string) ($item['id'] ?? $item['work_order_id']);
+        $externalId = (string) ($item['work_order_id'] ?? $item['id']);
 
         $workOrder = WorkOrder::updateOrCreate(
             ['external_id' => $externalId],
@@ -718,13 +763,13 @@ class IngestionService
     /**
      * Map AppFolio work order status to our status values.
      *
-     * TODO: Adjust mappings based on actual AppFolio status values.
+     * AppFolio statuses: Open, Assigned, Completed, Canceled, etc.
      */
     private function mapWorkOrderStatus(string $status): string
     {
         return match (strtolower($status)) {
-            'open', 'new', 'pending' => 'open',
-            'in_progress', 'assigned', 'working' => 'in_progress',
+            'open', 'new', 'pending', 'submitted' => 'open',
+            'in_progress', 'assigned', 'working', 'scheduled' => 'in_progress',
             'completed', 'done', 'closed', 'resolved' => 'completed',
             'cancelled', 'canceled', 'rejected' => 'cancelled',
             default => 'open',

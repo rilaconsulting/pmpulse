@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DestroyFlagRequest;
+use App\Http\Requests\StoreFlagRequest;
 use App\Models\Property;
+use App\Models\PropertyFlag;
+use App\Models\Setting;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -89,6 +95,7 @@ class PropertyController extends Controller
                 'sort' => $sortField,
                 'direction' => $sortDirection,
             ],
+            'googleMapsApiKey' => Setting::get('google', 'maps_api_key'),
         ]);
     }
 
@@ -134,6 +141,9 @@ class PropertyController extends Controller
             'units' => function ($query) {
                 $query->orderBy('unit_number');
             },
+            'flags' => function ($query) {
+                $query->with('creator:id,name')->orderBy('created_at', 'desc');
+            },
         ]);
 
         // Calculate property stats
@@ -149,9 +159,63 @@ class PropertyController extends Controller
             'avg_market_rent' => $property->units->avg('market_rent'),
         ];
 
+        // Build AppFolio URL if database is configured and property has external_id
+        $appfolioUrl = null;
+        $appfolioDatabase = Setting::get('appfolio', 'database');
+        if ($appfolioDatabase && $property->external_id) {
+            $appfolioUrl = "https://{$appfolioDatabase}.appfolio.com/properties/{$property->external_id}";
+        }
+
         return Inertia::render('Properties/Show', [
             'property' => $property,
             'stats' => $stats,
+            'flagTypes' => PropertyFlag::FLAG_TYPES,
+            'appfolioUrl' => $appfolioUrl,
+            'googleMapsApiKey' => Setting::get('google', 'maps_api_key'),
         ]);
+    }
+
+    /**
+     * Store a new flag for the property.
+     */
+    public function storeFlag(StoreFlagRequest $request, Property $property): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        // Check if flag already exists
+        if ($property->hasFlag($validated['flag_type'])) {
+            return back()->withErrors(['flag_type' => 'This flag already exists for this property.']);
+        }
+
+        try {
+            $property->flags()->create([
+                'flag_type' => $validated['flag_type'],
+                'reason' => $validated['reason'] ?? null,
+                'created_by' => $request->user()->id,
+            ]);
+        } catch (QueryException $e) {
+            // Handle race condition where flag was created between check and insert
+            if (str_contains($e->getMessage(), 'unique') || str_contains($e->getMessage(), 'duplicate')) {
+                return back()->withErrors(['flag_type' => 'This flag already exists for this property.']);
+            }
+            throw $e;
+        }
+
+        return back()->with('success', 'Flag added successfully.');
+    }
+
+    /**
+     * Remove a flag from the property.
+     */
+    public function destroyFlag(DestroyFlagRequest $request, Property $property, PropertyFlag $flag): RedirectResponse
+    {
+        // Ensure the flag belongs to the property
+        if ($flag->property_id !== $property->id) {
+            abort(404);
+        }
+
+        $flag->delete();
+
+        return back()->with('success', 'Flag removed successfully.');
     }
 }

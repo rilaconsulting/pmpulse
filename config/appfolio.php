@@ -98,16 +98,24 @@ return [
     |--------------------------------------------------------------------------
     |
     | Define which resource types to sync from AppFolio.
-    | Each resource type maps to a specific API endpoint.
+    | Each resource type maps to a specific AppFolio Reports API V2 endpoint:
+    |
+    | - properties -> /api/v2/reports/property_directory.json
+    | - units -> /api/v2/reports/unit_directory.json
+    | - vendors -> /api/v2/reports/vendor_directory.json
+    | - work_orders -> /api/v2/reports/work_order.json
+    | - expenses -> /api/v2/reports/expense_register.json
+    | - rent_roll -> /api/v2/reports/rent_roll.json
+    | - delinquency -> /api/v2/reports/delinquency.json
+    |
+    | Note: people, leases, and ledger_transactions don't have direct
+    | API endpoints - this data is available through rent_roll and other reports.
     |
     */
 
     'resources' => [
         'properties',
         'units',
-        'people',
-        'leases',
-        'ledger_transactions',
         'work_orders',
     ],
 

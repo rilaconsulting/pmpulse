@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 
 /**
- * Google Geocoding Service
+ * Geocoding Service
  *
  * Geocodes addresses using the Google Geocoding API.
  * Includes caching, rate limiting, and error handling.
@@ -21,7 +21,7 @@ class GeocodingService
     /**
      * Google Geocoding API base URL.
      */
-    private const API_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
+    private const GOOGLE_API_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
 
     /**
      * Cache TTL in seconds (7 days).
@@ -113,27 +113,35 @@ class GeocodingService
     }
 
     /**
-     * Make the actual API request.
+     * Make the actual API request to Google Maps Geocoding API.
      */
     private function makeRequest(string $address): ?array
     {
         $apiKey = $this->getApiKey();
 
         if (empty($apiKey)) {
-            Log::warning('Geocoding API key not configured');
+            Log::warning('Google Maps API key not configured for geocoding');
 
             return null;
         }
 
+        return $this->makeGoogleRequest($address, $apiKey);
+    }
+
+    /**
+     * Make a request to Google Geocoding API.
+     */
+    private function makeGoogleRequest(string $address, string $apiKey): ?array
+    {
         try {
             $response = Http::timeout(10)
-                ->get(self::API_URL, [
+                ->get(self::GOOGLE_API_URL, [
                     'address' => $address,
                     'key' => $apiKey,
                 ]);
 
             if (! $response->successful()) {
-                Log::error('Geocoding API request failed', [
+                Log::error('Google Geocoding API request failed', [
                     'status' => $response->status(),
                     'address' => $address,
                 ]);
@@ -143,9 +151,9 @@ class GeocodingService
 
             $data = $response->json();
 
-            return $this->parseResponse($data, $address);
+            return $this->parseGoogleResponse($data, $address);
         } catch (\Exception $e) {
-            Log::error('Geocoding API exception', [
+            Log::error('Google Geocoding API exception', [
                 'error' => $e->getMessage(),
                 'address' => $address,
             ]);
@@ -155,9 +163,9 @@ class GeocodingService
     }
 
     /**
-     * Parse the API response.
+     * Parse the Google API response.
      */
-    private function parseResponse(array $data, string $address): ?array
+    private function parseGoogleResponse(array $data, string $address): ?array
     {
         $status = $data['status'] ?? 'UNKNOWN_ERROR';
 
@@ -170,7 +178,7 @@ class GeocodingService
         $results = $data['results'] ?? [];
 
         if (empty($results)) {
-            Log::warning('Geocoding returned no results', ['address' => $address]);
+            Log::warning('Google Geocoding returned no results', ['address' => $address]);
 
             return null;
         }
@@ -178,7 +186,7 @@ class GeocodingService
         $location = $results[0]['geometry']['location'] ?? null;
 
         if (! $location || ! isset($location['lat'], $location['lng'])) {
-            Log::warning('Geocoding result missing location data', ['address' => $address]);
+            Log::warning('Google Geocoding result missing location data', ['address' => $address]);
 
             return null;
         }

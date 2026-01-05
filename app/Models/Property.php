@@ -107,6 +107,40 @@ class Property extends Model
     }
 
     /**
+     * Get the flags for this property.
+     */
+    public function flags(): HasMany
+    {
+        return $this->hasMany(PropertyFlag::class);
+    }
+
+    /**
+     * Check if property has a specific flag.
+     */
+    public function hasFlag(string $flagType): bool
+    {
+        return $this->flags()->where('flag_type', $flagType)->exists();
+    }
+
+    /**
+     * Check if property is excluded from reports.
+     */
+    public function isExcludedFromReports(): bool
+    {
+        return $this->hasFlag('exclude_from_reports');
+    }
+
+    /**
+     * Check if property is excluded from utility reports.
+     */
+    public function isExcludedFromUtilityReports(): bool
+    {
+        return $this->flags()
+            ->whereIn('flag_type', PropertyFlag::UTILITY_EXCLUSION_FLAGS)
+            ->exists();
+    }
+
+    /**
      * Get the full address as a string.
      */
     public function getFullAddressAttribute(): string
@@ -127,6 +161,52 @@ class Property extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope to exclude properties with a specific flag.
+     */
+    public function scopeWithoutFlag(Builder $query, string $flagType): Builder
+    {
+        return $query->whereDoesntHave('flags', function (Builder $q) use ($flagType): void {
+            $q->where('flag_type', $flagType);
+        });
+    }
+
+    /**
+     * Scope to exclude properties with any of the specified flags.
+     */
+    public function scopeWithoutFlags(Builder $query, array $flagTypes): Builder
+    {
+        return $query->whereDoesntHave('flags', function (Builder $q) use ($flagTypes): void {
+            $q->whereIn('flag_type', $flagTypes);
+        });
+    }
+
+    /**
+     * Scope to get properties for general reports (excludes 'exclude_from_reports' flag).
+     */
+    public function scopeForReports(Builder $query): Builder
+    {
+        return $query->withoutFlag('exclude_from_reports');
+    }
+
+    /**
+     * Scope to get properties for utility reports (excludes HOA and tenant pays utilities).
+     */
+    public function scopeForUtilityReports(Builder $query): Builder
+    {
+        return $query->withoutFlags(PropertyFlag::UTILITY_EXCLUSION_FLAGS);
+    }
+
+    /**
+     * Scope to include only properties with a specific flag.
+     */
+    public function scopeWithFlag(Builder $query, string $flagType): Builder
+    {
+        return $query->whereHas('flags', function (Builder $q) use ($flagType): void {
+            $q->where('flag_type', $flagType);
+        });
     }
 
     /**

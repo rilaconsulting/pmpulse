@@ -352,11 +352,36 @@ class AdminController extends Controller
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
+        $googleSettings = Setting::getCategory('google');
+
         return Inertia::render('Admin/Settings', [
             'features' => [
                 'incremental_sync' => Setting::isFeatureEnabled('incremental_sync', true),
                 'notifications' => Setting::isFeatureEnabled('notifications', true),
             ],
+            'googleMaps' => [
+                'has_api_key' => ! empty($googleSettings['maps_api_key']),
+            ],
         ]);
+    }
+
+    /**
+     * Save Google Maps settings.
+     */
+    public function saveGoogleMapsSettings(Request $request): RedirectResponse
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'maps_api_key' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        if (! empty($validated['maps_api_key'])) {
+            Setting::set('google', 'maps_api_key', $validated['maps_api_key'], encrypted: true);
+        } else {
+            Setting::forget('google', 'maps_api_key');
+        }
+
+        return back()->with('success', 'Google Maps settings saved successfully.');
     }
 }

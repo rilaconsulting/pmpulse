@@ -47,6 +47,10 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:60,1');
     Route::get('/properties/{property}', [PropertyController::class, 'show'])
         ->name('properties.show');
+    Route::post('/properties/{property}/flags', [PropertyController::class, 'storeFlag'])
+        ->name('properties.flags.store');
+    Route::delete('/properties/{property}/flags/{flag}', [PropertyController::class, 'destroyFlag'])
+        ->name('properties.flags.destroy');
 
     // Admin (consolidated with tabs)
     Route::prefix('admin')->name('admin.')->group(function () {
@@ -73,6 +77,7 @@ Route::middleware('auth')->group(function () {
 
         // Settings
         Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+        Route::post('/settings/google-maps', [AdminController::class, 'saveGoogleMapsSettings'])->name('settings.google-maps');
     });
 
     // Profile (all authenticated users)
