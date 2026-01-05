@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     HomeIcon,
     BuildingOfficeIcon,
+    BoltIcon,
     Cog6ToothIcon,
     ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
@@ -15,6 +16,7 @@ export default function Layout({ children }) {
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
         { name: 'Properties', href: '/properties', icon: BuildingOfficeIcon },
+        { name: 'Utilities', href: '/utilities', icon: BoltIcon },
         ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: Cog6ToothIcon }] : []),
     ];
 

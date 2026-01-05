@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\UtilityAccountController;
+use App\Http\Controllers\UtilityDashboardController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -54,6 +55,12 @@ Route::middleware('auth')->group(function () {
         ->name('properties.flags.store');
     Route::delete('/properties/{property}/flags/{flag}', [PropertyController::class, 'destroyFlag'])
         ->name('properties.flags.destroy');
+
+    // Utilities Dashboard
+    Route::get('/utilities', [UtilityDashboardController::class, 'index'])
+        ->name('utilities.index');
+    Route::get('/utilities/property/{property}', [UtilityDashboardController::class, 'show'])
+        ->name('utilities.show');
 
     // Property Adjustments
     Route::post('/properties/{property}/adjustments', [AdjustmentController::class, 'store'])
