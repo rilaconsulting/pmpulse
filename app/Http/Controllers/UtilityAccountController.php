@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreUtilityAccountRequest;
+use App\Http\Requests\UpdateUtilityAccountRequest;
 use App\Models\UtilityAccount;
+use App\Models\UtilityExpense;
 use App\Services\UtilityExpenseService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,7 +21,7 @@ class UtilityAccountController extends Controller
      */
     public function index(Request $request): Response
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless($request->user()?->isAdmin(), 403);
 
         $accounts = UtilityAccount::query()
             ->orderBy('gl_account_number')
@@ -34,21 +36,14 @@ class UtilityAccountController extends Controller
     /**
      * Store a newly created utility account.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(StoreUtilityAccountRequest $request): RedirectResponse
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
-        $validated = $request->validate([
-            'gl_account_number' => ['required', 'string', 'max:50', 'unique:utility_accounts,gl_account_number'],
-            'gl_account_name' => ['required', 'string', 'max:255'],
-            'utility_type' => ['required', 'string', Rule::in(array_keys(UtilityAccount::UTILITY_TYPES))],
-            'is_active' => ['boolean'],
-        ]);
+        $validated = $request->validated();
 
         UtilityAccount::create([
             ...$validated,
             'is_active' => $validated['is_active'] ?? true,
-            'created_by' => auth()->id(),
+            'created_by' => $request->user()->id,
         ]);
 
         return back()->with('success', 'Utility account mapping created successfully.');
@@ -57,23 +52,9 @@ class UtilityAccountController extends Controller
     /**
      * Update the specified utility account.
      */
-    public function update(Request $request, UtilityAccount $utilityAccount): RedirectResponse
+    public function update(UpdateUtilityAccountRequest $request, UtilityAccount $utilityAccount): RedirectResponse
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
-        $validated = $request->validate([
-            'gl_account_number' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('utility_accounts', 'gl_account_number')->ignore($utilityAccount->id),
-            ],
-            'gl_account_name' => ['required', 'string', 'max:255'],
-            'utility_type' => ['required', 'string', Rule::in(array_keys(UtilityAccount::UTILITY_TYPES))],
-            'is_active' => ['boolean'],
-        ]);
-
-        $utilityAccount->update($validated);
+        $utilityAccount->update($request->validated());
 
         return back()->with('success', 'Utility account mapping updated successfully.');
     }
@@ -81,9 +62,16 @@ class UtilityAccountController extends Controller
     /**
      * Remove the specified utility account.
      */
-    public function destroy(UtilityAccount $utilityAccount): RedirectResponse
+    public function destroy(Request $request, UtilityAccount $utilityAccount): RedirectResponse
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        // Check if there are any utility expenses using this account mapping
+        $expenseCount = UtilityExpense::where('gl_account_number', $utilityAccount->gl_account_number)->count();
+
+        if ($expenseCount > 0) {
+            return back()->with('error', "Cannot delete this mapping. There are {$expenseCount} utility expense(s) using this GL account. Consider deactivating the mapping instead.");
+        }
 
         $utilityAccount->delete();
 
@@ -93,9 +81,9 @@ class UtilityAccountController extends Controller
     /**
      * Get suggestions for unmapped GL accounts.
      */
-    public function suggestions(UtilityExpenseService $utilityExpenseService): Response
+    public function suggestions(Request $request, UtilityExpenseService $utilityExpenseService): Response
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless($request->user()?->isAdmin(), 403);
 
         $unmatched = $utilityExpenseService->getUnmatchedAccounts(90);
 

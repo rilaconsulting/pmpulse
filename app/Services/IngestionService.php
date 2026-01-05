@@ -12,7 +12,6 @@ use App\Models\RawAppfolioEvent;
 use App\Models\SyncRun;
 use App\Models\Unit;
 use App\Models\WorkOrder;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -55,7 +54,8 @@ class IngestionService
     private array $expenseData = [];
 
     public function __construct(
-        private readonly AppfolioClient $appfolioClient
+        private readonly AppfolioClient $appfolioClient,
+        private readonly UtilityExpenseService $utilityExpenseService
     ) {}
 
     /**
@@ -882,9 +882,7 @@ class IngestionService
         }
 
         try {
-            /** @var UtilityExpenseService $utilityExpenseService */
-            $utilityExpenseService = App::make(UtilityExpenseService::class);
-            $stats = $utilityExpenseService->processExpenses($this->expenseData);
+            $stats = $this->utilityExpenseService->processExpenses($this->expenseData);
 
             Log::info('Utility expenses processed during sync', [
                 'sync_run_id' => $this->syncRun->id,
