@@ -113,7 +113,7 @@ class IngestionService
         // Create a new tracker for this resource type
         $this->currentTracker = new ResourceSyncTracker($this->syncRun, $resourceType);
 
-        $params = $this->buildQueryParams();
+        $params = $this->buildQueryParams($resourceType);
 
         // Fetch data from AppFolio Reports API V2
         $data = match ($resourceType) {
@@ -137,16 +137,35 @@ class IngestionService
     }
 
     /**
-     * Build query parameters based on sync mode.
+     * Build query parameters based on sync mode and resource type.
+     *
+     * Different resource types require different parameters:
+     * - expenses: requires from_date and to_date
+     * - work_orders: requires from_date and to_date
+     * - others: use modified_since for incremental sync
      */
-    private function buildQueryParams(): array
+    private function buildQueryParams(string $resourceType = ''): array
     {
         $params = [
             'per_page' => config('appfolio.sync.batch_size', 100),
         ];
 
-        if ($this->syncRun->mode === 'incremental') {
-            // For incremental sync, only fetch recently modified records
+        // Resources that require date range parameters
+        $dateRangeResources = ['expenses', 'work_orders'];
+
+        if (in_array($resourceType, $dateRangeResources, true)) {
+            // For date range resources, always use from_date and to_date
+            if ($this->syncRun->mode === 'incremental') {
+                $days = config('appfolio.sync.incremental_days', 7);
+                $params['from_date'] = now()->subDays($days)->format('Y-m-d');
+            } else {
+                // Full sync: look back configured number of days
+                $days = config('appfolio.sync.full_sync_lookback_days', 365);
+                $params['from_date'] = now()->subDays($days)->format('Y-m-d');
+            }
+            $params['to_date'] = now()->format('Y-m-d');
+        } elseif ($this->syncRun->mode === 'incremental') {
+            // For other resources, use modified_since for incremental sync
             $days = config('appfolio.sync.incremental_days', 7);
             $params['modified_since'] = now()->subDays($days)->toIso8601String();
         }
