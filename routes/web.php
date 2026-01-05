@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleSsoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PropertyController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -37,6 +38,15 @@ Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+
+    // Properties
+    Route::get('/properties', [PropertyController::class, 'index'])
+        ->name('properties.index');
+    Route::get('/properties/search', [PropertyController::class, 'search'])
+        ->name('properties.search')
+        ->middleware('throttle:60,1');
+    Route::get('/properties/{property}', [PropertyController::class, 'show'])
+        ->name('properties.show');
 
     // Admin (consolidated with tabs)
     Route::prefix('admin')->name('admin.')->group(function () {

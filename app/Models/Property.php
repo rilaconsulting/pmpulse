@@ -128,4 +128,26 @@ class Property extends Model
     {
         return $query->where('is_active', true);
     }
+
+    /**
+     * Scope to search properties by name, address, or city.
+     * Uses ILIKE for PostgreSQL, LOWER/LIKE for other databases.
+     */
+    public function scopeSearch(Builder $query, string $search): Builder
+    {
+        $search = '%'.strtolower($search).'%';
+        $driver = $query->getConnection()->getDriverName();
+
+        return $query->where(function (Builder $q) use ($search, $driver) {
+            if ($driver === 'pgsql') {
+                $q->where('name', 'ILIKE', $search)
+                    ->orWhere('address_line1', 'ILIKE', $search)
+                    ->orWhere('city', 'ILIKE', $search);
+            } else {
+                $q->whereRaw('LOWER(name) LIKE ?', [$search])
+                    ->orWhereRaw('LOWER(address_line1) LIKE ?', [$search])
+                    ->orWhereRaw('LOWER(city) LIKE ?', [$search]);
+            }
+        });
+    }
 }

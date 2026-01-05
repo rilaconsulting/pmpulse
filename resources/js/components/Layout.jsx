@@ -1,9 +1,11 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     HomeIcon,
+    BuildingOfficeIcon,
     Cog6ToothIcon,
     ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
+import PropertySearch from './PropertySearch';
 
 export default function Layout({ children }) {
     const { auth, flash } = usePage().props;
@@ -12,6 +14,7 @@ export default function Layout({ children }) {
 
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+        { name: 'Properties', href: '/properties', icon: BuildingOfficeIcon },
         ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: Cog6ToothIcon }] : []),
     ];
 
@@ -80,6 +83,15 @@ export default function Layout({ children }) {
 
             {/* Main content */}
             <div className="pl-64">
+                {/* Header with search */}
+                <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
+                    <div className="flex items-center justify-between h-16 px-8">
+                        <div className="flex-1 max-w-md">
+                            <PropertySearch />
+                        </div>
+                    </div>
+                </header>
+
                 {/* Flash messages */}
                 {flash?.success && (
                     <div className="mx-8 mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
