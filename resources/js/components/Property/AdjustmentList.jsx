@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, usePage, router } from '@inertiajs/react';
 import {
     AdjustmentsHorizontalIcon,
@@ -574,11 +574,15 @@ export default function AdjustmentList({
 // Simple Modal component
 function Modal({ children, onClose }) {
     // Handle Escape key to close modal
-    const handleKeyDown = (e) => {
-        if (e.key === 'Escape') {
-            onClose();
-        }
-    };
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
 
     return (
         <div
@@ -586,16 +590,15 @@ function Modal({ children, onClose }) {
             aria-labelledby="modal-title"
             role="dialog"
             aria-modal="true"
-            onKeyDown={handleKeyDown}
         >
             <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div
-                    className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                    className="fixed inset-0 bg-gray-500/75 transition-opacity"
                     aria-hidden="true"
                     onClick={onClose}
                 />
                 <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                <div className="relative inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
                     <button
                         type="button"
                         onClick={onClose}
