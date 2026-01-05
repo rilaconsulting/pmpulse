@@ -19,7 +19,7 @@ class UtilityExpenseServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new UtilityExpenseService();
+        $this->service = new UtilityExpenseService;
     }
 
     public function test_processes_expenses_with_matched_gl_accounts(): void

@@ -23,7 +23,7 @@ class PropertyFactory extends Factory
     {
         return [
             'external_id' => (string) $this->faker->unique()->numberBetween(10000, 99999),
-            'name' => $this->faker->company() . ' ' . $this->faker->randomElement(['Apartments', 'Condos', 'Plaza', 'Tower', 'Heights']),
+            'name' => $this->faker->company().' '.$this->faker->randomElement(['Apartments', 'Condos', 'Plaza', 'Tower', 'Heights']),
             'address_line1' => $this->faker->streetAddress(),
             'address_line2' => $this->faker->optional(0.3)->secondaryAddress(),
             'city' => $this->faker->city(),
@@ -36,7 +36,7 @@ class PropertyFactory extends Factory
             'property_type' => $this->faker->randomElement(['residential', 'commercial', 'mixed']),
             'year_built' => $this->faker->numberBetween(1960, 2024),
             'total_sqft' => $this->faker->numberBetween(5000, 100000),
-            'county' => $this->faker->optional()->city() . ' County',
+            'county' => $this->faker->optional()->city().' County',
             'unit_count' => $this->faker->numberBetween(4, 100),
             'is_active' => true,
         ];
