@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Property;
+use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
 use Carbon\Carbon;
 
@@ -75,10 +76,10 @@ class UtilityAnalyticsService
     {
         $date = $referenceDate ?? now();
 
-        // Current month
+        // Current month (use copy() for consistency even though getPeriodDates copies internally)
         $currentMonth = $this->getTotalCost($property, $utilityType, [
             'type' => 'month',
-            'date' => $date,
+            'date' => $date->copy(),
         ]);
 
         // Previous month
@@ -90,7 +91,7 @@ class UtilityAnalyticsService
         // Current quarter
         $currentQuarter = $this->getTotalCost($property, $utilityType, [
             'type' => 'quarter',
-            'date' => $date,
+            'date' => $date->copy(),
         ]);
 
         // Previous quarter
@@ -102,7 +103,7 @@ class UtilityAnalyticsService
         // Current year to date
         $currentYtd = $this->getTotalCost($property, $utilityType, [
             'type' => 'ytd',
-            'date' => $date,
+            'date' => $date->copy(),
         ]);
 
         // Previous year same period
@@ -134,11 +135,36 @@ class UtilityAnalyticsService
      */
     public function getPortfolioAverage(string $utilityType, array $period, string $metric = 'per_unit'): array
     {
+        $data = $this->computePortfolioData($utilityType, $period, $metric);
+
+        return [
+            'average' => round($data['average'], 2),
+            'median' => round($data['median'], 2),
+            'std_dev' => round($data['std_dev'], 2),
+            'total_cost' => $data['total_cost'],
+            'property_count' => $data['property_count'],
+            'data_points' => $data['data_points'],
+            'min' => $data['data_points'] > 0 ? round($data['min'], 2) : 0,
+            'max' => $data['data_points'] > 0 ? round($data['max'], 2) : 0,
+        ];
+    }
+
+    /**
+     * Compute portfolio data for utility metrics (shared by getPortfolioAverage and getAnomalies).
+     *
+     * @param  string  $utilityType  The utility type
+     * @param  array  $period  Period config
+     * @param  string  $metric  The metric ('per_unit' or 'per_sqft')
+     * @return array Portfolio data including per-property values
+     */
+    private function computePortfolioData(string $utilityType, array $period, string $metric): array
+    {
         $properties = Property::active()
             ->forUtilityReports()
             ->get();
 
         $values = [];
+        $propertyValues = [];
         $totalCost = 0;
         $propertyCount = 0;
 
@@ -149,32 +175,44 @@ class UtilityAnalyticsService
                 $totalCost += $cost;
                 $propertyCount++;
 
+                // Calculate per-unit or per-sqft value directly
+                $value = null;
                 if ($metric === 'per_unit') {
-                    $value = $this->getCostPerUnit($property, $utilityType, $period);
+                    $effectiveUnitCount = $this->getEffectiveUnitCount($property, $period['date'] ?? now());
+                    if ($effectiveUnitCount > 0) {
+                        $value = $cost / $effectiveUnitCount;
+                    }
                 } else {
-                    $value = $this->getCostPerSqft($property, $utilityType, $period);
+                    $effectiveSqft = $this->getEffectiveSqft($property, $period['date'] ?? now());
+                    if ($effectiveSqft > 0) {
+                        $value = $cost / $effectiveSqft;
+                    }
                 }
 
                 if ($value !== null) {
                     $values[] = $value;
+                    $propertyValues[] = [
+                        'property_id' => $property->id,
+                        'property_name' => $property->name,
+                        'value' => $value,
+                    ];
                 }
             }
         }
 
         $count = count($values);
         $average = $count > 0 ? array_sum($values) / $count : 0;
-        $median = $this->calculateMedian($values);
-        $stdDev = $this->calculateStdDev($values, $average);
 
         return [
-            'average' => round($average, 2),
-            'median' => round($median, 2),
-            'std_dev' => round($stdDev, 2),
+            'average' => $average,
+            'median' => $this->calculateMedian($values),
+            'std_dev' => $this->calculateStdDev($values, $average),
             'total_cost' => $totalCost,
             'property_count' => $propertyCount,
             'data_points' => $count,
-            'min' => $count > 0 ? round(min($values), 2) : 0,
-            'max' => $count > 0 ? round(max($values), 2) : 0,
+            'min' => $count > 0 ? min($values) : 0,
+            'max' => $count > 0 ? max($values) : 0,
+            'property_values' => $propertyValues,
         ];
     }
 
@@ -192,9 +230,10 @@ class UtilityAnalyticsService
      */
     public function getAnomalies(string $utilityType, array $period, float $threshold = 2.0, string $metric = 'per_unit'): array
     {
-        $portfolioStats = $this->getPortfolioAverage($utilityType, $period, $metric);
-        $average = $portfolioStats['average'];
-        $stdDev = $portfolioStats['std_dev'];
+        // Compute portfolio data with per-property values in a single pass
+        $portfolioData = $this->computePortfolioData($utilityType, $period, $metric);
+        $average = $portfolioData['average'];
+        $stdDev = $portfolioData['std_dev'];
 
         if ($stdDev <= 0) {
             return [];
@@ -203,28 +242,17 @@ class UtilityAnalyticsService
         $lowerBound = $average - ($threshold * $stdDev);
         $upperBound = $average + ($threshold * $stdDev);
 
-        $properties = Property::active()
-            ->forUtilityReports()
-            ->get();
-
         $anomalies = [];
 
-        foreach ($properties as $property) {
-            if ($metric === 'per_unit') {
-                $value = $this->getCostPerUnit($property, $utilityType, $period);
-            } else {
-                $value = $this->getCostPerSqft($property, $utilityType, $period);
-            }
-
-            if ($value === null) {
-                continue;
-            }
+        // Use the already-computed property values from portfolioData
+        foreach ($portfolioData['property_values'] as $propertyData) {
+            $value = $propertyData['value'];
 
             if ($value < $lowerBound || $value > $upperBound) {
                 $deviation = ($value - $average) / $stdDev;
                 $anomalies[] = [
-                    'property_id' => $property->id,
-                    'property_name' => $property->name,
+                    'property_id' => $propertyData['property_id'],
+                    'property_name' => $propertyData['property_name'],
                     'value' => round($value, 2),
                     'average' => round($average, 2),
                     'deviation' => round($deviation, 2),
@@ -248,7 +276,7 @@ class UtilityAnalyticsService
      */
     public function getCostBreakdown(Property $property, array $period): array
     {
-        $utilityTypes = ['water', 'electric', 'gas', 'garbage', 'sewer', 'other'];
+        $utilityTypes = array_keys(UtilityAccount::UTILITY_TYPES);
         $breakdown = [];
         $total = 0;
 
@@ -293,6 +321,12 @@ class UtilityAnalyticsService
                 'month' => $date->copy()->subMonths($i),
                 'quarter' => $date->copy()->subQuarters($i),
                 'year' => $date->copy()->subYears($i),
+                default => throw new \InvalidArgumentException(
+                    sprintf(
+                        'Invalid period type "%s". Allowed values are: month, quarter, year.',
+                        $periodType
+                    )
+                ),
             };
 
             $cost = $this->getTotalCost($property, $utilityType, [
@@ -300,14 +334,18 @@ class UtilityAnalyticsService
                 'date' => $periodDate,
             ]);
 
+            // Calculate cost_per_unit directly to avoid redundant getTotalCost call
+            $costPerUnit = null;
+            $effectiveUnitCount = $this->getEffectiveUnitCount($property, $periodDate);
+            if ($effectiveUnitCount > 0) {
+                $costPerUnit = round($cost / $effectiveUnitCount, 2);
+            }
+
             $data[] = [
                 'period' => $this->formatPeriodLabel($periodDate, $periodType),
                 'date' => $periodDate->toDateString(),
                 'cost' => $cost,
-                'cost_per_unit' => $this->getCostPerUnit($property, $utilityType, [
-                    'type' => $periodType,
-                    'date' => $periodDate,
-                ]),
+                'cost_per_unit' => $costPerUnit,
             ];
         }
 
@@ -420,7 +458,10 @@ class UtilityAnalyticsService
     }
 
     /**
-     * Calculate standard deviation of a set of values.
+     * Calculate sample standard deviation of a set of values.
+     *
+     * Uses the sample standard deviation formula (n-1 denominator) for unbiased
+     * estimation of the population standard deviation from sample data.
      */
     private function calculateStdDev(array $values, float $mean): float
     {
@@ -432,7 +473,8 @@ class UtilityAnalyticsService
             return $carry + pow($value - $mean, 2);
         }, 0);
 
-        return sqrt($sumSquaredDiffs / count($values));
+        // Use sample standard deviation (n-1) for unbiased estimate
+        return sqrt($sumSquaredDiffs / (count($values) - 1));
     }
 
     /**

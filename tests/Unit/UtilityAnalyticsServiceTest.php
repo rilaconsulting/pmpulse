@@ -139,31 +139,68 @@ class UtilityAnalyticsServiceTest extends TestCase
 
     public function test_get_period_comparison_calculates_all_periods(): void
     {
+        // Use a fixed reference date in mid-year for predictable quarter/YTD calculations
+        $referenceDate = Carbon::create(2025, 6, 15);
         $property = Property::factory()->create(['is_active' => true]);
 
-        // Current month expense
+        // Current month expense (June 2025)
         UtilityExpense::factory()->create([
             'property_id' => $property->id,
             'utility_type' => 'water',
             'amount' => 200,
-            'expense_date' => now()->startOfMonth()->addDays(5),
+            'expense_date' => $referenceDate->copy()->startOfMonth()->addDays(5),
         ]);
 
-        // Previous month expense
+        // Previous month expense (May 2025)
         UtilityExpense::factory()->create([
             'property_id' => $property->id,
             'utility_type' => 'water',
             'amount' => 180,
-            'expense_date' => now()->subMonth()->startOfMonth()->addDays(5),
+            'expense_date' => $referenceDate->copy()->subMonth()->startOfMonth()->addDays(5),
         ]);
 
-        $comparison = $this->service->getPeriodComparison($property, 'water', now());
+        // Current quarter expense (Q2 2025 - April)
+        UtilityExpense::factory()->create([
+            'property_id' => $property->id,
+            'utility_type' => 'water',
+            'amount' => 150,
+            'expense_date' => $referenceDate->copy()->startOfQuarter()->addDays(5),
+        ]);
 
+        // Previous quarter expense (Q1 2025 - February)
+        UtilityExpense::factory()->create([
+            'property_id' => $property->id,
+            'utility_type' => 'water',
+            'amount' => 120,
+            'expense_date' => $referenceDate->copy()->subQuarter()->startOfQuarter()->addMonth()->addDays(5),
+        ]);
+
+        // Previous year same period expense (June 2024)
+        UtilityExpense::factory()->create([
+            'property_id' => $property->id,
+            'utility_type' => 'water',
+            'amount' => 160,
+            'expense_date' => $referenceDate->copy()->subYear()->startOfMonth()->addDays(5),
+        ]);
+
+        $comparison = $this->service->getPeriodComparison($property, 'water', $referenceDate);
+
+        // Month assertions
         $this->assertEquals(200, $comparison['current_month']);
         $this->assertEquals(180, $comparison['previous_month']);
         $this->assertNotNull($comparison['month_change']);
         // (200 - 180) / 180 * 100 = 11.1%
         $this->assertEquals(11.1, $comparison['month_change']);
+
+        // Quarter assertions (current Q2 = 200 + 180 + 150 = 530, previous Q1 = 120)
+        $this->assertEquals(530, $comparison['current_quarter']);
+        $this->assertEquals(120, $comparison['previous_quarter']);
+        $this->assertNotNull($comparison['quarter_change']);
+
+        // YTD assertions (Jan-Jun 2025 = 530 + 120 = 650, Jan-Jun 2024 = 160)
+        $this->assertEquals(650, $comparison['current_ytd']);
+        $this->assertEquals(160, $comparison['previous_ytd']);
+        $this->assertNotNull($comparison['ytd_change']);
     }
 
     public function test_get_portfolio_average_excludes_flagged_properties(): void
