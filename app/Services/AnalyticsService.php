@@ -45,25 +45,34 @@ class AnalyticsService
 
     /**
      * Refresh daily KPIs (portfolio level).
+     * Excludes properties with 'exclude_from_reports' flag.
      */
     private function refreshDailyKpis(Carbon $date): void
     {
-        $totalUnits = Unit::active()->count();
-        $vacantUnits = Unit::active()->vacant()->count();
+        // Get property IDs that should be included in reports
+        $reportablePropertyIds = Property::active()->forReports()->pluck('id');
+
+        $totalUnits = Unit::active()
+            ->whereIn('property_id', $reportablePropertyIds)
+            ->count();
+        $vacantUnits = Unit::active()
+            ->vacant()
+            ->whereIn('property_id', $reportablePropertyIds)
+            ->count();
         $occupiedUnits = $totalUnits - $vacantUnits;
 
         $occupancyRate = $totalUnits > 0
             ? ($occupiedUnits / $totalUnits) * 100
             : 0;
 
-        // Calculate delinquency (outstanding charges)
-        $delinquency = $this->calculateDelinquency($date);
+        // Calculate delinquency (outstanding charges) - respects report exclusions
+        $delinquency = $this->calculateDelinquency($date, $reportablePropertyIds);
 
-        // Calculate work order metrics
-        $workOrderMetrics = $this->calculateWorkOrderMetrics($date);
+        // Calculate work order metrics - respects report exclusions
+        $workOrderMetrics = $this->calculateWorkOrderMetrics($date, $reportablePropertyIds);
 
-        // Calculate rent collected/due for the month
-        $rentMetrics = $this->calculateRentMetrics($date);
+        // Calculate rent collected/due for the month - respects report exclusions
+        $rentMetrics = $this->calculateRentMetrics($date, $reportablePropertyIds);
 
         DailyKpi::updateOrCreate(
             ['date' => $date->toDateString()],
@@ -85,10 +94,11 @@ class AnalyticsService
 
     /**
      * Refresh property-level rollups.
+     * Only creates rollups for properties not excluded from reports.
      */
     private function refreshPropertyRollups(Carbon $date): void
     {
-        $properties = Property::active()->with('units')->get();
+        $properties = Property::active()->forReports()->with('units')->get();
 
         foreach ($properties as $property) {
             $totalUnits = $property->units()->active()->count();
@@ -125,16 +135,20 @@ class AnalyticsService
 
     /**
      * Calculate portfolio-level delinquency.
+     *
+     * @param  \Illuminate\Support\Collection<int, string>  $propertyIds  Property IDs to include
      */
-    private function calculateDelinquency(Carbon $date): array
+    private function calculateDelinquency(Carbon $date, $propertyIds): array
     {
         // Sum of outstanding charges (charges minus payments for occupied units)
         // This is a simplified calculation - may need adjustment based on actual data structure
         $charges = LedgerTransaction::charges()
+            ->whereIn('property_id', $propertyIds)
             ->where('date', '<=', $date)
             ->sum('amount');
 
         $payments = LedgerTransaction::payments()
+            ->whereIn('property_id', $propertyIds)
             ->where('date', '<=', $date)
             ->sum('amount');
 
@@ -143,6 +157,7 @@ class AnalyticsService
         // Count units with outstanding balance
         // This is a simplified approach - in production, you'd want a more accurate calculation
         $delinquentUnits = LedgerTransaction::query()
+            ->whereIn('property_id', $propertyIds)
             ->whereNotNull('unit_id')
             ->where('date', '<=', $date)
             ->select('unit_id')
@@ -194,10 +209,14 @@ class AnalyticsService
 
     /**
      * Calculate portfolio-level work order metrics.
+     *
+     * @param  \Illuminate\Support\Collection<int, string>  $propertyIds  Property IDs to include
      */
-    private function calculateWorkOrderMetrics(Carbon $date): array
+    private function calculateWorkOrderMetrics(Carbon $date, $propertyIds): array
     {
-        $openWorkOrders = WorkOrder::open()->get();
+        $openWorkOrders = WorkOrder::open()
+            ->whereIn('property_id', $propertyIds)
+            ->get();
         $openCount = $openWorkOrders->count();
 
         // Calculate average days open
@@ -206,10 +225,14 @@ class AnalyticsService
             : 0;
 
         // Work orders opened today
-        $openedToday = WorkOrder::whereDate('opened_at', $date)->count();
+        $openedToday = WorkOrder::whereDate('opened_at', $date)
+            ->whereIn('property_id', $propertyIds)
+            ->count();
 
         // Work orders closed today
-        $closedToday = WorkOrder::whereDate('closed_at', $date)->count();
+        $closedToday = WorkOrder::whereDate('closed_at', $date)
+            ->whereIn('property_id', $propertyIds)
+            ->count();
 
         return [
             'open_count' => $openCount,
@@ -239,20 +262,26 @@ class AnalyticsService
 
     /**
      * Calculate rent collected and due for the month.
+     *
+     * @param  \Illuminate\Support\Collection<int, string>  $propertyIds  Property IDs to include
      */
-    private function calculateRentMetrics(Carbon $date): array
+    private function calculateRentMetrics(Carbon $date, $propertyIds): array
     {
         $startOfMonth = $date->copy()->startOfMonth();
-        $endOfMonth = $date->copy()->endOfMonth();
 
         // Rent collected this month
         $collected = LedgerTransaction::payments()
+            ->whereIn('property_id', $propertyIds)
             ->whereBetween('date', [$startOfMonth, $date])
             ->where('category', 'rent')
             ->sum('amount');
 
+        // Get unit IDs for reportable properties
+        $unitIds = Unit::whereIn('property_id', $propertyIds)->pluck('id');
+
         // Rent due this month (from active leases)
         $due = \App\Models\Lease::query()
+            ->whereIn('unit_id', $unitIds)
             ->where('status', 'active')
             ->where('start_date', '<=', $date)
             ->where(function ($query) use ($date) {
@@ -308,5 +337,26 @@ class AnalyticsService
     public function getLatestKpis(): ?DailyKpi
     {
         return DailyKpi::latest('date')->first();
+    }
+
+    /**
+     * Get statistics about excluded properties.
+     */
+    public function getExclusionStats(): array
+    {
+        $totalActive = Property::active()->count();
+        $excludedFromReports = Property::active()->withFlag('exclude_from_reports')->count();
+        $excludedFromUtility = Property::active()
+            ->whereHas('flags', function ($q) {
+                $q->whereIn('flag_type', \App\Models\PropertyFlag::UTILITY_EXCLUSION_FLAGS);
+            })
+            ->count();
+
+        return [
+            'total_active' => $totalActive,
+            'included_in_reports' => $totalActive - $excludedFromReports,
+            'excluded_from_reports' => $excludedFromReports,
+            'excluded_from_utility_reports' => $excludedFromUtility,
+        ];
     }
 }

@@ -27,11 +27,12 @@ return new class extends Migration
 
             // The client_secret is already encrypted in the old table
             // We need to store it as-is since Setting::set with encrypted=true would double-encrypt
+            // The value column is JSON type, so we need to JSON-encode the string
             if ($connection->client_secret_encrypted) {
                 DB::table('settings')->updateOrInsert(
                     ['category' => 'appfolio', 'key' => 'client_secret'],
                     [
-                        'value' => $connection->client_secret_encrypted,
+                        'value' => json_encode($connection->client_secret_encrypted),
                         'encrypted' => true,
                         'created_at' => now(),
                         'updated_at' => now(),

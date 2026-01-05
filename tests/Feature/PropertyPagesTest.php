@@ -401,7 +401,7 @@ class PropertyPagesTest extends TestCase
     {
         $longQuery = str_repeat('a', 101);
 
-        $response = $this->actingAs($this->user)->get('/properties/search?q=' . $longQuery);
+        $response = $this->actingAs($this->user)->get('/properties/search?q='.$longQuery);
 
         $response->assertStatus(302); // Validation redirect
     }
