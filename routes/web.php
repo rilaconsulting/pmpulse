@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\GoogleSsoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PropertyController;
+use App\Http\Controllers\UtilityAccountController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -94,6 +95,12 @@ Route::middleware('auth')->group(function () {
         // Adjustments Report
         Route::get('/adjustments', [AdjustmentReportController::class, 'index'])->name('adjustments.index');
         Route::get('/adjustments/export', [AdjustmentReportController::class, 'export'])->name('adjustments.export');
+
+        // Utility Accounts
+        Route::get('/utility-accounts', [UtilityAccountController::class, 'index'])->name('utility-accounts.index');
+        Route::post('/utility-accounts', [UtilityAccountController::class, 'store'])->name('utility-accounts.store');
+        Route::patch('/utility-accounts/{utilityAccount}', [UtilityAccountController::class, 'update'])->name('utility-accounts.update');
+        Route::delete('/utility-accounts/{utilityAccount}', [UtilityAccountController::class, 'destroy'])->name('utility-accounts.destroy');
     });
 
     // Profile (all authenticated users)

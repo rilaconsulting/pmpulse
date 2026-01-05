@@ -12,6 +12,7 @@ use App\Models\RawAppfolioEvent;
 use App\Models\SyncRun;
 use App\Models\Unit;
 use App\Models\WorkOrder;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -50,6 +51,9 @@ class IngestionService
     /** @var array<string, int> Cache of person external_id => id mappings */
     private array $personCache = [];
 
+    /** @var array Raw expense data to be processed for utility mapping */
+    private array $expenseData = [];
+
     public function __construct(
         private readonly AppfolioClient $appfolioClient
     ) {}
@@ -68,6 +72,7 @@ class IngestionService
         $this->propertyCache = [];
         $this->unitCache = [];
         $this->personCache = [];
+        $this->expenseData = [];
 
         $syncRun->markAsRunning();
 
@@ -162,6 +167,11 @@ class IngestionService
             Log::warning('No items found for resource type', ['type' => $resourceType]);
 
             return;
+        }
+
+        // Collect expense data for utility expense processing
+        if ($resourceType === 'expenses') {
+            $this->expenseData = array_merge($this->expenseData, $items);
         }
 
         // Prefetch related entities to avoid N+1 queries
@@ -811,6 +821,9 @@ class IngestionService
      */
     public function completeSync(): void
     {
+        // Process utility expenses if we have expense data
+        $this->processUtilityExpenses();
+
         if ($this->errorCount > 0) {
             $errorSummary = implode("\n", array_slice($this->errors, 0, 10));
             if (count($this->errors) > 10) {
@@ -838,6 +851,36 @@ class IngestionService
             'processed' => $this->processedCount,
             'errors' => $this->errorCount,
         ]);
+    }
+
+    /**
+     * Process collected expense data to create utility expense records.
+     */
+    private function processUtilityExpenses(): void
+    {
+        if (empty($this->expenseData)) {
+            return;
+        }
+
+        try {
+            /** @var UtilityExpenseService $utilityExpenseService */
+            $utilityExpenseService = App::make(UtilityExpenseService::class);
+            $stats = $utilityExpenseService->processExpenses($this->expenseData);
+
+            Log::info('Utility expenses processed during sync', [
+                'sync_run_id' => $this->syncRun->id,
+                'created' => $stats['created'],
+                'updated' => $stats['updated'],
+                'skipped' => $stats['skipped'],
+                'unmatched' => $stats['unmatched'],
+            ]);
+        } catch (\Exception $e) {
+            $this->errors[] = "Failed to process utility expenses: {$e->getMessage()}";
+            Log::error('Failed to process utility expenses', [
+                'sync_run_id' => $this->syncRun->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

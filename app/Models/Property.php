@@ -123,6 +123,14 @@ class Property extends Model
     }
 
     /**
+     * Get the utility expenses for this property.
+     */
+    public function utilityExpenses(): HasMany
+    {
+        return $this->hasMany(UtilityExpense::class);
+    }
+
+    /**
      * Check if property has a specific flag.
      */
     public function hasFlag(string $flagType): bool
