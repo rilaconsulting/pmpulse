@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdjustmentController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleSsoController;
@@ -51,6 +52,16 @@ Route::middleware('auth')->group(function () {
         ->name('properties.flags.store');
     Route::delete('/properties/{property}/flags/{flag}', [PropertyController::class, 'destroyFlag'])
         ->name('properties.flags.destroy');
+
+    // Property Adjustments
+    Route::post('/properties/{property}/adjustments', [AdjustmentController::class, 'store'])
+        ->name('properties.adjustments.store');
+    Route::patch('/properties/{property}/adjustments/{adjustment}', [AdjustmentController::class, 'update'])
+        ->name('properties.adjustments.update');
+    Route::post('/properties/{property}/adjustments/{adjustment}/end', [AdjustmentController::class, 'end'])
+        ->name('properties.adjustments.end');
+    Route::delete('/properties/{property}/adjustments/{adjustment}', [AdjustmentController::class, 'destroy'])
+        ->name('properties.adjustments.destroy');
 
     // Admin (consolidated with tabs)
     Route::prefix('admin')->name('admin.')->group(function () {

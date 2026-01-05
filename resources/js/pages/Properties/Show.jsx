@@ -2,6 +2,7 @@ import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Layout from '../../components/Layout';
+import AdjustmentList from '../../components/Property/AdjustmentList';
 import {
     BuildingOfficeIcon,
     MapPinIcon,
@@ -18,7 +19,17 @@ import {
     ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 
-export default function PropertyShow({ property, stats, flagTypes, appfolioUrl, googleMapsApiKey }) {
+export default function PropertyShow({
+    property,
+    stats,
+    flagTypes,
+    appfolioUrl,
+    googleMapsApiKey,
+    adjustableFields,
+    activeAdjustments,
+    historicalAdjustments,
+    effectiveValues,
+}) {
     const { auth } = usePage().props;
     const isAdmin = auth?.user?.role?.name === 'admin';
 
@@ -479,6 +490,17 @@ export default function PropertyShow({ property, stats, flagTypes, appfolioUrl, 
                     </div>
                 </div>
 
+                {/* Data Adjustments */}
+                {isAdmin && (
+                    <AdjustmentList
+                        property={property}
+                        activeAdjustments={activeAdjustments || []}
+                        historicalAdjustments={historicalAdjustments || []}
+                        adjustableFields={adjustableFields || {}}
+                        effectiveValues={effectiveValues || {}}
+                    />
+                )}
+
                 {/* Units List */}
                 <div className="card">
                     <div className="card-header flex items-center justify-between">
@@ -566,7 +588,7 @@ export default function PropertyShow({ property, stats, flagTypes, appfolioUrl, 
                     <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                         {/* Background overlay */}
                         <div
-                            className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                            className="fixed inset-0 bg-gray-500/75 transition-opacity"
                             aria-hidden="true"
                             onClick={() => {
                                 reset();
@@ -577,7 +599,7 @@ export default function PropertyShow({ property, stats, flagTypes, appfolioUrl, 
                         {/* Center modal */}
                         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                        <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                        <div className="relative inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-medium text-gray-900" id="modal-title">
                                     Add Property Flag

@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for adjusting unit count, square footage, market rent, and rentable units
 - Date-ranged and permanent adjustments with full audit trail
 - Analytics now respect property adjustments when calculating KPIs
+- Adjustments management UI on property detail page (admin only)
+- Create, edit, end, and delete adjustments via modal forms
+- Active/historical adjustment tabs with audit trail display
 
 ---
 
