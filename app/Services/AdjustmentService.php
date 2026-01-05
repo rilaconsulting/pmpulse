@@ -159,6 +159,8 @@ class AdjustmentService
 
     /**
      * Create a new adjustment for a property.
+     *
+     * @throws \InvalidArgumentException If the field is not in ADJUSTABLE_FIELDS
      */
     public function createAdjustment(
         Property $property,
@@ -169,6 +171,10 @@ class AdjustmentService
         string $reason,
         ?string $createdBy = null
     ): PropertyAdjustment {
+        if (! isset(PropertyAdjustment::ADJUSTABLE_FIELDS[$field])) {
+            throw new \InvalidArgumentException("Field '{$field}' is not adjustable. Allowed fields: ".implode(', ', array_keys(PropertyAdjustment::ADJUSTABLE_FIELDS)));
+        }
+
         $originalValue = $this->getOriginalValue($property, $field);
 
         return $property->adjustments()->create([
@@ -193,6 +199,6 @@ class AdjustmentService
             'effective_to' => $endDate,
         ]);
 
-        return $adjustment->fresh();
+        return $adjustment->refresh();
     }
 }
