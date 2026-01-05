@@ -13,8 +13,7 @@ use Illuminate\Support\Facades\RateLimiter;
 /**
  * Geocoding Service
  *
- * Geocodes addresses using the Google Geocoding API (if configured)
- * or Nominatim (OpenStreetMap) as a free fallback.
+ * Geocodes addresses using the Google Geocoding API.
  * Includes caching, rate limiting, and error handling.
  */
 class GeocodingService
@@ -23,11 +22,6 @@ class GeocodingService
      * Google Geocoding API base URL.
      */
     private const GOOGLE_API_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
-
-    /**
-     * Nominatim (OpenStreetMap) API URL.
-     */
-    private const NOMINATIM_API_URL = 'https://nominatim.openstreetmap.org/search';
 
     /**
      * Cache TTL in seconds (7 days).
@@ -43,11 +37,6 @@ class GeocodingService
      * Maximum requests per minute (Google's free tier allows 50/second, we're conservative).
      */
     private const RATE_LIMIT_PER_MINUTE = 30;
-
-    /**
-     * Nominatim rate limit (1 request per second as per usage policy).
-     */
-    private const NOMINATIM_RATE_LIMIT_PER_MINUTE = 60;
 
     /**
      * Geocode an address and return coordinates.
@@ -174,64 +163,6 @@ class GeocodingService
     }
 
     /**
-     * Make a request to Nominatim (OpenStreetMap) API.
-     * Note: Nominatim has a 1 request/second rate limit.
-     */
-    private function makeNominatimRequest(string $address): ?array
-    {
-        // Check Nominatim-specific rate limit
-        $nominatimKey = self::RATE_LIMIT_KEY.':nominatim';
-        if (RateLimiter::tooManyAttempts($nominatimKey, self::NOMINATIM_RATE_LIMIT_PER_MINUTE)) {
-            Log::warning('Nominatim rate limit exceeded');
-
-            return null;
-        }
-        RateLimiter::hit($nominatimKey, 60);
-
-        try {
-            // Add a small delay to respect Nominatim's 1 req/sec policy
-            usleep(100000); // 100ms
-
-            $response = Http::timeout(10)
-                ->withHeaders([
-                    'User-Agent' => 'PMPulse/1.0 (Property Management Dashboard)',
-                ])
-                ->get(self::NOMINATIM_API_URL, [
-                    'q' => $address,
-                    'format' => 'json',
-                    'limit' => 1,
-                    'countrycodes' => 'us',
-                ]);
-
-            if (! $response->successful()) {
-                Log::error('Nominatim API request failed', [
-                    'status' => $response->status(),
-                    'address' => $address,
-                ]);
-
-                return null;
-            }
-
-            $data = $response->json();
-
-            if (! is_array($data)) {
-                Log::debug('Nominatim returned non-array response', ['address' => $address]);
-
-                return null;
-            }
-
-            return $this->parseNominatimResponse($data, $address);
-        } catch (\Exception $e) {
-            Log::error('Nominatim API exception', [
-                'error' => $e->getMessage(),
-                'address' => $address,
-            ]);
-
-            return null;
-        }
-    }
-
-    /**
      * Parse the Google API response.
      */
     private function parseGoogleResponse(array $data, string $address): ?array
@@ -263,31 +194,6 @@ class GeocodingService
         return [
             'latitude' => (float) $location['lat'],
             'longitude' => (float) $location['lng'],
-        ];
-    }
-
-    /**
-     * Parse the Nominatim API response.
-     */
-    private function parseNominatimResponse(array $data, string $address): ?array
-    {
-        if (empty($data)) {
-            Log::debug('Nominatim returned no results', ['address' => $address]);
-
-            return null;
-        }
-
-        $result = $data[0];
-
-        if (! isset($result['lat'], $result['lon'])) {
-            Log::warning('Nominatim result missing location data', ['address' => $address]);
-
-            return null;
-        }
-
-        return [
-            'latitude' => (float) $result['lat'],
-            'longitude' => (float) $result['lon'],
         ];
     }
 

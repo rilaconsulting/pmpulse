@@ -378,6 +378,8 @@ class AdminController extends Controller
 
         if (! empty($validated['maps_api_key'])) {
             Setting::set('google', 'maps_api_key', $validated['maps_api_key'], encrypted: true);
+        } else {
+            Setting::forget('google', 'maps_api_key');
         }
 
         return back()->with('success', 'Google Maps settings saved successfully.');

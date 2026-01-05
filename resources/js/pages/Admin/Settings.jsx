@@ -44,7 +44,7 @@ export default function Settings({ features, googleMaps }) {
                     <div className="card-body">
                         <p className="text-sm text-gray-600 mb-4">
                             Configure Google Maps API for property geocoding and map views.
-                            Without an API key, the free OpenStreetMap service will be used instead.
+                            Without an API key, geocoding and map features will be disabled.
                         </p>
 
                         <div className="flex items-center gap-2 mb-4">
@@ -56,7 +56,7 @@ export default function Settings({ features, googleMaps }) {
                             ) : (
                                 <>
                                     <ExclamationCircleIcon className="w-5 h-5 text-yellow-500" />
-                                    <span className="text-sm text-yellow-700">Using free OpenStreetMap (rate limited)</span>
+                                    <span className="text-sm text-yellow-700">No API key configured - geocoding disabled</span>
                                 </>
                             )}
                         </div>
@@ -102,14 +102,31 @@ export default function Settings({ features, googleMaps }) {
                                 </p>
                             </div>
 
-                            <div className="pt-2">
+                            <div className="pt-2 flex gap-3">
                                 <button
                                     type="submit"
-                                    disabled={processing || !data.maps_api_key}
+                                    disabled={processing || (!data.maps_api_key && !googleMaps?.has_api_key)}
                                     className="btn-primary"
                                 >
                                     {processing ? 'Saving...' : 'Save API Key'}
                                 </button>
+                                {googleMaps?.has_api_key && (
+                                    <button
+                                        type="button"
+                                        disabled={processing}
+                                        onClick={() => {
+                                            if (confirm('Are you sure you want to remove the API key? Map features will be disabled.')) {
+                                                post('/admin/settings/google-maps', {
+                                                    data: { maps_api_key: '' },
+                                                    onSuccess: () => reset(),
+                                                });
+                                            }
+                                        }}
+                                        className="btn-secondary text-red-600 hover:text-red-700"
+                                    >
+                                        Remove Key
+                                    </button>
+                                )}
                             </div>
                         </form>
                     </div>

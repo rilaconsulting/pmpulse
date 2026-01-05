@@ -9,6 +9,7 @@ use App\Http\Requests\StoreFlagRequest;
 use App\Models\Property;
 use App\Models\PropertyFlag;
 use App\Models\Setting;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -186,11 +187,19 @@ class PropertyController extends Controller
             return back()->withErrors(['flag_type' => 'This flag already exists for this property.']);
         }
 
-        $property->flags()->create([
-            'flag_type' => $validated['flag_type'],
-            'reason' => $validated['reason'] ?? null,
-            'created_by' => $request->user()->id,
-        ]);
+        try {
+            $property->flags()->create([
+                'flag_type' => $validated['flag_type'],
+                'reason' => $validated['reason'] ?? null,
+                'created_by' => $request->user()->id,
+            ]);
+        } catch (QueryException $e) {
+            // Handle race condition where flag was created between check and insert
+            if (str_contains($e->getMessage(), 'unique') || str_contains($e->getMessage(), 'duplicate')) {
+                return back()->withErrors(['flag_type' => 'This flag already exists for this property.']);
+            }
+            throw $e;
+        }
 
         return back()->with('success', 'Flag added successfully.');
     }
