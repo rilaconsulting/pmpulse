@@ -72,14 +72,56 @@ jobs:
       - name: Extract release notes from CHANGELOG
         id: notes
         run: |
-          # Extract content between [Unreleased] and the next ## heading
-          # Remove the [Unreleased] line itself, HTML comments, and extra blank lines
-          NOTES=$(sed -n '/^## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | \
-                  sed '1d;$d' | \
-                  sed '/^<!--/,/-->/d' | \
-                  sed '/^---$/d' | \
-                  sed '/^$/N;/^\n$/d' | \
-                  sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+          if [ ! -f CHANGELOG.md ]; then
+            echo "Error: CHANGELOG.md not found in repository root." >&2
+            exit 1
+          fi
+
+          # Extract content between [Unreleased] and the next ## heading using awk
+          # Handles HTML comments, horizontal rules, and trims blank lines
+          NOTES=$(awk '
+            # Enter [Unreleased] section, but skip its heading line
+            /^## \[Unreleased\]/ { in_section = 1; next }
+
+            # Stop when we reach the next "## [" heading
+            /^## \[/ && in_section { exit }
+
+            in_section {
+              # Skip HTML comment blocks
+              if ($0 ~ /^<!--/) { in_comment = 1; next }
+              if (in_comment && $0 ~ /-->/) { in_comment = 0; next }
+              if (in_comment) next
+
+              # Drop the horizontal rule line
+              if ($0 ~ /^---$/) next
+
+              lines[count++] = $0
+            }
+
+            END {
+              # Trim leading blank lines
+              start = 0
+              while (start < count && lines[start] ~ /^[[:space:]]*$/) start++
+
+              # Trim trailing blank lines
+              end = count - 1
+              while (end >= start && lines[end] ~ /^[[:space:]]*$/) end--
+
+              # Collapse multiple internal blank lines to a single blank
+              prev_blank = 0
+              for (i = start; i <= end; i++) {
+                if (lines[i] ~ /^[[:space:]]*$/) {
+                  if (!prev_blank) {
+                    print ""
+                    prev_blank = 1
+                  }
+                } else {
+                  print lines[i]
+                  prev_blank = 0
+                }
+              }
+            }
+          ' CHANGELOG.md)
 
           if [ -z "$NOTES" ] || [ "$(echo "$NOTES" | tr -d '[:space:]')" = "" ]; then
             NOTES="Internal improvements and maintenance updates."
@@ -132,7 +174,7 @@ jobs:
 
           echo "Updated CHANGELOG.md for release ${NEW_VERSION}"
 
-      - name: Update VERSION file and CHANGELOG
+      - name: Commit VERSION and CHANGELOG
         run: |
           echo "${{ steps.version.outputs.new_version }}" > VERSION
           git add VERSION CHANGELOG.md
@@ -160,10 +202,7 @@ jobs:
         run: |
           gh release create "v${NEW_VERSION}" \
             --title "v${NEW_VERSION}" \
-            --notes "$(cat <<'EOF'
-          ${{ steps.notes.outputs.notes }}
-          EOF
-          )"
+            --notes "${{ steps.notes.outputs.notes }}"
 
       - name: Summary
         env:
@@ -178,9 +217,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📝 Release Notes" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          cat <<'EOF' >> $GITHUB_STEP_SUMMARY
-          ${{ steps.notes.outputs.notes }}
-          EOF
+          echo "${{ steps.notes.outputs.notes }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ✅ Completed" >> $GITHUB_STEP_SUMMARY
           echo "- Merged develop → main" >> $GITHUB_STEP_SUMMARY

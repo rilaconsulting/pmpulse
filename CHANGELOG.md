@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/changelog` command in Claude Code to generate changelog entries from branch changes
 - `/pr-review` command in Claude Code to address PR comments and create tech debt issues
 
+<!-- The horizontal rule below is used by the release script to separate the [Unreleased] section. Do not remove it. -->
 ---
 
 ## [0.3.0] - 2026-01-02
