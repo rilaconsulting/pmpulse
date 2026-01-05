@@ -76,13 +76,13 @@ export default function AnomalyAlerts({ anomalies }) {
             </div>
             <div className="p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-                    {anomalies.map((anomaly, index) => {
+                    {anomalies.map((anomaly) => {
                         const Icon = getAnomalyIcon(anomaly.type);
                         const colors = getAnomalyColors(anomaly.type);
 
                         return (
                             <Link
-                                key={`${anomaly.property_id}-${anomaly.utility_type}-${index}`}
+                                key={`anomaly-${anomaly.property_id}-${anomaly.utility_type}`}
                                 href={`/utilities/property/${anomaly.property_id}`}
                                 className={`block p-4 rounded-lg border ${colors.bg} ${colors.border} hover:shadow-md transition-shadow`}
                             >

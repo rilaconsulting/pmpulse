@@ -1,36 +1,11 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import Layout from '../../components/Layout';
-import KpiCard from '../../components/Dashboard/KpiCard';
 import UtilityTrendChart from '../../components/Utilities/UtilityTrendChart';
 import UtilityHeatMap from '../../components/Utilities/UtilityHeatMap';
 import AnomalyAlerts from '../../components/Utilities/AnomalyAlerts';
-import {
-    BoltIcon,
-    FireIcon,
-    BeakerIcon,
-    TrashIcon,
-    SparklesIcon,
-    CubeIcon,
-} from '@heroicons/react/24/outline';
-
-const UtilityIcons = {
-    water: BeakerIcon,
-    electric: BoltIcon,
-    gas: FireIcon,
-    garbage: TrashIcon,
-    sewer: SparklesIcon,
-    other: CubeIcon,
-};
-
-const UtilityColors = {
-    water: 'bg-blue-50 text-blue-600',
-    electric: 'bg-yellow-50 text-yellow-600',
-    gas: 'bg-orange-50 text-orange-600',
-    garbage: 'bg-gray-50 text-gray-600',
-    sewer: 'bg-green-50 text-green-600',
-    other: 'bg-purple-50 text-purple-600',
-};
+import { UtilityIcons, UtilityColors, formatCurrency } from '../../components/Utilities/constants';
+import { BoltIcon, CubeIcon } from '@heroicons/react/24/outline';
 
 export default function UtilitiesIndex({
     period,
@@ -43,16 +18,6 @@ export default function UtilitiesIndex({
     utilityTypes,
 }) {
     const [selectedPeriod, setSelectedPeriod] = useState(period);
-
-    const formatCurrency = (value) => {
-        if (!value) return '$0';
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(value);
-    };
 
     const handlePeriodChange = (newPeriod) => {
         setSelectedPeriod(newPeriod);
@@ -113,12 +78,12 @@ export default function UtilitiesIndex({
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     {utilitySummary.map((utility) => {
                         const Icon = UtilityIcons[utility.type] || CubeIcon;
-                        const colorClass = UtilityColors[utility.type] || UtilityColors.other;
+                        const colors = UtilityColors[utility.type] || UtilityColors.other;
                         return (
                             <div key={utility.type} className="card">
                                 <div className="card-body">
                                     <div className="flex items-center space-x-3">
-                                        <div className={`p-2 rounded-lg ${colorClass}`}>
+                                        <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
                                             <Icon className="w-5 h-5" />
                                         </div>
                                         <div className="flex-1 min-w-0">

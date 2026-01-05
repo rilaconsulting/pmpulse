@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Period-over-period comparison for utility costs (month, quarter, year-to-date)
 - Portfolio-wide utility cost averages with statistical analysis (mean, median, standard deviation)
 - Anomaly detection to identify properties with unusual utility costs
+- Utility dashboard with portfolio-wide cost overview and summary cards by utility type
+- Property utility detail view with cost breakdowns, period comparisons, and expense history
+- Heat map table showing property utility costs relative to portfolio average with CSV export
+- Anomaly alerts highlighting properties with unusually high or low utility costs
+- Interactive trend charts for utility cost history with toggleable utility types
 
 ---
 

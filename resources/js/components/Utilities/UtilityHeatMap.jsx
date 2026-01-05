@@ -85,6 +85,16 @@ export default function UtilityHeatMap({ data, utilityTypes }) {
         </span>
     );
 
+    const escapeCsvCell = (value) => {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        // Escape quotes and wrap if contains comma, quote, or newline
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
     const exportToCsv = () => {
         const headers = ['Property', 'Units', ...Object.values(utilityTypes).map(t => `${t} ($/unit)`), ...Object.values(utilityTypes).map(t => `${t} vs Avg`)];
         const rows = sortedProperties.map(p => [
@@ -95,15 +105,17 @@ export default function UtilityHeatMap({ data, utilityTypes }) {
         ]);
 
         const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.map(cell => `"${cell}"`).join(',')),
+            headers.map(escapeCsvCell).join(','),
+            ...rows.map(row => row.map(escapeCsvCell).join(',')),
         ].join('\n');
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(blob);
+        link.href = url;
         link.download = 'utility-comparison.csv';
         link.click();
+        URL.revokeObjectURL(url);
     };
 
     return (
@@ -130,7 +142,7 @@ export default function UtilityHeatMap({ data, utilityTypes }) {
                     <span className="text-gray-500">Legend:</span>
                     <span className="flex items-center">
                         <span className="w-4 h-4 rounded bg-green-100 mr-1"></span>
-                        &gt;20% below avg
+                        {'>'}20% below avg
                     </span>
                     <span className="flex items-center">
                         <span className="w-4 h-4 rounded bg-green-50 mr-1"></span>
@@ -146,7 +158,7 @@ export default function UtilityHeatMap({ data, utilityTypes }) {
                     </span>
                     <span className="flex items-center">
                         <span className="w-4 h-4 rounded bg-red-100 mr-1"></span>
-                        &gt;20% above avg
+                        {'>'}20% above avg
                     </span>
                 </div>
             </div>

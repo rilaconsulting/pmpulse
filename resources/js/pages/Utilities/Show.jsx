@@ -2,36 +2,14 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import Layout from '../../components/Layout';
 import PropertyUtilityTrend from '../../components/Utilities/PropertyUtilityTrend';
+import { UtilityIcons, UtilityColors, formatCurrency, formatPercent } from '../../components/Utilities/constants';
 import {
     ArrowLeftIcon,
-    BoltIcon,
-    FireIcon,
-    BeakerIcon,
-    TrashIcon,
-    SparklesIcon,
     CubeIcon,
     ArrowTrendingUpIcon,
     ArrowTrendingDownIcon,
     MinusIcon,
 } from '@heroicons/react/24/outline';
-
-const UtilityIcons = {
-    water: BeakerIcon,
-    electric: BoltIcon,
-    gas: FireIcon,
-    garbage: TrashIcon,
-    sewer: SparklesIcon,
-    other: CubeIcon,
-};
-
-const UtilityColors = {
-    water: 'bg-blue-50 text-blue-600 border-blue-200',
-    electric: 'bg-yellow-50 text-yellow-600 border-yellow-200',
-    gas: 'bg-orange-50 text-orange-600 border-orange-200',
-    garbage: 'bg-gray-50 text-gray-600 border-gray-200',
-    sewer: 'bg-green-50 text-green-600 border-green-200',
-    other: 'bg-purple-50 text-purple-600 border-purple-200',
-};
 
 export default function UtilitiesShow({
     property,
@@ -42,24 +20,8 @@ export default function UtilitiesShow({
     propertyTrend,
     recentExpenses,
     utilityTypes,
-}) {
+) {
     const [selectedPeriod, setSelectedPeriod] = useState(period);
-
-    const formatCurrency = (value) => {
-        if (value === null || value === undefined) return '-';
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(value);
-    };
-
-    const formatPercent = (value) => {
-        if (value === null || value === undefined) return '-';
-        const sign = value > 0 ? '+' : '';
-        return `${sign}${value.toFixed(1)}%`;
-    };
 
     const getChangeIcon = (value) => {
         if (value === null || value === undefined) return MinusIcon;
@@ -150,7 +112,7 @@ export default function UtilitiesShow({
 
                                 return (
                                     <div key={item.type} className="flex items-center space-x-4">
-                                        <div className={`p-2 rounded-lg ${colors.split(' ')[0]} ${colors.split(' ')[1]}`}>
+                                        <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
                                             <Icon className="w-4 h-4" />
                                         </div>
                                         <div className="flex-1">
@@ -167,7 +129,7 @@ export default function UtilitiesShow({
                                             </div>
                                             <div className="w-full bg-gray-100 rounded-full h-2">
                                                 <div
-                                                    className={`h-2 rounded-full ${colors.split(' ')[0].replace('bg-', 'bg-').replace('-50', '-400')}`}
+                                                    className={`h-2 rounded-full ${colors.bar}`}
                                                     style={{ width: `${widthPercent}%` }}
                                                 />
                                             </div>
@@ -309,11 +271,14 @@ export default function UtilitiesShow({
                                                 {new Date(expense.expense_date).toLocaleDateString()}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                    UtilityColors[expense.utility_type]?.split(' ').slice(0, 2).join(' ') || 'bg-gray-100 text-gray-800'
-                                                }`}>
-                                                    {expense.utility_label}
-                                                </span>
+                                                {(() => {
+                                                    const colors = UtilityColors[expense.utility_type] || UtilityColors.other;
+                                                    return (
+                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
+                                                            {expense.utility_label}
+                                                        </span>
+                                                    );
+                                                })()}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {expense.vendor_name || '-'}

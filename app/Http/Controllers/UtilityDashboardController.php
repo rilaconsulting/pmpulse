@@ -15,6 +15,8 @@ use Inertia\Response;
 
 class UtilityDashboardController extends Controller
 {
+    private const VALID_PERIODS = ['month', 'quarter', 'ytd', 'year'];
+
     public function __construct(
         private readonly UtilityAnalyticsService $analyticsService
     ) {}
@@ -25,6 +27,9 @@ class UtilityDashboardController extends Controller
     public function index(Request $request): Response
     {
         $periodType = $request->get('period', 'month');
+        if (! in_array($periodType, self::VALID_PERIODS, true)) {
+            $periodType = 'month';
+        }
         $date = Carbon::now();
 
         $period = [
@@ -89,6 +94,9 @@ class UtilityDashboardController extends Controller
     public function show(Request $request, Property $property): Response
     {
         $periodType = $request->get('period', 'month');
+        if (! in_array($periodType, self::VALID_PERIODS, true)) {
+            $periodType = 'month';
+        }
         $date = Carbon::now();
 
         $period = [
