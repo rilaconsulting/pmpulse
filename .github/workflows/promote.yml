@@ -69,10 +69,73 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Update VERSION file
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          # Extract content between [Unreleased] and the next ## heading
+          # Remove the [Unreleased] line itself, HTML comments, and extra blank lines
+          NOTES=$(sed -n '/^## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | \
+                  sed '1d;$d' | \
+                  sed '/^<!--/,/-->/d' | \
+                  sed '/^---$/d' | \
+                  sed '/^$/N;/^\n$/d' | \
+                  sed -e :a -e '/^\n*$/{$d;N;ba' -e '}')
+
+          if [ -z "$NOTES" ] || [ "$(echo "$NOTES" | tr -d '[:space:]')" = "" ]; then
+            NOTES="Internal improvements and maintenance updates."
+          fi
+
+          # Use heredoc for multiline output
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "Extracted release notes:"
+          echo "$NOTES"
+
+      - name: Update CHANGELOG for release
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+        run: |
+          DATE=$(date +%Y-%m-%d)
+
+          # Use awk for reliable multiline replacement
+          awk -v version="$NEW_VERSION" -v date="$DATE" '
+            /^## \[Unreleased\]$/ {
+              print "## [Unreleased]"
+              print ""
+              print "<!--"
+              print "Add your changes here using these categories:"
+              print ""
+              print "### Added"
+              print "New features"
+              print ""
+              print "### Changed"
+              print "Changes in existing functionality"
+              print ""
+              print "### Fixed"
+              print "Bug fixes"
+              print ""
+              print "### Removed"
+              print "Removed features"
+              print ""
+              print "Run `/changelog` in Claude Code to auto-generate entries from your branch changes."
+              print "-->"
+              print ""
+              print "---"
+              print ""
+              print "## [" version "] - " date
+              next
+            }
+            { print }
+          ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
+
+          echo "Updated CHANGELOG.md for release ${NEW_VERSION}"
+
+      - name: Update VERSION file and CHANGELOG
         run: |
           echo "${{ steps.version.outputs.new_version }}" > VERSION
-          git add VERSION
+          git add VERSION CHANGELOG.md
           git commit -m "chore: Release v${{ steps.version.outputs.new_version }}"
 
       - name: Push to develop
@@ -97,12 +160,10 @@ jobs:
         run: |
           gh release create "v${NEW_VERSION}" \
             --title "v${NEW_VERSION}" \
-            --notes "## Release v${NEW_VERSION}
-
-          Promoted from develop branch.
-
-          **Version bump**: ${{ github.event.inputs.version_bump }}
-          **Triggered by**: @${{ github.actor }}"
+            --notes "$(cat <<'EOF'
+          ${{ steps.notes.outputs.notes }}
+          EOF
+          )"
 
       - name: Summary
         env:
@@ -115,9 +176,16 @@ jobs:
           echo "- **Bump type**: ${BUMP_TYPE}" >> $GITHUB_STEP_SUMMARY
           echo "- **Tag**: v${NEW_VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📝 Release Notes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat <<'EOF' >> $GITHUB_STEP_SUMMARY
+          ${{ steps.notes.outputs.notes }}
+          EOF
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ✅ Completed" >> $GITHUB_STEP_SUMMARY
           echo "- Merged develop → main" >> $GITHUB_STEP_SUMMARY
           echo "- Created Git tag" >> $GITHUB_STEP_SUMMARY
           echo "- Created GitHub Release" >> $GITHUB_STEP_SUMMARY
+          echo "- Updated CHANGELOG.md" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Production deployment will be triggered automatically." >> $GITHUB_STEP_SUMMARY
