@@ -2,6 +2,7 @@ import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Layout from '../../components/Layout';
+import AdjustmentList from '../../components/Property/AdjustmentList';
 import {
     BuildingOfficeIcon,
     MapPinIcon,
@@ -18,7 +19,17 @@ import {
     ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 
-export default function PropertyShow({ property, stats, flagTypes, appfolioUrl, googleMapsApiKey }) {
+export default function PropertyShow({
+    property,
+    stats,
+    flagTypes,
+    appfolioUrl,
+    googleMapsApiKey,
+    adjustableFields,
+    activeAdjustments,
+    historicalAdjustments,
+    effectiveValues,
+}) {
     const { auth } = usePage().props;
     const isAdmin = auth?.user?.role?.name === 'admin';
 
@@ -478,6 +489,17 @@ export default function PropertyShow({ property, stats, flagTypes, appfolioUrl, 
                         </div>
                     </div>
                 </div>
+
+                {/* Data Adjustments */}
+                {isAdmin && (
+                    <AdjustmentList
+                        property={property}
+                        activeAdjustments={activeAdjustments || []}
+                        historicalAdjustments={historicalAdjustments || []}
+                        adjustableFields={adjustableFields || {}}
+                        effectiveValues={effectiveValues || {}}
+                    />
+                )}
 
                 {/* Units List */}
                 <div className="card">

@@ -7,8 +7,10 @@ namespace App\Http\Controllers;
 use App\Http\Requests\DestroyFlagRequest;
 use App\Http\Requests\StoreFlagRequest;
 use App\Models\Property;
+use App\Models\PropertyAdjustment;
 use App\Models\PropertyFlag;
 use App\Models\Setting;
+use App\Services\AdjustmentService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -135,13 +137,16 @@ class PropertyController extends Controller
     /**
      * Display the specified property.
      */
-    public function show(Property $property): Response
+    public function show(Property $property, AdjustmentService $adjustmentService): Response
     {
         $property->load([
             'units' => function ($query) {
                 $query->orderBy('unit_number');
             },
             'flags' => function ($query) {
+                $query->with('creator:id,name')->orderBy('created_at', 'desc');
+            },
+            'adjustments' => function ($query) {
                 $query->with('creator:id,name')->orderBy('created_at', 'desc');
             },
         ]);
@@ -166,12 +171,24 @@ class PropertyController extends Controller
             $appfolioUrl = "https://{$appfolioDatabase}.appfolio.com/properties/{$property->external_id}";
         }
 
+        // Separate active and historical adjustments
+        $today = now()->startOfDay();
+        $activeAdjustments = $property->adjustments->filter(fn ($adj) => $adj->isActiveOn($today));
+        $historicalAdjustments = $property->adjustments->filter(fn ($adj) => ! $adj->isActiveOn($today));
+
+        // Get effective values with metadata for display
+        $effectiveValues = $adjustmentService->getEffectiveValuesWithMetadata($property);
+
         return Inertia::render('Properties/Show', [
             'property' => $property,
             'stats' => $stats,
             'flagTypes' => PropertyFlag::FLAG_TYPES,
             'appfolioUrl' => $appfolioUrl,
             'googleMapsApiKey' => Setting::get('google', 'maps_api_key'),
+            'adjustableFields' => PropertyAdjustment::ADJUSTABLE_FIELDS,
+            'activeAdjustments' => $activeAdjustments->values(),
+            'historicalAdjustments' => $historicalAdjustments->values(),
+            'effectiveValues' => $effectiveValues,
         ]);
     }
 
