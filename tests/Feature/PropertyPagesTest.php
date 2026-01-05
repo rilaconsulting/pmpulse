@@ -277,4 +277,132 @@ class PropertyPagesTest extends TestCase
         $response->assertJsonCount(1);
         $response->assertJsonFragment(['name' => 'Active Building']);
     }
+
+    public function test_property_list_sorts_by_name_descending(): void
+    {
+        Property::create([
+            'external_id' => 'prop-1',
+            'name' => 'Alpha Building',
+            'is_active' => true,
+        ]);
+        Property::create([
+            'external_id' => 'prop-2',
+            'name' => 'Zebra Towers',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)->get('/properties?sort=name&direction=desc');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->where('properties.data.0.name', 'Zebra Towers')
+            ->where('properties.data.1.name', 'Alpha Building')
+        );
+    }
+
+    public function test_property_detail_shows_zero_occupancy_for_all_vacant(): void
+    {
+        $property = Property::create([
+            'external_id' => 'prop-1',
+            'name' => 'Test Property',
+            'is_active' => true,
+        ]);
+
+        Unit::create([
+            'external_id' => 'unit-1',
+            'property_id' => $property->id,
+            'unit_number' => '101',
+            'status' => 'vacant',
+            'is_active' => true,
+        ]);
+        Unit::create([
+            'external_id' => 'unit-2',
+            'property_id' => $property->id,
+            'unit_number' => '102',
+            'status' => 'vacant',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)->get("/properties/{$property->id}");
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->where('stats.occupancy_rate', 0)
+            ->where('stats.occupied_units', 0)
+            ->where('stats.vacant_units', 2)
+        );
+    }
+
+    public function test_property_detail_shows_full_occupancy(): void
+    {
+        $property = Property::create([
+            'external_id' => 'prop-1',
+            'name' => 'Test Property',
+            'is_active' => true,
+        ]);
+
+        Unit::create([
+            'external_id' => 'unit-1',
+            'property_id' => $property->id,
+            'unit_number' => '101',
+            'status' => 'occupied',
+            'is_active' => true,
+        ]);
+        Unit::create([
+            'external_id' => 'unit-2',
+            'property_id' => $property->id,
+            'unit_number' => '102',
+            'status' => 'occupied',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)->get("/properties/{$property->id}");
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->where('stats.occupancy_rate', 100)
+            ->where('stats.occupied_units', 2)
+            ->where('stats.vacant_units', 0)
+        );
+    }
+
+    public function test_property_detail_shows_zero_occupancy_for_no_units(): void
+    {
+        $property = Property::create([
+            'external_id' => 'prop-1',
+            'name' => 'Test Property',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)->get("/properties/{$property->id}");
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->where('stats.occupancy_rate', 0)
+            ->where('stats.total_units', 0)
+        );
+    }
+
+    public function test_property_search_handles_special_characters(): void
+    {
+        Property::create([
+            'external_id' => 'prop-1',
+            'name' => 'Test & Property',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)->get('/properties/search?q=Test%20%26');
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1);
+    }
+
+    public function test_property_search_validates_max_length(): void
+    {
+        $longQuery = str_repeat('a', 101);
+
+        $response = $this->actingAs($this->user)->get('/properties/search?q=' . $longQuery);
+
+        $response->assertStatus(302); // Validation redirect
+    }
 }

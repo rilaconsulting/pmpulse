@@ -58,6 +58,27 @@ export default function PropertyShow({ property, stats }) {
             : <ChevronDownIcon className="w-4 h-4 text-blue-600" />;
     };
 
+    const SortableHeader = ({ field, children }) => {
+        const isSorted = unitSort.field === field;
+        const sortDirection = isSorted ? (unitSort.direction === 'asc' ? 'ascending' : 'descending') : 'none';
+
+        return (
+            <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                aria-sort={sortDirection}
+            >
+                <button
+                    type="button"
+                    className="flex items-center gap-1 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                    onClick={() => handleUnitSort(field)}
+                >
+                    {children}
+                    <SortIcon field={field} />
+                </button>
+            </th>
+        );
+    };
+
     const getStatusBadgeClass = (status) => {
         switch (status) {
             case 'occupied':
@@ -354,51 +375,11 @@ export default function PropertyShow({ property, stats }) {
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                        onClick={() => handleUnitSort('unit_number')}
-                                    >
-                                        <div className="flex items-center gap-1">
-                                            Unit
-                                            <SortIcon field="unit_number" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                        onClick={() => handleUnitSort('status')}
-                                    >
-                                        <div className="flex items-center gap-1">
-                                            Status
-                                            <SortIcon field="status" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                        onClick={() => handleUnitSort('bedrooms')}
-                                    >
-                                        <div className="flex items-center gap-1">
-                                            Bed/Bath
-                                            <SortIcon field="bedrooms" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                        onClick={() => handleUnitSort('sqft')}
-                                    >
-                                        <div className="flex items-center gap-1">
-                                            Sqft
-                                            <SortIcon field="sqft" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                        onClick={() => handleUnitSort('market_rent')}
-                                    >
-                                        <div className="flex items-center gap-1">
-                                            Market Rent
-                                            <SortIcon field="market_rent" />
-                                        </div>
-                                    </th>
+                                    <SortableHeader field="unit_number">Unit</SortableHeader>
+                                    <SortableHeader field="status">Status</SortableHeader>
+                                    <SortableHeader field="bedrooms">Bed/Bath</SortableHeader>
+                                    <SortableHeader field="sqft">Sqft</SortableHeader>
+                                    <SortableHeader field="market_rent">Market Rent</SortableHeader>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Type
                                     </th>

@@ -26,12 +26,7 @@ class PropertyController extends Controller
 
         // Search by name or address (case-insensitive)
         if ($search = $request->get('search')) {
-            $searchLower = strtolower($search);
-            $query->where(function ($q) use ($searchLower) {
-                $q->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"])
-                    ->orWhereRaw('LOWER(address_line1) LIKE ?', ["%{$searchLower}%"])
-                    ->orWhereRaw('LOWER(city) LIKE ?', ["%{$searchLower}%"]);
-            });
+            $query->search($search);
         }
 
         // Filter by portfolio
@@ -102,21 +97,19 @@ class PropertyController extends Controller
      */
     public function search(Request $request): JsonResponse
     {
-        $search = $request->get('q', '');
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $search = $validated['q'] ?? '';
 
         if (strlen($search) < 2) {
             return response()->json([]);
         }
 
-        $searchLower = strtolower($search);
-
         $properties = Property::query()
-            ->where('is_active', true)
-            ->where(function ($q) use ($searchLower) {
-                $q->whereRaw('LOWER(name) LIKE ?', ["%{$searchLower}%"])
-                    ->orWhereRaw('LOWER(address_line1) LIKE ?', ["%{$searchLower}%"])
-                    ->orWhereRaw('LOWER(city) LIKE ?', ["%{$searchLower}%"]);
-            })
+            ->active()
+            ->search($search)
             ->orderBy('name')
             ->limit(10)
             ->get(['id', 'name', 'address_line1', 'city', 'state']);

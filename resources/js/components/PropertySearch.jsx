@@ -11,11 +11,13 @@ export default function PropertySearch() {
     const [results, setResults] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [recentSearches, setRecentSearches] = useState([]);
     const inputRef = useRef(null);
     const containerRef = useRef(null);
     const debounceRef = useRef(null);
+    const listboxId = useRef(`property-search-listbox-${Math.random().toString(36).substr(2, 9)}`).current;
 
     // Load recent searches from localStorage
     useEffect(() => {
@@ -36,25 +38,36 @@ export default function PropertySearch() {
             ...recentSearches.filter(p => p.id !== property.id),
         ].slice(0, 5);
         setRecentSearches(updated);
-        localStorage.setItem('propertySearchHistory', JSON.stringify(updated));
+        try {
+            localStorage.setItem('propertySearchHistory', JSON.stringify(updated));
+        } catch (e) {
+            // localStorage may be full or unavailable (private browsing)
+            console.warn('Unable to save search history:', e);
+        }
     };
 
     // Debounced search
     const search = useCallback(async (searchQuery) => {
         if (searchQuery.length < 2) {
             setResults([]);
+            setError(null);
             return;
         }
 
         setIsLoading(true);
+        setError(null);
         try {
             const response = await fetch(`/properties/search?q=${encodeURIComponent(searchQuery)}`);
+            if (!response.ok) {
+                throw new Error(`Search failed: ${response.status}`);
+            }
             const data = await response.json();
             setResults(data);
             setSelectedIndex(-1);
-        } catch (error) {
-            console.error('Search error:', error);
+        } catch (err) {
+            console.error('Search error:', err);
             setResults([]);
+            setError('Unable to search. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -143,6 +156,11 @@ export default function PropertySearch() {
                 <input
                     ref={inputRef}
                     type="text"
+                    role="combobox"
+                    aria-expanded={showDropdown}
+                    aria-controls={listboxId}
+                    aria-autocomplete="list"
+                    aria-activedescendant={selectedIndex >= 0 ? `${listboxId}-option-${selectedIndex}` : undefined}
                     className="w-full pl-10 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white"
                     placeholder="Search properties..."
                     value={query}
@@ -167,14 +185,25 @@ export default function PropertySearch() {
             </div>
 
             {showDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                <div
+                    id={listboxId}
+                    role="listbox"
+                    aria-label="Property search results"
+                    className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto"
+                >
                     {isLoading && (
-                        <div className="px-4 py-3 text-sm text-gray-500">
+                        <div className="px-4 py-3 text-sm text-gray-500" role="status">
                             Searching...
                         </div>
                     )}
 
-                    {!isLoading && query.length >= 2 && results.length === 0 && (
+                    {!isLoading && error && (
+                        <div className="px-4 py-3 text-sm text-red-600" role="alert">
+                            {error}
+                        </div>
+                    )}
+
+                    {!isLoading && !error && query.length >= 2 && results.length === 0 && (
                         <div className="px-4 py-3 text-sm text-gray-500">
                             No properties found
                         </div>
@@ -186,10 +215,13 @@ export default function PropertySearch() {
                         </div>
                     )}
 
-                    {!isLoading && displayItems.map((property, index) => (
+                    {!isLoading && !error && displayItems.map((property, index) => (
                         <button
                             key={property.id}
+                            id={`${listboxId}-option-${index}`}
                             type="button"
+                            role="option"
+                            aria-selected={index === selectedIndex}
                             className={`w-full px-4 py-3 text-left flex items-center hover:bg-gray-50 ${
                                 index === selectedIndex ? 'bg-blue-50' : ''
                             }`}
@@ -212,7 +244,7 @@ export default function PropertySearch() {
                         </button>
                     ))}
 
-                    {!isLoading && displayItems.length > 0 && (
+                    {!isLoading && !error && displayItems.length > 0 && (
                         <div className="px-3 py-2 text-xs text-gray-400 bg-gray-50 border-t border-gray-100">
                             Press <kbd className="px-1 py-0.5 bg-gray-200 rounded text-gray-600">↑</kbd> <kbd className="px-1 py-0.5 bg-gray-200 rounded text-gray-600">↓</kbd> to navigate, <kbd className="px-1 py-0.5 bg-gray-200 rounded text-gray-600">Enter</kbd> to select
                         </div>

@@ -43,7 +43,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/properties', [PropertyController::class, 'index'])
         ->name('properties.index');
     Route::get('/properties/search', [PropertyController::class, 'search'])
-        ->name('properties.search');
+        ->name('properties.search')
+        ->middleware('throttle:60,1');
     Route::get('/properties/{property}', [PropertyController::class, 'show'])
         ->name('properties.show');
 

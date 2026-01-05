@@ -66,17 +66,26 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
             : <ChevronDownIcon className="w-4 h-4 text-blue-600" />;
     };
 
-    const SortableHeader = ({ field, children, className = '' }) => (
-        <th
-            className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${className}`}
-            onClick={() => handleSort(field)}
-        >
-            <div className="flex items-center gap-1">
-                {children}
-                <SortIcon field={field} />
-            </div>
-        </th>
-    );
+    const SortableHeader = ({ field, children, className = '' }) => {
+        const isSorted = filters.sort === field;
+        const sortDirection = isSorted ? (filters.direction === 'asc' ? 'ascending' : 'descending') : 'none';
+
+        return (
+            <th
+                className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${className}`}
+                aria-sort={sortDirection}
+            >
+                <button
+                    type="button"
+                    className="flex items-center gap-1 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                    onClick={() => handleSort(field)}
+                >
+                    {children}
+                    <SortIcon field={field} />
+                </button>
+            </th>
+        );
+    };
 
     return (
         <Layout>
