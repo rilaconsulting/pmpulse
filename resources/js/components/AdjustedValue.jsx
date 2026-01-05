@@ -71,18 +71,30 @@ export default function AdjustedValue({
         return <span className={className}>{displayValue}</span>;
     }
 
+    const handleKeyDown = (e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onClick(e);
+        }
+    };
+
     return (
         <span
             ref={containerRef}
             className={`inline-flex items-center gap-1 relative ${className}`}
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
+            onFocus={() => setShowTooltip(true)}
+            onBlur={() => setShowTooltip(false)}
         >
             {displayValue}
             <span
                 className={`inline-flex items-center ${onClick ? 'cursor-pointer' : ''}`}
                 onClick={onClick}
-                title={onClick ? 'View adjustment details' : undefined}
+                onKeyDown={handleKeyDown}
+                tabIndex={onClick ? 0 : undefined}
+                role={onClick ? 'button' : undefined}
+                aria-label={onClick ? `View ${label} adjustment details` : undefined}
             >
                 <AdjustmentsHorizontalIcon
                     className={`${iconSizeClasses[size]} text-blue-500`}

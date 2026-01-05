@@ -4,59 +4,27 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\AdjustmentReportRequest;
 use App\Models\PropertyAdjustment;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdjustmentReportController extends Controller
 {
     /**
      * Display the adjustments report page.
      */
-    public function index(Request $request): InertiaResponse
+    public function index(AdjustmentReportRequest $request): InertiaResponse
     {
-        // Only admins can access
-        if (! $request->user()?->isAdmin()) {
-            abort(403);
-        }
-
-        $query = PropertyAdjustment::query()
-            ->with(['property:id,name,external_id', 'creator:id,name'])
-            ->orderBy('created_at', 'desc');
-
-        // Filter by status (active/historical/all)
-        $status = $request->get('status', 'active');
         $today = Carbon::today();
+        $status = $request->get('status', 'active');
 
-        if ($status === 'active') {
-            $query->activeOn($today);
-        } elseif ($status === 'historical') {
-            $query->where(function ($q) use ($today) {
-                $q->where('effective_to', '<', $today);
-            });
-        }
-
-        // Filter by field name
-        if ($fieldName = $request->get('field')) {
-            $query->forField($fieldName);
-        }
-
-        // Filter by creator
-        if ($creatorId = $request->get('creator')) {
-            $query->where('created_by', $creatorId);
-        }
-
-        // Filter by date range
-        if ($from = $request->get('from')) {
-            $query->where('effective_from', '>=', Carbon::parse($from));
-        }
-        if ($to = $request->get('to')) {
-            $query->where('effective_from', '<=', Carbon::parse($to));
-        }
+        $query = $this->buildFilteredQuery($request, $today, $status);
 
         // Get adjustments with pagination
         $adjustments = $query->paginate(25)->withQueryString();
@@ -67,20 +35,17 @@ class AdjustmentReportController extends Controller
             ->get(['id', 'name']);
 
         // Calculate summary stats
-        $summaryQuery = PropertyAdjustment::query();
-        if ($status === 'active') {
-            $summaryQuery->activeOn($today);
-        } elseif ($status === 'historical') {
-            $summaryQuery->where('effective_to', '<', $today);
-        }
+        $summaryQuery = $this->buildSummaryQuery($status, $today);
+        $byFieldQuery = clone $summaryQuery;
+        $propertiesQuery = clone $summaryQuery;
 
         $summary = [
             'total' => $summaryQuery->count(),
-            'by_field' => $summaryQuery->clone()
+            'by_field' => $byFieldQuery
                 ->selectRaw('field_name, COUNT(*) as count')
                 ->groupBy('field_name')
                 ->pluck('count', 'field_name'),
-            'properties_affected' => $summaryQuery->clone()
+            'properties_affected' => $propertiesQuery
                 ->distinct('property_id')
                 ->count('property_id'),
         ];
@@ -103,35 +68,81 @@ class AdjustmentReportController extends Controller
     /**
      * Export adjustments to CSV.
      */
-    public function export(Request $request): Response
+    public function export(AdjustmentReportRequest $request): StreamedResponse
     {
-        // Only admins can access
-        if (! $request->user()?->isAdmin()) {
-            abort(403);
-        }
+        $today = Carbon::today();
+        $status = $request->get('status', 'active');
 
+        $query = $this->buildFilteredQuery($request, $today, $status);
+
+        $filename = 'adjustments-'.Carbon::now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($query): void {
+            $handle = fopen('php://output', 'w');
+
+            // Header row
+            fputcsv($handle, [
+                'Property',
+                'Field',
+                'Original Value',
+                'Adjusted Value',
+                'Effective From',
+                'Effective To',
+                'Reason',
+                'Created By',
+                'Created At',
+            ]);
+
+            // Stream adjustments using cursor to minimize memory usage
+            foreach ($query->cursor() as $adjustment) {
+                fputcsv($handle, [
+                    $this->sanitizeCsvField($adjustment->property->name ?? ''),
+                    $this->sanitizeCsvField($adjustment->field_label ?? $adjustment->field_name),
+                    $this->sanitizeCsvField((string) $adjustment->original_value),
+                    $this->sanitizeCsvField((string) $adjustment->adjusted_value),
+                    $adjustment->effective_from?->format('Y-m-d') ?? '',
+                    $adjustment->effective_to?->format('Y-m-d') ?? 'Permanent',
+                    $this->sanitizeCsvField($adjustment->reason ?? ''),
+                    $this->sanitizeCsvField($adjustment->creator->name ?? ''),
+                    $adjustment->created_at?->format('Y-m-d H:i:s') ?? '',
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    /**
+     * Build the filtered query for adjustments.
+     *
+     * @return Builder<PropertyAdjustment>
+     */
+    private function buildFilteredQuery(Request $request, Carbon $today, string $status): Builder
+    {
         $query = PropertyAdjustment::query()
             ->with(['property:id,name,external_id', 'creator:id,name'])
             ->orderBy('created_at', 'desc');
 
-        // Apply same filters as index
-        $status = $request->get('status', 'active');
-        $today = Carbon::today();
-
+        // Filter by status (active/historical/all)
         if ($status === 'active') {
             $query->activeOn($today);
         } elseif ($status === 'historical') {
             $query->where('effective_to', '<', $today);
         }
 
+        // Filter by field name
         if ($fieldName = $request->get('field')) {
             $query->forField($fieldName);
         }
 
+        // Filter by creator
         if ($creatorId = $request->get('creator')) {
             $query->where('created_by', $creatorId);
         }
 
+        // Filter by date range
         if ($from = $request->get('from')) {
             $query->where('effective_from', '>=', Carbon::parse($from));
         }
@@ -139,30 +150,39 @@ class AdjustmentReportController extends Controller
             $query->where('effective_from', '<=', Carbon::parse($to));
         }
 
-        $adjustments = $query->get();
+        return $query;
+    }
 
-        // Build CSV
-        $csv = "Property,Field,Original Value,Adjusted Value,Effective From,Effective To,Reason,Created By,Created At\n";
+    /**
+     * Build the summary query for adjustments.
+     *
+     * @return Builder<PropertyAdjustment>
+     */
+    private function buildSummaryQuery(string $status, Carbon $today): Builder
+    {
+        $query = PropertyAdjustment::query();
 
-        foreach ($adjustments as $adjustment) {
-            $csv .= implode(',', [
-                '"'.str_replace('"', '""', $adjustment->property->name ?? '').'"',
-                '"'.($adjustment->field_label ?? $adjustment->field_name).'"',
-                '"'.$adjustment->original_value.'"',
-                '"'.$adjustment->adjusted_value.'"',
-                $adjustment->effective_from?->format('Y-m-d'),
-                $adjustment->effective_to?->format('Y-m-d') ?? 'Permanent',
-                '"'.str_replace('"', '""', $adjustment->reason ?? '').'"',
-                '"'.str_replace('"', '""', $adjustment->creator->name ?? '').'"',
-                $adjustment->created_at?->format('Y-m-d H:i:s'),
-            ])."\n";
+        if ($status === 'active') {
+            $query->activeOn($today);
+        } elseif ($status === 'historical') {
+            $query->where('effective_to', '<', $today);
         }
 
-        $filename = 'adjustments-'.Carbon::now()->format('Y-m-d').'.csv';
+        return $query;
+    }
 
-        return response($csv, 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+    /**
+     * Sanitize a field value for CSV export to prevent formula injection.
+     *
+     * Spreadsheet applications may execute formulas starting with =, +, -, or @.
+     * This method prefixes such values with a single quote to neutralize them.
+     */
+    private function sanitizeCsvField(string $value): string
+    {
+        if ($value !== '' && in_array($value[0], ['=', '+', '-', '@'], true)) {
+            return "'".$value;
+        }
+
+        return $value;
     }
 }

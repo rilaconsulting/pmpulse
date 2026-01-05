@@ -1,0 +1,36 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class AdjustmentReportRequest extends FormRequest
+{
+    /**
+     * Determine if the user is authorized to make this request.
+     *
+     * Only admins can access the adjustments report.
+     */
+    public function authorize(): bool
+    {
+        return $this->user()?->isAdmin() ?? false;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     */
+    public function rules(): array
+    {
+        return [
+            'status' => ['nullable', 'string', 'in:active,historical,all'],
+            'field' => ['nullable', 'string'],
+            'creator' => ['nullable', 'string'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+        ];
+    }
+}

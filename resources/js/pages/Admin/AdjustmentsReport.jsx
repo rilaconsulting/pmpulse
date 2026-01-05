@@ -4,10 +4,21 @@ import AdminLayout from './Index';
 import {
     ArrowDownTrayIcon,
     FunnelIcon,
-    XMarkIcon,
     ArrowTopRightOnSquareIcon,
     AdjustmentsHorizontalIcon,
+    BuildingOffice2Icon,
 } from '@heroicons/react/24/outline';
+
+/**
+ * Decode HTML entities from Laravel pagination labels.
+ * Only handles known safe entities to prevent XSS.
+ */
+const decodePaginationLabel = (label) => {
+    return label
+        .replace(/&laquo;/g, '\u00AB')
+        .replace(/&raquo;/g, '\u00BB')
+        .replace(/&amp;/g, '&');
+};
 
 export default function AdjustmentsReport({
     adjustments,
@@ -87,9 +98,7 @@ export default function AdjustmentsReport({
                         <div className="card-body">
                             <div className="flex items-center">
                                 <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                    <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                    </svg>
+                                    <BuildingOffice2Icon className="w-5 h-5 text-green-600" />
                                 </div>
                                 <div className="ml-4">
                                     <p className="text-sm text-gray-500">Properties Affected</p>
@@ -283,13 +292,17 @@ export default function AdjustmentsReport({
                                     adjustments.data.map((adjustment) => (
                                         <tr key={adjustment.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <Link
-                                                    href={`/properties/${adjustment.property?.id}`}
-                                                    className="text-sm font-medium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
-                                                >
-                                                    {adjustment.property?.name || 'Unknown Property'}
-                                                    <ArrowTopRightOnSquareIcon className="w-3 h-3" />
-                                                </Link>
+                                                {adjustment.property?.id ? (
+                                                    <Link
+                                                        href={`/properties/${adjustment.property.id}`}
+                                                        className="text-sm font-medium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
+                                                    >
+                                                        {adjustment.property.name || 'Unknown Property'}
+                                                        <ArrowTopRightOnSquareIcon className="w-3 h-3" />
+                                                    </Link>
+                                                ) : (
+                                                    <span className="text-sm text-gray-500">Unknown Property</span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -343,8 +356,9 @@ export default function AdjustmentsReport({
                                                     ? 'text-gray-700 hover:bg-gray-100'
                                                     : 'text-gray-300 cursor-not-allowed'
                                         }`}
-                                        dangerouslySetInnerHTML={{ __html: link.label }}
-                                    />
+                                    >
+                                        {decodePaginationLabel(link.label)}
+                                    </Link>
                                 ))}
                             </div>
                         </div>
