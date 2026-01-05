@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic categorization of synced expenses as utility costs based on configured GL accounts
 - Expense register sync from AppFolio with date range filtering
 - Utility expenses table for normalized cost tracking per property
+- Utility cost analytics with per-unit and per-square-foot metrics
+- Period-over-period comparison for utility costs (month, quarter, year-to-date)
+- Portfolio-wide utility cost averages with statistical analysis (mean, median, standard deviation)
+- Anomaly detection to identify properties with unusual utility costs
 
 ---
 
