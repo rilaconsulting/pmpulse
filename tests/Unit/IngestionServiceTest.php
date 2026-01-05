@@ -241,8 +241,12 @@ class IngestionServiceTest extends TestCase
         $this->service->startSync($incrementalSyncRun);
         $this->service->processResource('properties');
 
+        // Check that modified_since is passed as a query parameter in GET request
         Http::assertSent(function ($request) {
-            return str_contains($request->url(), 'modified_since');
+            // Check URL query string for modified_since
+            $url = $request->url();
+
+            return str_contains($url, 'modified_since');
         });
     }
 }

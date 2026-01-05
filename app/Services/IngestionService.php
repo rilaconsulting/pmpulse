@@ -419,28 +419,32 @@ class IngestionService
     /**
      * Upsert a property record.
      *
-     * TODO: Adjust field mappings based on actual AppFolio API response.
-     * The field names below are placeholders.
+     * Maps AppFolio property_directory.json response fields to our schema.
      *
      * @return bool True if record was created, false if updated
      */
     private function upsertProperty(array $item): bool
     {
-        // Map AppFolio fields to our schema
-        // TODO: Update these mappings when API documentation is available
+        // Map AppFolio property_directory fields to our schema
         $data = [
-            'name' => $item['name'] ?? $item['property_name'] ?? 'Unknown Property',
-            'address_line1' => $item['address'] ?? $item['address_line1'] ?? $item['street_address'] ?? null,
-            'address_line2' => $item['address2'] ?? $item['address_line2'] ?? $item['unit'] ?? null,
-            'city' => $item['city'] ?? null,
-            'state' => $item['state'] ?? $item['state_code'] ?? null,
-            'zip' => $item['zip'] ?? $item['postal_code'] ?? $item['zip_code'] ?? null,
-            'property_type' => $item['type'] ?? $item['property_type'] ?? 'residential',
-            'unit_count' => $item['unit_count'] ?? $item['units_count'] ?? 0,
+            'name' => $item['property_name'] ?? $item['name'] ?? 'Unknown Property',
+            'address_line1' => $item['property_street'] ?? $item['address'] ?? null,
+            'address_line2' => $item['property_street2'] ?? $item['address2'] ?? null,
+            'city' => $item['property_city'] ?? $item['city'] ?? null,
+            'state' => $item['property_state'] ?? $item['state'] ?? null,
+            'zip' => $item['property_zip'] ?? $item['zip'] ?? null,
+            'property_type' => $item['property_type'] ?? $item['type'] ?? 'residential',
+            'unit_count' => $item['units'] ?? $item['number_of_units'] ?? $item['unit_count'] ?? 0,
             'is_active' => $item['active'] ?? $item['is_active'] ?? true,
+            // Enhanced fields from property_directory
+            'portfolio' => $item['portfolio'] ?? null,
+            'portfolio_id' => isset($item['portfolio_id']) ? (int) $item['portfolio_id'] : null,
+            'year_built' => isset($item['year_built']) ? (int) $item['year_built'] : null,
+            'total_sqft' => isset($item['sqft']) ? (int) $item['sqft'] : null,
+            'county' => $item['property_county'] ?? $item['county'] ?? null,
         ];
 
-        $externalId = (string) ($item['id'] ?? $item['property_id']);
+        $externalId = (string) ($item['property_id'] ?? $item['id']);
 
         $property = Property::updateOrCreate(
             ['external_id' => $externalId],
@@ -453,7 +457,7 @@ class IngestionService
     /**
      * Upsert a unit record.
      *
-     * TODO: Adjust field mappings based on actual AppFolio API response.
+     * Maps AppFolio unit_directory.json response fields to our schema.
      *
      * @return bool|null True if record was created, false if updated, null if skipped
      */
@@ -473,20 +477,22 @@ class IngestionService
             return null;
         }
 
-        // Map AppFolio fields to our schema
-        // TODO: Update these mappings when API documentation is available
+        // Map AppFolio unit_directory fields to our schema
         $data = [
             'property_id' => $propertyId,
-            'unit_number' => $item['unit_number'] ?? $item['number'] ?? $item['name'] ?? 'Unknown',
-            'sqft' => $item['sqft'] ?? $item['square_feet'] ?? $item['size'] ?? null,
-            'bedrooms' => $item['bedrooms'] ?? $item['beds'] ?? $item['bedroom_count'] ?? null,
-            'bathrooms' => $item['bathrooms'] ?? $item['baths'] ?? $item['bathroom_count'] ?? null,
-            'status' => $this->mapUnitStatus($item['status'] ?? $item['occupancy_status'] ?? 'vacant'),
-            'market_rent' => $item['market_rent'] ?? $item['rent'] ?? $item['asking_rent'] ?? null,
+            'unit_number' => $item['unit_name'] ?? $item['unit_number'] ?? $item['name'] ?? 'Unknown',
+            'unit_type' => $item['unit_type'] ?? null,
+            'sqft' => isset($item['sqft']) ? (int) $item['sqft'] : null,
+            'bedrooms' => isset($item['bedrooms']) ? (int) $item['bedrooms'] : null,
+            'bathrooms' => $item['bathrooms'] ?? null,
+            'status' => $this->mapUnitStatus($item['unit_status'] ?? $item['status'] ?? 'vacant'),
+            'market_rent' => $item['market_rent'] ?? $item['rent'] ?? null,
+            'advertised_rent' => $item['advertised_rent'] ?? null,
             'is_active' => $item['active'] ?? $item['is_active'] ?? true,
+            'rentable' => $item['rentable'] ?? true,
         ];
 
-        $externalId = (string) ($item['id'] ?? $item['unit_id']);
+        $externalId = (string) ($item['unit_id'] ?? $item['id']);
 
         $unit = Unit::updateOrCreate(
             ['external_id' => $externalId],

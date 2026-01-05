@@ -21,7 +21,14 @@ class Property extends Model
         'city',
         'state',
         'zip',
+        'latitude',
+        'longitude',
+        'portfolio',
+        'portfolio_id',
         'property_type',
+        'year_built',
+        'total_sqft',
+        'county',
         'unit_count',
         'is_active',
     ];
@@ -29,8 +36,38 @@ class Property extends Model
     protected function casts(): array
     {
         return [
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
+            'portfolio_id' => 'integer',
+            'year_built' => 'integer',
+            'total_sqft' => 'integer',
+            'unit_count' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Check if the property has geocoding coordinates.
+     */
+    public function hasCoordinates(): bool
+    {
+        return $this->latitude !== null && $this->longitude !== null;
+    }
+
+    /**
+     * Scope to get properties that need geocoding.
+     */
+    public function scopeNeedsGeocoding($query)
+    {
+        return $query->whereNull('latitude')->orWhereNull('longitude');
+    }
+
+    /**
+     * Scope to get properties with coordinates.
+     */
+    public function scopeHasCoordinates($query)
+    {
+        return $query->whereNotNull('latitude')->whereNotNull('longitude');
     }
 
     /**
