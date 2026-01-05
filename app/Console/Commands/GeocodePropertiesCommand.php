@@ -89,6 +89,7 @@ class GeocodePropertiesCommand extends Command
             if (empty($address)) {
                 $skipped++;
                 $bar->advance();
+
                 continue;
             }
 
@@ -115,7 +116,7 @@ class GeocodePropertiesCommand extends Command
         $bar->finish();
         $this->newLine(2);
 
-        $this->info("Geocoding complete:");
+        $this->info('Geocoding complete:');
         $this->line("  - Success: {$success}");
         $this->line("  - Failed: {$failed}");
         $this->line("  - Skipped (no address): {$skipped}");
