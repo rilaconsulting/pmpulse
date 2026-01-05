@@ -197,4 +197,66 @@ class AdjustmentManagementTest extends TestCase
             ->has('effectiveValues')
         );
     }
+
+    public function test_non_admin_cannot_update_adjustment(): void
+    {
+        $adjustment = PropertyAdjustment::create([
+            'property_id' => $this->property->id,
+            'field_name' => 'unit_count',
+            'original_value' => '10',
+            'adjusted_value' => '15',
+            'effective_from' => now(),
+            'reason' => 'Original reason',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->viewer)->patch(
+            "/properties/{$this->property->id}/adjustments/{$adjustment->id}",
+            [
+                'adjusted_value' => 20,
+                'reason' => 'Updated reason',
+            ]
+        );
+
+        $response->assertForbidden();
+    }
+
+    public function test_non_admin_cannot_end_adjustment(): void
+    {
+        $adjustment = PropertyAdjustment::create([
+            'property_id' => $this->property->id,
+            'field_name' => 'unit_count',
+            'original_value' => '10',
+            'adjusted_value' => '15',
+            'effective_from' => now()->subDays(10),
+            'effective_to' => null,
+            'reason' => 'Permanent adjustment',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->viewer)->post(
+            "/properties/{$this->property->id}/adjustments/{$adjustment->id}/end"
+        );
+
+        $response->assertForbidden();
+    }
+
+    public function test_non_admin_cannot_delete_adjustment(): void
+    {
+        $adjustment = PropertyAdjustment::create([
+            'property_id' => $this->property->id,
+            'field_name' => 'unit_count',
+            'original_value' => '10',
+            'adjusted_value' => '15',
+            'effective_from' => now(),
+            'reason' => 'Test adjustment',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->viewer)->delete(
+            "/properties/{$this->property->id}/adjustments/{$adjustment->id}"
+        );
+
+        $response->assertForbidden();
+    }
 }

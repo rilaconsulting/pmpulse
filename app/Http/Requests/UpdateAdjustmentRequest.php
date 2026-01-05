@@ -27,10 +27,11 @@ class UpdateAdjustmentRequest extends FormRequest
         $adjustment = $this->route('adjustment');
         $fieldName = $adjustment?->field_name ?? $this->input('field_name');
         $fieldRules = PropertyAdjustment::getValidationRules($fieldName);
+        $effectiveFrom = $adjustment?->effective_from?->toDateString();
 
         return [
             'adjusted_value' => $fieldRules,
-            'effective_to' => ['nullable', 'date'],
+            'effective_to' => ['nullable', 'date', 'after_or_equal:'.$effectiveFrom],
             'reason' => ['required', 'string', 'max:1000'],
         ];
     }
@@ -48,6 +49,7 @@ class UpdateAdjustmentRequest extends FormRequest
             'adjusted_value.numeric' => 'The adjusted value must be a number.',
             'adjusted_value.min' => 'The adjusted value must be at least 0.',
             'effective_to.date' => 'Please enter a valid date.',
+            'effective_to.after_or_equal' => 'The end date must be on or after the start date.',
             'reason.required' => 'Please provide a reason for this adjustment.',
             'reason.max' => 'The reason cannot exceed 1000 characters.',
         ];

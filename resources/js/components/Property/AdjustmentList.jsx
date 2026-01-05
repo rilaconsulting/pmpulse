@@ -326,7 +326,7 @@ export default function AdjustmentList({
                                             Adjusted Value
                                         </label>
                                         <input
-                                            type={adjustableFields[createForm.data.field_name]?.type === 'decimal' ? 'number' : 'number'}
+                                            type="number"
                                             step={adjustableFields[createForm.data.field_name]?.type === 'decimal' ? '0.01' : '1'}
                                             className={`mt-1 input ${createForm.errors.adjusted_value ? 'border-red-300' : ''}`}
                                             value={createForm.data.adjusted_value}
@@ -467,6 +467,7 @@ export default function AdjustmentList({
                                 className={`mt-1 input ${editForm.errors.effective_to ? 'border-red-300' : ''}`}
                                 value={editForm.data.effective_to}
                                 onChange={(e) => editForm.setData('effective_to', e.target.value)}
+                                min={editingAdjustment.effective_from?.split('T')[0]}
                             />
                             {editForm.errors.effective_to && (
                                 <p className="mt-1 text-sm text-red-600">{editForm.errors.effective_to}</p>
@@ -572,8 +573,21 @@ export default function AdjustmentList({
 
 // Simple Modal component
 function Modal({ children, onClose }) {
+    // Handle Escape key to close modal
+    const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            onClose();
+        }
+    };
+
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div
+            className="fixed inset-0 z-50 overflow-y-auto"
+            aria-labelledby="modal-title"
+            role="dialog"
+            aria-modal="true"
+            onKeyDown={handleKeyDown}
+        >
             <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
                 <div
                     className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
