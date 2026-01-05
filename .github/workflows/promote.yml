@@ -69,10 +69,115 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION"
 
-      - name: Update VERSION file
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          if [ ! -f CHANGELOG.md ]; then
+            echo "Error: CHANGELOG.md not found in repository root." >&2
+            exit 1
+          fi
+
+          # Extract content between [Unreleased] and the next ## heading using awk
+          # Handles HTML comments, horizontal rules, and trims blank lines
+          NOTES=$(awk '
+            # Enter [Unreleased] section, but skip its heading line
+            /^## \[Unreleased\]/ { in_section = 1; next }
+
+            # Stop when we reach the next "## [" heading
+            /^## \[/ && in_section { exit }
+
+            in_section {
+              # Skip HTML comment blocks
+              if ($0 ~ /^<!--/) { in_comment = 1; next }
+              if (in_comment && $0 ~ /-->/) { in_comment = 0; next }
+              if (in_comment) next
+
+              # Drop the horizontal rule line
+              if ($0 ~ /^---$/) next
+
+              lines[count++] = $0
+            }
+
+            END {
+              # Trim leading blank lines
+              start = 0
+              while (start < count && lines[start] ~ /^[[:space:]]*$/) start++
+
+              # Trim trailing blank lines
+              end = count - 1
+              while (end >= start && lines[end] ~ /^[[:space:]]*$/) end--
+
+              # Collapse multiple internal blank lines to a single blank
+              prev_blank = 0
+              for (i = start; i <= end; i++) {
+                if (lines[i] ~ /^[[:space:]]*$/) {
+                  if (!prev_blank) {
+                    print ""
+                    prev_blank = 1
+                  }
+                } else {
+                  print lines[i]
+                  prev_blank = 0
+                }
+              }
+            }
+          ' CHANGELOG.md)
+
+          if [ -z "$NOTES" ] || [ "$(echo "$NOTES" | tr -d '[:space:]')" = "" ]; then
+            NOTES="Internal improvements and maintenance updates."
+          fi
+
+          # Use heredoc for multiline output
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "Extracted release notes:"
+          echo "$NOTES"
+
+      - name: Update CHANGELOG for release
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+        run: |
+          DATE=$(date +%Y-%m-%d)
+
+          # Use awk for reliable multiline replacement
+          awk -v version="$NEW_VERSION" -v date="$DATE" '
+            /^## \[Unreleased\]$/ {
+              print "## [Unreleased]"
+              print ""
+              print "<!--"
+              print "Add your changes here using these categories:"
+              print ""
+              print "### Added"
+              print "New features"
+              print ""
+              print "### Changed"
+              print "Changes in existing functionality"
+              print ""
+              print "### Fixed"
+              print "Bug fixes"
+              print ""
+              print "### Removed"
+              print "Removed features"
+              print ""
+              print "Run `/changelog` in Claude Code to auto-generate entries from your branch changes."
+              print "-->"
+              print ""
+              print "---"
+              print ""
+              print "## [" version "] - " date
+              next
+            }
+            { print }
+          ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
+
+          echo "Updated CHANGELOG.md for release ${NEW_VERSION}"
+
+      - name: Commit VERSION and CHANGELOG
         run: |
           echo "${{ steps.version.outputs.new_version }}" > VERSION
-          git add VERSION
+          git add VERSION CHANGELOG.md
           git commit -m "chore: Release v${{ steps.version.outputs.new_version }}"
 
       - name: Push to develop
@@ -97,12 +202,7 @@ jobs:
         run: |
           gh release create "v${NEW_VERSION}" \
             --title "v${NEW_VERSION}" \
-            --notes "## Release v${NEW_VERSION}
-
-          Promoted from develop branch.
-
-          **Version bump**: ${{ github.event.inputs.version_bump }}
-          **Triggered by**: @${{ github.actor }}"
+            --notes "${{ steps.notes.outputs.notes }}"
 
       - name: Summary
         env:
@@ -115,9 +215,14 @@ jobs:
           echo "- **Bump type**: ${BUMP_TYPE}" >> $GITHUB_STEP_SUMMARY
           echo "- **Tag**: v${NEW_VERSION}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📝 Release Notes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.notes.outputs.notes }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ✅ Completed" >> $GITHUB_STEP_SUMMARY
           echo "- Merged develop → main" >> $GITHUB_STEP_SUMMARY
           echo "- Created Git tag" >> $GITHUB_STEP_SUMMARY
           echo "- Created GitHub Release" >> $GITHUB_STEP_SUMMARY
+          echo "- Updated CHANGELOG.md" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Production deployment will be triggered automatically." >> $GITHUB_STEP_SUMMARY
