@@ -7,23 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
 ### Added
-New features
-
-### Changed
-Changes in existing functionality
-
-### Fixed
-Bug fixes
-
-### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
--->
+- Automated release notes generation from CHANGELOG.md during production promotion
+- `/changelog` command in Claude Code to generate changelog entries from branch changes
 
 ---
 
