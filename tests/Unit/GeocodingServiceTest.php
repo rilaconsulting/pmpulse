@@ -177,9 +177,10 @@ class GeocodingServiceTest extends TestCase
 
         Http::fake();
 
-        $result = $service->geocode('123 Main St');
+        $result = $service->geocode('123 Main St, San Francisco, CA');
 
         $this->assertNull($result);
+        // Verify no API call was made
         Http::assertNothingSent();
     }
 

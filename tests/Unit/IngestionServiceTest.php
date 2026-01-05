@@ -44,12 +44,13 @@ class IngestionServiceTest extends TestCase
             '*' => Http::response([
                 'results' => [
                     [
-                        'id' => 'prop-123',
-                        'name' => 'Test Property',
-                        'address' => '123 Main St',
-                        'city' => 'Test City',
-                        'state' => 'CA',
-                        'zip' => '90210',
+                        'property_id' => 123,
+                        'property_address' => '123 Main St Test City, CA 90210',
+                        'property_street' => '123 Main St',
+                        'property_city' => 'Test City',
+                        'property_state' => 'CA',
+                        'property_zip' => '90210',
+                        'visibility' => 'Active',
                     ],
                 ],
             ], 200),
@@ -60,8 +61,8 @@ class IngestionServiceTest extends TestCase
         $this->service->completeSync();
 
         $this->assertDatabaseHas('properties', [
-            'external_id' => 'prop-123',
-            'name' => 'Test Property',
+            'external_id' => '123',
+            'name' => '123 Main St Test City, CA 90210',
             'city' => 'Test City',
         ]);
     }
@@ -70,7 +71,7 @@ class IngestionServiceTest extends TestCase
     {
         // Create existing property
         Property::create([
-            'external_id' => 'prop-123',
+            'external_id' => '123',
             'name' => 'Old Name',
             'city' => 'Old City',
         ]);
@@ -79,9 +80,10 @@ class IngestionServiceTest extends TestCase
             '*' => Http::response([
                 'results' => [
                     [
-                        'id' => 'prop-123',
-                        'name' => 'Updated Name',
-                        'city' => 'Updated City',
+                        'property_id' => 123,
+                        'property_address' => 'Updated Name',
+                        'property_city' => 'Updated City',
+                        'visibility' => 'Active',
                     ],
                 ],
             ], 200),
@@ -93,7 +95,7 @@ class IngestionServiceTest extends TestCase
 
         $this->assertDatabaseCount('properties', 1);
         $this->assertDatabaseHas('properties', [
-            'external_id' => 'prop-123',
+            'external_id' => '123',
             'name' => 'Updated Name',
             'city' => 'Updated City',
         ]);
@@ -104,7 +106,7 @@ class IngestionServiceTest extends TestCase
         Http::fake([
             '*' => Http::response([
                 'results' => [
-                    ['id' => 'prop-123', 'name' => 'Test Property'],
+                    ['property_id' => 123, 'property_address' => 'Test Property'],
                 ],
             ], 200),
         ]);
@@ -116,7 +118,7 @@ class IngestionServiceTest extends TestCase
         $this->assertDatabaseHas('raw_appfolio_events', [
             'sync_run_id' => $this->syncRun->id,
             'resource_type' => 'properties',
-            'external_id' => 'prop-123',
+            'external_id' => '123',
         ]);
     }
 
@@ -124,7 +126,7 @@ class IngestionServiceTest extends TestCase
     {
         // Create property first
         $property = Property::create([
-            'external_id' => 'prop-123',
+            'external_id' => '123',
             'name' => 'Test Property',
         ]);
 
@@ -132,11 +134,12 @@ class IngestionServiceTest extends TestCase
             '*' => Http::response([
                 'results' => [
                     [
-                        'id' => 'unit-456',
-                        'property_id' => 'prop-123',
-                        'unit_number' => '101',
+                        'unit_id' => 456,
+                        'property_id' => 123,
+                        'unit_name' => '#101',
                         'bedrooms' => 2,
                         'status' => 'vacant',
+                        'visibility' => 'Active',
                     ],
                 ],
             ], 200),
@@ -147,9 +150,9 @@ class IngestionServiceTest extends TestCase
         $this->service->completeSync();
 
         $this->assertDatabaseHas('units', [
-            'external_id' => 'unit-456',
+            'external_id' => '456',
             'property_id' => $property->id,
-            'unit_number' => '101',
+            'unit_number' => '#101',
             'bedrooms' => 2,
             'status' => 'vacant',
         ]);
@@ -158,16 +161,16 @@ class IngestionServiceTest extends TestCase
     public function test_maps_unit_status_correctly(): void
     {
         Property::create([
-            'external_id' => 'prop-123',
+            'external_id' => '123',
             'name' => 'Test Property',
         ]);
 
         Http::fake([
             '*' => Http::response([
                 'results' => [
-                    ['id' => 'unit-1', 'property_id' => 'prop-123', 'unit_number' => '1', 'status' => 'occupied'],
-                    ['id' => 'unit-2', 'property_id' => 'prop-123', 'unit_number' => '2', 'status' => 'available'],
-                    ['id' => 'unit-3', 'property_id' => 'prop-123', 'unit_number' => '3', 'status' => 'maintenance'],
+                    ['unit_id' => 1, 'property_id' => 123, 'unit_name' => '1', 'status' => 'occupied', 'visibility' => 'Active'],
+                    ['unit_id' => 2, 'property_id' => 123, 'unit_name' => '2', 'status' => 'available', 'visibility' => 'Active'],
+                    ['unit_id' => 3, 'property_id' => 123, 'unit_name' => '3', 'status' => 'maintenance', 'visibility' => 'Active'],
                 ],
             ], 200),
         ]);
@@ -176,9 +179,9 @@ class IngestionServiceTest extends TestCase
         $this->service->processResource('units');
         $this->service->completeSync();
 
-        $this->assertDatabaseHas('units', ['external_id' => 'unit-1', 'status' => 'occupied']);
-        $this->assertDatabaseHas('units', ['external_id' => 'unit-2', 'status' => 'vacant']);
-        $this->assertDatabaseHas('units', ['external_id' => 'unit-3', 'status' => 'not_ready']);
+        $this->assertDatabaseHas('units', ['external_id' => '1', 'status' => 'occupied']);
+        $this->assertDatabaseHas('units', ['external_id' => '2', 'status' => 'vacant']);
+        $this->assertDatabaseHas('units', ['external_id' => '3', 'status' => 'not_ready']);
     }
 
     public function test_sync_run_marked_as_completed(): void

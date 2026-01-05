@@ -8,6 +8,7 @@ use App\Http\Requests\DestroyFlagRequest;
 use App\Http\Requests\StoreFlagRequest;
 use App\Models\Property;
 use App\Models\PropertyFlag;
+use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -93,6 +94,7 @@ class PropertyController extends Controller
                 'sort' => $sortField,
                 'direction' => $sortDirection,
             ],
+            'googleMapsApiKey' => Setting::get('google', 'maps_api_key'),
         ]);
     }
 
@@ -156,10 +158,19 @@ class PropertyController extends Controller
             'avg_market_rent' => $property->units->avg('market_rent'),
         ];
 
+        // Build AppFolio URL if database is configured and property has external_id
+        $appfolioUrl = null;
+        $appfolioDatabase = Setting::get('appfolio', 'database');
+        if ($appfolioDatabase && $property->external_id) {
+            $appfolioUrl = "https://{$appfolioDatabase}.appfolio.com/properties/{$property->external_id}";
+        }
+
         return Inertia::render('Properties/Show', [
             'property' => $property,
             'stats' => $stats,
             'flagTypes' => PropertyFlag::FLAG_TYPES,
+            'appfolioUrl' => $appfolioUrl,
+            'googleMapsApiKey' => Setting::get('google', 'maps_api_key'),
         ]);
     }
 

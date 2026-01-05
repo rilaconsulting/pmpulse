@@ -77,6 +77,7 @@ Route::middleware('auth')->group(function () {
 
         // Settings
         Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+        Route::post('/settings/google-maps', [AdminController::class, 'saveGoogleMapsSettings'])->name('settings.google-maps');
     });
 
     // Profile (all authenticated users)

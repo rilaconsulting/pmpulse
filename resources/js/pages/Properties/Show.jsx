@@ -1,5 +1,6 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Layout from '../../components/Layout';
 import {
     BuildingOfficeIcon,
@@ -14,9 +15,10 @@ import {
     FlagIcon,
     PlusIcon,
     XMarkIcon,
+    ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 
-export default function PropertyShow({ property, stats, flagTypes }) {
+export default function PropertyShow({ property, stats, flagTypes, appfolioUrl, googleMapsApiKey }) {
     const { auth } = usePage().props;
     const isAdmin = auth?.user?.role?.name === 'admin';
 
@@ -204,6 +206,17 @@ export default function PropertyShow({ property, stats, flagTypes }) {
                                         }`}>
                                             {property.is_active ? 'Active' : 'Inactive'}
                                         </span>
+                                        {appfolioUrl && (
+                                            <a
+                                                href={appfolioUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                                            >
+                                                <ArrowTopRightOnSquareIcon className="w-3 h-3" />
+                                                AppFolio
+                                            </a>
+                                        )}
                                         {/* Property Flags */}
                                         {(property.flags || []).map((flag) => (
                                             <span
@@ -405,13 +418,39 @@ export default function PropertyShow({ property, stats, flagTypes }) {
                         </div>
                     </div>
 
-                    {/* Map Placeholder */}
+                    {/* Map */}
                     <div className="lg:col-span-2 card">
                         <div className="card-header">
                             <h2 className="text-lg font-medium text-gray-900">Location</h2>
                         </div>
                         <div className="card-body">
-                            {property.latitude && property.longitude ? (
+                            {property.latitude && property.longitude && googleMapsApiKey ? (
+                                <div className="aspect-video rounded-lg overflow-hidden">
+                                    <LoadScript googleMapsApiKey={googleMapsApiKey}>
+                                        <GoogleMap
+                                            mapContainerStyle={{ width: '100%', height: '100%' }}
+                                            center={{
+                                                lat: parseFloat(property.latitude),
+                                                lng: parseFloat(property.longitude),
+                                            }}
+                                            zoom={16}
+                                            options={{
+                                                streetViewControl: true,
+                                                mapTypeControl: true,
+                                                fullscreenControl: true,
+                                            }}
+                                        >
+                                            <Marker
+                                                position={{
+                                                    lat: parseFloat(property.latitude),
+                                                    lng: parseFloat(property.longitude),
+                                                }}
+                                                title={property.name}
+                                            />
+                                        </GoogleMap>
+                                    </LoadScript>
+                                </div>
+                            ) : property.latitude && property.longitude ? (
                                 <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
                                     <div className="text-center">
                                         <MapPinIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
