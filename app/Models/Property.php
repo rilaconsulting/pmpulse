@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,7 +22,14 @@ class Property extends Model
         'city',
         'state',
         'zip',
+        'latitude',
+        'longitude',
+        'portfolio',
+        'portfolio_id',
         'property_type',
+        'year_built',
+        'total_sqft',
+        'county',
         'unit_count',
         'is_active',
     ];
@@ -29,8 +37,41 @@ class Property extends Model
     protected function casts(): array
     {
         return [
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
+            'portfolio_id' => 'integer',
+            'year_built' => 'integer',
+            'total_sqft' => 'integer',
+            'unit_count' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Check if the property has geocoding coordinates.
+     */
+    public function hasCoordinates(): bool
+    {
+        return $this->latitude !== null && $this->longitude !== null;
+    }
+
+    /**
+     * Scope to get properties that need geocoding.
+     */
+    public function scopeNeedsGeocoding(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q): void {
+            $q->whereNull('latitude')
+                ->orWhereNull('longitude');
+        });
+    }
+
+    /**
+     * Scope to get properties with coordinates.
+     */
+    public function scopeHasCoordinates(Builder $query): Builder
+    {
+        return $query->whereNotNull('latitude')->whereNotNull('longitude');
     }
 
     /**
@@ -83,7 +124,7 @@ class Property extends Model
     /**
      * Scope to get only active properties.
      */
-    public function scopeActive($query)
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }

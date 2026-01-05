@@ -236,6 +236,7 @@ class IngestionServiceTest extends TestCase
         $this->service->startSync($incrementalSyncRun);
         $this->service->processResource('properties');
 
+        // V2 API uses POST with JSON body, so check the body for modified_since
         Http::assertSent(function ($request) {
             // For POST requests, check if modified_since is in the JSON body
             $body = json_decode($request->body(), true);

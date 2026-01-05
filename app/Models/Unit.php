@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,12 +19,15 @@ class Unit extends Model
         'external_id',
         'property_id',
         'unit_number',
+        'unit_type',
         'sqft',
         'bedrooms',
         'bathrooms',
         'status',
         'market_rent',
+        'advertised_rent',
         'is_active',
+        'rentable',
     ];
 
     protected function casts(): array
@@ -33,8 +37,26 @@ class Unit extends Model
             'bedrooms' => 'integer',
             'bathrooms' => 'decimal:1',
             'market_rent' => 'decimal:2',
+            'advertised_rent' => 'decimal:2',
             'is_active' => 'boolean',
+            'rentable' => 'boolean',
         ];
+    }
+
+    /**
+     * Check if the unit is rentable (included in vacancy calculations).
+     */
+    public function isRentable(): bool
+    {
+        return $this->rentable;
+    }
+
+    /**
+     * Scope to get only rentable units.
+     */
+    public function scopeRentable(Builder $query): Builder
+    {
+        return $query->where('rentable', true);
     }
 
     /**
@@ -98,7 +120,7 @@ class Unit extends Model
     /**
      * Scope to get only vacant units.
      */
-    public function scopeVacant($query)
+    public function scopeVacant(Builder $query): Builder
     {
         return $query->where('status', 'vacant');
     }
@@ -106,7 +128,7 @@ class Unit extends Model
     /**
      * Scope to get only occupied units.
      */
-    public function scopeOccupied($query)
+    public function scopeOccupied(Builder $query): Builder
     {
         return $query->where('status', 'occupied');
     }
@@ -114,7 +136,7 @@ class Unit extends Model
     /**
      * Scope to get only active units.
      */
-    public function scopeActive($query)
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }

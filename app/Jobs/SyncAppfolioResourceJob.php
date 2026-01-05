@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Jobs;
 
 use App\Models\SyncRun;
@@ -81,6 +83,9 @@ class SyncAppfolioResourceJob implements ShouldQueue
             // Handle successful sync (resets failure counter)
             $this->syncRun->refresh();
             $alertService->handleSyncCompleted($this->syncRun);
+
+            // Dispatch geocoding job for properties without coordinates
+            GeocodePropertiesJob::dispatch();
 
         } catch (\Exception $e) {
             Log::error('AppFolio sync job failed', [
