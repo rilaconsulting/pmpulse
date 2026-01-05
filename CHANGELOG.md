@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adjustments management UI on property detail page (admin only)
 - Create, edit, end, and delete adjustments via modal forms
 - Active/historical adjustment tabs with audit trail display
+- Visual indicators for adjusted values with tooltips showing original vs adjusted
+- Portfolio-wide adjustments summary report in admin panel
+- Filter adjustments by status, field type, creator, and date range
+- CSV export of adjustments data
 
 ---
 

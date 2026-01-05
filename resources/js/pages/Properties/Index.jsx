@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState, lazy, Suspense } from 'react';
 import Layout from '../../components/Layout';
+import AdjustedValue from '../../components/AdjustedValue';
 import {
     MagnifyingGlassIcon,
     XMarkIcon,
@@ -323,7 +324,12 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm text-gray-900">
-                                                    {property.units_count ?? property.unit_count ?? '-'}
+                                                    <AdjustedValue
+                                                        value={property.effective_values?.unit_count?.value ?? property.units_count ?? property.unit_count ?? '-'}
+                                                        isAdjusted={property.effective_values?.unit_count?.is_adjusted}
+                                                        original={property.effective_values?.unit_count?.original}
+                                                        label="Unit Count"
+                                                    />
                                                 </div>
                                                 {property.vacant_units_count > 0 && (
                                                     <div className="text-xs text-orange-600">
@@ -332,9 +338,13 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {property.total_sqft
-                                                    ? property.total_sqft.toLocaleString()
-                                                    : '-'}
+                                                <AdjustedValue
+                                                    value={property.effective_values?.total_sqft?.value ?? property.total_sqft}
+                                                    isAdjusted={property.effective_values?.total_sqft?.is_adjusted}
+                                                    original={property.effective_values?.total_sqft?.original}
+                                                    label="Square Footage"
+                                                    formatter={(v) => v ? v.toLocaleString() : '-'}
+                                                />
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 {property.property_type ? (

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdjustmentController;
+use App\Http\Controllers\AdjustmentReportController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleSsoController;
@@ -89,6 +90,10 @@ Route::middleware('auth')->group(function () {
         // Settings
         Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
         Route::post('/settings/google-maps', [AdminController::class, 'saveGoogleMapsSettings'])->name('settings.google-maps');
+
+        // Adjustments Report
+        Route::get('/adjustments', [AdjustmentReportController::class, 'index'])->name('adjustments.index');
+        Route::get('/adjustments/export', [AdjustmentReportController::class, 'export'])->name('adjustments.export');
     });
 
     // Profile (all authenticated users)
