@@ -23,9 +23,12 @@ class PropertyController extends Controller
     /**
      * Display a listing of properties.
      */
-    public function index(Request $request): Response
+    public function index(Request $request, AdjustmentService $adjustmentService): Response
     {
         $query = Property::query()
+            ->with(['adjustments' => function ($query) {
+                $query->activeOn(now()->startOfDay());
+            }])
             ->withCount(['units', 'units as occupied_units_count' => function ($query) {
                 $query->where('status', 'occupied');
             }, 'units as vacant_units_count' => function ($query) {
@@ -76,11 +79,14 @@ class PropertyController extends Controller
             ->sort()
             ->values();
 
-        // Calculate stats for each property
-        $properties->getCollection()->transform(function ($property) {
+        // Calculate stats and effective values for each property
+        $properties->getCollection()->transform(function ($property) use ($adjustmentService) {
             $property->occupancy_rate = $property->units_count > 0
                 ? round(($property->occupied_units_count / $property->units_count) * 100, 1)
                 : null;
+
+            // Add effective values with metadata for adjusted fields
+            $property->effective_values = $adjustmentService->getEffectiveValuesWithMetadata($property);
 
             return $property;
         });
