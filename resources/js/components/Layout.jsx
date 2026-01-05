@@ -3,8 +3,6 @@ import {
     HomeIcon,
     Cog6ToothIcon,
     ArrowRightOnRectangleIcon,
-    UsersIcon,
-    UserCircleIcon,
 } from '@heroicons/react/24/outline';
 
 export default function Layout({ children }) {
@@ -14,7 +12,6 @@ export default function Layout({ children }) {
 
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-        ...(isAdmin ? [{ name: 'Users', href: '/users', icon: UsersIcon }] : []),
         ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: Cog6ToothIcon }] : []),
     ];
 

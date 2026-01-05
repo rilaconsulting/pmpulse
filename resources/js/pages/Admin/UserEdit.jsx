@@ -1,9 +1,9 @@
-import { Head, Link, useForm, router } from '@inertiajs/react';
+import { Link, useForm, router } from '@inertiajs/react';
 import { useState, useEffect, useCallback } from 'react';
-import Layout from '../../components/Layout';
+import AdminLayout from './Index';
 import { ArrowLeftIcon, EyeIcon, EyeSlashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
-export default function Edit({ user, roles, canDeactivate }) {
+export default function UserEdit({ user, roles, canDeactivate }) {
     const [showPassword, setShowPassword] = useState(false);
     const [showDeactivateModal, setShowDeactivateModal] = useState(false);
 
@@ -29,31 +29,29 @@ export default function Edit({ user, roles, canDeactivate }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        patch(`/users/${user.id}`);
+        patch(`/admin/users/${user.id}`);
     };
 
     const handleDeactivate = () => {
-        router.delete(`/users/${user.id}`, {
+        router.delete(`/admin/users/${user.id}`, {
             onSuccess: () => setShowDeactivateModal(false),
         });
     };
 
     return (
-        <Layout>
-            <Head title={`Edit User - ${user.name}`} />
-
+        <AdminLayout currentTab="users">
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link
-                            href="/users"
+                            href="/admin/users"
                             className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                         >
                             <ArrowLeftIcon className="w-5 h-5" />
                         </Link>
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Edit User</h1>
+                            <h2 className="text-lg font-medium text-gray-900">Edit User</h2>
                             <p className="mt-1 text-sm text-gray-500">
                                 Update user information and permissions
                             </p>
@@ -247,7 +245,7 @@ export default function Edit({ user, roles, canDeactivate }) {
                                     )}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <Link href="/users" className="btn-secondary">
+                                    <Link href="/admin/users" className="btn-secondary">
                                         Cancel
                                     </Link>
                                     <button
@@ -355,6 +353,6 @@ export default function Edit({ user, roles, canDeactivate }) {
                     </div>
                 </div>
             )}
-        </Layout>
+        </AdminLayout>
     );
 }

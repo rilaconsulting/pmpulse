@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\AppfolioConnection;
+use App\Models\Setting;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -14,56 +14,45 @@ use Illuminate\Support\Facades\Log;
  * This service handles all communication with the AppFolio API.
  * It includes rate limiting, exponential backoff, and retry logic.
  *
- * TODO: Replace mock endpoints with actual AppFolio API endpoints
- * once API documentation is provided.
+ * The AppFolio Reports API V2 is accessed at:
+ * https://{database}.appfolio.com/api/v2/reports/{endpoint}.json
+ *
+ * Authentication uses HTTP Basic Auth with Client ID and Client Secret.
  */
 class AppfolioClient
 {
-    private ?AppfolioConnection $connection = null;
-
     private int $retryCount = 0;
 
     /**
-     * Legacy API endpoint paths (placeholder).
-     * These are kept for backward compatibility during migration.
+     * Cached connection settings.
      */
-    private const ENDPOINTS = [
-        'properties' => '/v1/properties',
-        'units' => '/v1/units',
-        'people' => '/v1/people',
-        'leases' => '/v1/leases',
-        'ledger_transactions' => '/v1/ledger',
-        'work_orders' => '/v1/work-orders',
-    ];
+    private ?array $connectionSettings = null;
 
     /**
-     * AppFolio Reports API endpoints.
-     * These are the actual API endpoints from the OpenAPI spec.
+     * AppFolio Reports API V2 endpoints.
      * All endpoints use POST with JSON body parameters.
+     * Full URL format: https://{database}.appfolio.com/api/v2/reports/{endpoint}.json
      */
     private const REPORT_ENDPOINTS = [
-        'property_directory' => '/api/v1/reports/property_directory.json',
-        'unit_directory' => '/api/v1/reports/unit_directory.json',
-        'vendor_directory' => '/api/v1/reports/vendor_directory.json',
-        'work_order' => '/api/v1/reports/work_order.json',
-        'expense_register' => '/api/v1/reports/expense_register.json',
-        'rent_roll' => '/api/v1/reports/rent_roll.json',
-        'delinquency' => '/api/v1/reports/delinquency.json',
+        'property_directory' => '/api/v2/reports/property_directory.json',
+        'unit_directory' => '/api/v2/reports/unit_directory.json',
+        'vendor_directory' => '/api/v2/reports/vendor_directory.json',
+        'work_order' => '/api/v2/reports/work_order.json',
+        'expense_register' => '/api/v2/reports/expense_register.json',
+        'rent_roll' => '/api/v2/reports/rent_roll.json',
+        'delinquency' => '/api/v2/reports/delinquency.json',
     ];
 
-    public function __construct()
-    {
-        $this->connection = AppfolioConnection::first();
-    }
-
     /**
-     * Set a specific connection to use.
+     * Get the connection settings from the database.
      */
-    public function setConnection(AppfolioConnection $connection): self
+    private function getConnectionSettings(): array
     {
-        $this->connection = $connection;
+        if ($this->connectionSettings === null) {
+            $this->connectionSettings = Setting::getCategory('appfolio');
+        }
 
-        return $this;
+        return $this->connectionSettings;
     }
 
     /**
@@ -71,11 +60,98 @@ class AppfolioClient
      */
     public function isConfigured(): bool
     {
-        return $this->connection && $this->connection->isConfigured();
+        $settings = $this->getConnectionSettings();
+
+        return ! empty($settings['client_id'])
+            && ! empty($settings['client_secret'])
+            && ! empty($settings['database']);
+    }
+
+    /**
+     * Get the database name (vhost).
+     *
+     * This is the subdomain used in the AppFolio URL.
+     * For example, if the URL is https://sutro.appfolio.com, the database is "sutro".
+     */
+    public function getDatabase(): ?string
+    {
+        return $this->getConnectionSettings()['database'] ?? null;
+    }
+
+    /**
+     * Get the API base URL.
+     *
+     * Constructs the full base URL from the database name.
+     * Format: https://{database}.appfolio.com
+     */
+    public function getApiBaseUrl(): string
+    {
+        $database = $this->getDatabase();
+
+        if (empty($database)) {
+            throw new \RuntimeException('AppFolio database name is not configured');
+        }
+
+        return "https://{$database}.appfolio.com";
+    }
+
+    /**
+     * Get the client ID.
+     */
+    public function getClientId(): ?string
+    {
+        return $this->getConnectionSettings()['client_id'] ?? null;
+    }
+
+    /**
+     * Get the connection status.
+     */
+    public function getStatus(): string
+    {
+        return $this->getConnectionSettings()['status'] ?? 'not_configured';
+    }
+
+    /**
+     * Get the last success timestamp.
+     */
+    public function getLastSuccessAt(): ?string
+    {
+        return $this->getConnectionSettings()['last_success_at'] ?? null;
+    }
+
+    /**
+     * Get the last error message.
+     */
+    public function getLastError(): ?string
+    {
+        return $this->getConnectionSettings()['last_error'] ?? null;
+    }
+
+    /**
+     * Mark the connection as successfully synced.
+     */
+    public function markAsSuccess(): void
+    {
+        Setting::set('appfolio', 'status', 'connected');
+        Setting::set('appfolio', 'last_success_at', now()->toIso8601String());
+        Setting::set('appfolio', 'last_error', null);
+        $this->connectionSettings = null; // Clear cache
+    }
+
+    /**
+     * Mark the connection as having an error.
+     */
+    public function markAsError(string $error): void
+    {
+        Setting::set('appfolio', 'status', 'error');
+        Setting::set('appfolio', 'last_error', $error);
+        $this->connectionSettings = null; // Clear cache
     }
 
     /**
      * Get the base HTTP client with authentication.
+     *
+     * Uses HTTP Basic Auth as per AppFolio API documentation.
      */
     private function getHttpClient(): PendingRequest
     {
@@ -83,12 +159,11 @@ class AppfolioClient
             throw new \RuntimeException('AppFolio connection is not configured');
         }
 
-        $baseUrl = $this->connection->api_base_url;
-        $clientId = $this->connection->client_id;
-        $clientSecret = $this->connection->client_secret;
+        $settings = $this->getConnectionSettings();
+        $baseUrl = $this->getApiBaseUrl();
+        $clientId = $settings['client_id'];
+        $clientSecret = $settings['client_secret'];
 
-        // TODO: Adjust authentication method based on AppFolio's actual API
-        // This assumes OAuth2 Client Credentials or Basic Auth
         return Http::baseUrl($baseUrl)
             ->withBasicAuth($clientId, $clientSecret)
             ->withHeaders([
@@ -240,78 +315,6 @@ class AppfolioClient
     }
 
     /**
-     * Fetch properties from AppFolio.
-     *
-     * TODO: Adjust field mapping based on actual AppFolio API response structure.
-     *
-     * @param  array  $params  Query parameters (e.g., modified_since, page, per_page)
-     */
-    public function getProperties(array $params = []): array
-    {
-        return $this->request('GET', self::ENDPOINTS['properties'], $params) ?? [];
-    }
-
-    /**
-     * Fetch units from AppFolio.
-     *
-     * TODO: Adjust field mapping based on actual AppFolio API response structure.
-     *
-     * @param  array  $params  Query parameters
-     */
-    public function getUnits(array $params = []): array
-    {
-        return $this->request('GET', self::ENDPOINTS['units'], $params) ?? [];
-    }
-
-    /**
-     * Fetch people (tenants, owners, etc.) from AppFolio.
-     *
-     * TODO: Adjust field mapping based on actual AppFolio API response structure.
-     *
-     * @param  array  $params  Query parameters
-     */
-    public function getPeople(array $params = []): array
-    {
-        return $this->request('GET', self::ENDPOINTS['people'], $params) ?? [];
-    }
-
-    /**
-     * Fetch leases from AppFolio.
-     *
-     * TODO: Adjust field mapping based on actual AppFolio API response structure.
-     *
-     * @param  array  $params  Query parameters
-     */
-    public function getLeases(array $params = []): array
-    {
-        return $this->request('GET', self::ENDPOINTS['leases'], $params) ?? [];
-    }
-
-    /**
-     * Fetch ledger transactions from AppFolio.
-     *
-     * TODO: Adjust field mapping based on actual AppFolio API response structure.
-     *
-     * @param  array  $params  Query parameters (e.g., start_date, end_date)
-     */
-    public function getLedgerTransactions(array $params = []): array
-    {
-        return $this->request('GET', self::ENDPOINTS['ledger_transactions'], $params) ?? [];
-    }
-
-    /**
-     * Fetch work orders from AppFolio.
-     *
-     * TODO: Adjust field mapping based on actual AppFolio API response structure.
-     *
-     * @param  array  $params  Query parameters
-     */
-    public function getWorkOrders(array $params = []): array
-    {
-        return $this->request('GET', self::ENDPOINTS['work_orders'], $params) ?? [];
-    }
-
-    /**
      * Test the connection to AppFolio API.
      *
      * @return bool True if connection is successful
@@ -320,7 +323,7 @@ class AppfolioClient
     {
         try {
             // Try to fetch a single property to test connectivity
-            $response = $this->getProperties(['per_page' => 1]);
+            $response = $this->getPropertyDirectory(['per_page' => 1]);
 
             return true;
         } catch (\Exception $e) {

@@ -7,7 +7,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SyncRun extends Model
@@ -15,7 +14,6 @@ class SyncRun extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'appfolio_connection_id',
         'mode',
         'status',
         'started_at',
@@ -33,14 +31,6 @@ class SyncRun extends Model
             'ended_at' => 'datetime',
             'metadata' => 'array',
         ];
-    }
-
-    /**
-     * Get the connection this run belongs to.
-     */
-    public function connection(): BelongsTo
-    {
-        return $this->belongsTo(AppfolioConnection::class, 'appfolio_connection_id');
     }
 
     /**

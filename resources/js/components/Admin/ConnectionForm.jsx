@@ -13,7 +13,7 @@ export default function ConnectionForm({ connection }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post('/admin/connection');
+        post('/admin/integrations/connection');
     };
 
     return (
