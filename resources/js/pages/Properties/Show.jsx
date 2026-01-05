@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Layout from '../../components/Layout';
 import AdjustmentList from '../../components/Property/AdjustmentList';
+import AdjustedValue from '../../components/AdjustedValue';
 import {
     BuildingOfficeIcon,
     MapPinIcon,
@@ -296,7 +297,16 @@ export default function PropertyShow({
                                 </div>
                                 <div className="ml-4">
                                     <p className="text-sm text-gray-500">Total Units</p>
-                                    <p className="text-2xl font-semibold text-gray-900">{stats.total_units}</p>
+                                    <p className="text-2xl font-semibold text-gray-900">
+                                        <AdjustedValue
+                                            value={effectiveValues?.unit_count?.value ?? stats.total_units}
+                                            isAdjusted={effectiveValues?.unit_count?.is_adjusted}
+                                            original={effectiveValues?.unit_count?.original}
+                                            label="Unit Count"
+                                            adjustment={effectiveValues?.unit_count?.adjustment}
+                                            size="md"
+                                        />
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -397,18 +407,33 @@ export default function PropertyShow({
                                         <dd className="text-sm font-medium text-gray-900">{property.year_built}</dd>
                                     </div>
                                 )}
-                                {property.total_sqft && (
+                                {(property.total_sqft || effectiveValues?.total_sqft?.value) && (
                                     <div className="flex justify-between">
                                         <dt className="text-sm text-gray-500">Total Sqft</dt>
                                         <dd className="text-sm font-medium text-gray-900">
-                                            {property.total_sqft.toLocaleString()}
+                                            <AdjustedValue
+                                                value={effectiveValues?.total_sqft?.value ?? property.total_sqft}
+                                                isAdjusted={effectiveValues?.total_sqft?.is_adjusted}
+                                                original={effectiveValues?.total_sqft?.original}
+                                                label="Total Sqft"
+                                                adjustment={effectiveValues?.total_sqft?.adjustment}
+                                                formatter={(val) => val?.toLocaleString()}
+                                            />
                                         </dd>
                                     </div>
                                 )}
-                                {property.unit_count && (
+                                {(property.unit_count || effectiveValues?.unit_count?.value) && (
                                     <div className="flex justify-between">
                                         <dt className="text-sm text-gray-500">Unit Count</dt>
-                                        <dd className="text-sm font-medium text-gray-900">{property.unit_count}</dd>
+                                        <dd className="text-sm font-medium text-gray-900">
+                                            <AdjustedValue
+                                                value={effectiveValues?.unit_count?.value ?? property.unit_count}
+                                                isAdjusted={effectiveValues?.unit_count?.is_adjusted}
+                                                original={effectiveValues?.unit_count?.original}
+                                                label="Unit Count"
+                                                adjustment={effectiveValues?.unit_count?.adjustment}
+                                            />
+                                        </dd>
                                     </div>
                                 )}
                                 {property.county && (
