@@ -7,6 +7,7 @@ use App\Models\Property;
 use App\Models\PropertyRollup;
 use App\Models\Unit;
 use App\Models\WorkOrder;
+use App\Services\AdjustmentService;
 use App\Services\AnalyticsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,7 +21,7 @@ class AnalyticsServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new AnalyticsService;
+        $this->service = new AnalyticsService(new AdjustmentService);
     }
 
     public function test_calculates_occupancy_rate_correctly(): void

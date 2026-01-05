@@ -115,6 +115,14 @@ class Property extends Model
     }
 
     /**
+     * Get the adjustments for this property.
+     */
+    public function adjustments(): HasMany
+    {
+        return $this->hasMany(PropertyAdjustment::class);
+    }
+
+    /**
      * Check if property has a specific flag.
      */
     public function hasFlag(string $flagType): bool
