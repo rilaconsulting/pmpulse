@@ -17,9 +17,14 @@ use Illuminate\Support\Facades\Log;
  *
  * This service calculates and refreshes analytics data.
  * It computes KPIs at both portfolio and property levels.
+ * Respects property adjustments for unit counts and square footage.
  */
 class AnalyticsService
 {
+    public function __construct(
+        private readonly AdjustmentService $adjustmentService
+    ) {}
+
     /**
      * Refresh all analytics for a given date.
      */
@@ -46,23 +51,39 @@ class AnalyticsService
     /**
      * Refresh daily KPIs (portfolio level).
      * Excludes properties with 'exclude_from_reports' flag.
+     * Uses adjusted unit counts when adjustments exist.
      */
     private function refreshDailyKpis(Carbon $date): void
     {
-        // Get property IDs that should be included in reports
-        $reportablePropertyIds = Property::active()->forReports()->pluck('id');
+        // Get properties that should be included in reports
+        $reportableProperties = Property::active()->forReports()->get();
+        $reportablePropertyIds = $reportableProperties->pluck('id');
 
-        $totalUnits = Unit::active()
+        // Calculate actual unit counts from Unit table
+        $actualTotalUnits = Unit::active()
             ->whereIn('property_id', $reportablePropertyIds)
             ->count();
         $vacantUnits = Unit::active()
             ->vacant()
             ->whereIn('property_id', $reportablePropertyIds)
             ->count();
-        $occupiedUnits = $totalUnits - $vacantUnits;
 
-        $occupancyRate = $totalUnits > 0
-            ? ($occupiedUnits / $totalUnits) * 100
+        // Calculate effective total units considering adjustments
+        // Only uses adjusted value if an adjustment exists, otherwise uses actual count
+        $effectiveTotalUnits = 0;
+        foreach ($reportableProperties as $property) {
+            $propertyActualUnits = $property->units()->active()->count();
+            if ($this->adjustmentService->hasAdjustment($property, 'unit_count', $date)) {
+                $effectiveTotalUnits += $this->adjustmentService->getEffectiveValue($property, 'unit_count', $date);
+            } else {
+                $effectiveTotalUnits += $propertyActualUnits;
+            }
+        }
+
+        $occupiedUnits = $actualTotalUnits - $vacantUnits;
+
+        $occupancyRate = $effectiveTotalUnits > 0
+            ? ($occupiedUnits / $effectiveTotalUnits) * 100
             : 0;
 
         // Calculate delinquency (outstanding charges) - respects report exclusions
@@ -77,9 +98,9 @@ class AnalyticsService
         DailyKpi::updateOrCreate(
             ['date' => $date->toDateString()],
             [
-                'occupancy_rate' => round($occupancyRate, 2),
+                'occupancy_rate' => round(min($occupancyRate, 100), 2), // Cap at 100%
                 'vacancy_count' => $vacantUnits,
-                'total_units' => $totalUnits,
+                'total_units' => (int) $effectiveTotalUnits,
                 'delinquency_amount' => $delinquency['amount'],
                 'delinquent_units' => $delinquency['units'],
                 'open_work_orders' => $workOrderMetrics['open_count'],
@@ -95,18 +116,27 @@ class AnalyticsService
     /**
      * Refresh property-level rollups.
      * Only creates rollups for properties not excluded from reports.
+     * Uses adjusted values for unit counts when adjustments exist.
      */
     private function refreshPropertyRollups(Carbon $date): void
     {
         $properties = Property::active()->forReports()->with('units')->get();
 
         foreach ($properties as $property) {
-            $totalUnits = $property->units()->active()->count();
+            // Get actual unit counts from database
+            $actualTotalUnits = $property->units()->active()->count();
             $vacantUnits = $property->units()->active()->vacant()->count();
-            $occupiedUnits = $totalUnits - $vacantUnits;
 
-            $occupancyRate = $totalUnits > 0
-                ? ($occupiedUnits / $totalUnits) * 100
+            // Check for adjusted unit count - use for occupancy calculations
+            // Falls back to actual count if no adjustment and property.unit_count is null
+            $effectiveTotalUnits = $this->adjustmentService->hasAdjustment($property, 'unit_count', $date)
+                ? $this->adjustmentService->getEffectiveValue($property, 'unit_count', $date)
+                : $actualTotalUnits;
+
+            // Calculate occupancy using effective unit count as denominator
+            $occupiedUnits = $actualTotalUnits - $vacantUnits;
+            $occupancyRate = $effectiveTotalUnits > 0
+                ? ($occupiedUnits / $effectiveTotalUnits) * 100
                 : 0;
 
             // Property-level delinquency
@@ -122,8 +152,8 @@ class AnalyticsService
                 ],
                 [
                     'vacancy_count' => $vacantUnits,
-                    'total_units' => $totalUnits,
-                    'occupancy_rate' => round($occupancyRate, 2),
+                    'total_units' => (int) $effectiveTotalUnits,
+                    'occupancy_rate' => round(min($occupancyRate, 100), 2), // Cap at 100%
                     'delinquency_amount' => $delinquency['amount'],
                     'delinquent_units' => $delinquency['units'],
                     'open_work_orders' => $workOrderMetrics['open_count'],
