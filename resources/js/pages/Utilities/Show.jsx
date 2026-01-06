@@ -20,7 +20,7 @@ export default function UtilitiesShow({
     propertyTrend,
     recentExpenses,
     utilityTypes,
-) {
+}) {
     const [selectedPeriod, setSelectedPeriod] = useState(period);
 
     const getChangeIcon = (value) => {
