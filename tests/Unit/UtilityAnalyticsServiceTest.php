@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\Models\Property;
 use App\Models\PropertyAdjustment;
 use App\Models\PropertyFlag;
+use App\Models\PropertyUtilityExclusion;
 use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
 use App\Services\AdjustmentService;
@@ -406,5 +407,71 @@ class UtilityAnalyticsServiceTest extends TestCase
 
         // $500 / 10 units = $50 per unit
         $this->assertEquals(50.00, $costPerUnit);
+    }
+
+    public function test_get_portfolio_average_excludes_utility_specific_exclusions(): void
+    {
+        // Create two active properties
+        $property1 = Property::factory()->create([
+            'unit_count' => 10,
+            'is_active' => true,
+        ]);
+        $property2 = Property::factory()->create([
+            'unit_count' => 10,
+            'is_active' => true,
+        ]);
+
+        // Exclude property2 from water reports only
+        PropertyUtilityExclusion::create([
+            'property_id' => $property2->id,
+            'utility_type' => 'water',
+            'reason' => 'Tenant pays water',
+        ]);
+
+        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+
+        // Add water expenses to both
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
+            'property_id' => $property1->id,
+            'amount' => 100,
+            'expense_date' => now()->startOfMonth()->addDays(5),
+        ]);
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
+            'property_id' => $property2->id,
+            'amount' => 500,
+            'expense_date' => now()->startOfMonth()->addDays(5),
+        ]);
+
+        // Add electric expenses to both
+        UtilityExpense::factory()->forAccount($electricAccount)->create([
+            'property_id' => $property1->id,
+            'amount' => 200,
+            'expense_date' => now()->startOfMonth()->addDays(5),
+        ]);
+        UtilityExpense::factory()->forAccount($electricAccount)->create([
+            'property_id' => $property2->id,
+            'amount' => 300,
+            'expense_date' => now()->startOfMonth()->addDays(5),
+        ]);
+
+        $waterAverage = $this->service->getPortfolioAverage('water', [
+            'type' => 'month',
+            'date' => now(),
+        ], 'per_unit');
+
+        $electricAverage = $this->service->getPortfolioAverage('electric', [
+            'type' => 'month',
+            'date' => now(),
+        ], 'per_unit');
+
+        // Water: Only property1 should be included: $100 / 10 = $10
+        $this->assertEquals(1, $waterAverage['property_count']);
+        $this->assertEquals(10.00, $waterAverage['average']);
+
+        // Electric: Both properties should be included: ($200 + $300) / 20 = $25
+        // Average per property: ($20 + $30) / 2 = $25
+        $this->assertEquals(2, $electricAverage['property_count']);
+        $this->assertEquals(25.00, $electricAverage['average']);
     }
 }

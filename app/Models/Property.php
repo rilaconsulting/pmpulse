@@ -131,6 +131,26 @@ class Property extends Model
     }
 
     /**
+     * Get the utility-specific exclusions for this property.
+     */
+    public function utilityExclusions(): HasMany
+    {
+        return $this->hasMany(PropertyUtilityExclusion::class);
+    }
+
+    /**
+     * Check if property is excluded for a specific utility type.
+     */
+    public function isExcludedForUtilityType(string $utilityType): bool
+    {
+        if ($this->relationLoaded('utilityExclusions')) {
+            return $this->utilityExclusions->contains('utility_type', $utilityType);
+        }
+
+        return $this->utilityExclusions()->where('utility_type', $utilityType)->exists();
+    }
+
+    /**
      * Check if property has a specific flag.
      */
     public function hasFlag(string $flagType): bool

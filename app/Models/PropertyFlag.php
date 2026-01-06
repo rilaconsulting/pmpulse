@@ -27,10 +27,14 @@ class PropertyFlag extends Model
 
     /**
      * Flags that exclude from utility reports.
+     *
+     * Properties with these flags are excluded from utility analytics,
+     * heat maps, and portfolio averages.
      */
     public const UTILITY_EXCLUSION_FLAGS = [
         'hoa',
         'tenant_pays_utilities',
+        'exclude_from_reports',
     ];
 
     protected $fillable = [

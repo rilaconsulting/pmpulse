@@ -4,6 +4,7 @@ import Layout from '../../components/Layout';
 import UtilityTrendChart from '../../components/Utilities/UtilityTrendChart';
 import UtilityHeatMap from '../../components/Utilities/UtilityHeatMap';
 import AnomalyAlerts from '../../components/Utilities/AnomalyAlerts';
+import ExcludedPropertiesList from '../../components/Utilities/ExcludedPropertiesList';
 import { UtilityIcons, UtilityColors, formatCurrency } from '../../components/Utilities/constants';
 import { BoltIcon, CubeIcon } from '@heroicons/react/24/outline';
 
@@ -17,6 +18,7 @@ export default function UtilitiesIndex({
     propertyComparison,
     selectedUtilityType,
     utilityTypes,
+    excludedProperties,
 }) {
     const [selectedPeriod, setSelectedPeriod] = useState(period);
 
@@ -115,6 +117,9 @@ export default function UtilitiesIndex({
                 {anomalies && anomalies.length > 0 && (
                     <AnomalyAlerts anomalies={anomalies} />
                 )}
+
+                {/* Excluded Properties */}
+                <ExcludedPropertiesList excludedProperties={excludedProperties} />
 
                 {/* Trend Chart */}
                 <UtilityTrendChart data={trendData} utilityTypes={utilityTypes} />
