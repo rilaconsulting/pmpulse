@@ -74,8 +74,14 @@ class UtilityDashboardController extends Controller
         // Get trend data for the portfolio (last 12 months)
         $trendData = $this->getPortfolioTrend($utilityTypes, 12);
 
-        // Get heat map data for properties
-        $heatMapData = $this->getHeatMapData($utilityTypes, $period);
+        // Get selected utility type for comparison table (default to first available)
+        $selectedUtilityType = $request->get('utility_type', $utilityTypes[0] ?? 'water');
+        if (! in_array($selectedUtilityType, $utilityTypes, true)) {
+            $selectedUtilityType = $utilityTypes[0] ?? 'water';
+        }
+
+        // Get property comparison data for the selected utility type
+        $propertyComparison = $this->getPropertyComparisonData($selectedUtilityType);
 
         return Inertia::render('Utilities/Index', [
             'period' => $periodType,
@@ -84,7 +90,8 @@ class UtilityDashboardController extends Controller
             'portfolioTotal' => $portfolioTotal,
             'anomalies' => $anomalies,
             'trendData' => $trendData,
-            'heatMapData' => $heatMapData,
+            'propertyComparison' => $propertyComparison,
+            'selectedUtilityType' => $selectedUtilityType,
             'utilityTypes' => $utilityTypeOptions,
         ]);
     }
@@ -213,48 +220,118 @@ class UtilityDashboardController extends Controller
     }
 
     /**
-     * Get heat map data showing each property's utility costs vs portfolio average.
+     * Get property comparison data for a single utility type.
+     *
+     * Columns:
+     * - Current Period (current calendar month)
+     * - Previous Period (previous full calendar month)
+     * - Previous 3 Months (monthly average)
+     * - Previous 12 Months (monthly average)
+     * - Avg $/unit (12-month average)
+     * - Avg $/sqft (12-month average)
      */
-    private function getHeatMapData(array $utilityTypes, array $period): array
+    private function getPropertyComparisonData(string $utilityType): array
     {
         $properties = Property::active()
             ->forUtilityReports()
             ->orderBy('name')
             ->get();
 
-        // Get portfolio averages for each type
-        $portfolioAvg = [];
-        foreach ($utilityTypes as $type) {
-            $avg = $this->analyticsService->getPortfolioAverage($type, $period);
-            $portfolioAvg[$type] = $avg['average'];
-        }
+        $now = Carbon::now();
+
+        // Define periods - all based on full calendar months
+        $currentMonthPeriod = ['type' => 'month', 'date' => $now];
+        $prevMonthPeriod = ['type' => 'month', 'date' => $now->copy()->subMonth()];
+
+        // Previous 3 full months (excluding current month)
+        $prev3MonthStart = $now->copy()->subMonths(3)->startOfMonth();
+        $prev3MonthEnd = $now->copy()->subMonth()->endOfMonth();
+
+        // Previous 12 full months (excluding current month)
+        $prev12MonthStart = $now->copy()->subMonths(12)->startOfMonth();
+        $prev12MonthEnd = $now->copy()->subMonth()->endOfMonth();
 
         $data = [];
+        $totals = [
+            'current_month' => 0,
+            'prev_month' => 0,
+            'prev_3_months' => 0,
+            'prev_12_months' => 0,
+        ];
+
         foreach ($properties as $property) {
-            $row = [
+            // Current month cost
+            $currentMonth = $this->analyticsService->getTotalCost($property, $utilityType, $currentMonthPeriod);
+
+            // Previous month cost
+            $prevMonth = $this->analyticsService->getTotalCost($property, $utilityType, $prevMonthPeriod);
+
+            // Previous 3 months total (for monthly average)
+            $prev3Total = (float) UtilityExpense::query()
+                ->forProperty($property->id)
+                ->ofType($utilityType)
+                ->inDateRange($prev3MonthStart, $prev3MonthEnd)
+                ->sum('amount');
+            $prev3Monthly = $prev3Total > 0 ? round($prev3Total / 3, 2) : null;
+
+            // Previous 12 months total (for monthly average and per-unit/sqft)
+            $prev12Total = (float) UtilityExpense::query()
+                ->forProperty($property->id)
+                ->ofType($utilityType)
+                ->inDateRange($prev12MonthStart, $prev12MonthEnd)
+                ->sum('amount');
+            $prev12Monthly = $prev12Total > 0 ? round($prev12Total / 12, 2) : null;
+
+            // Calculate $/unit and $/sqft using 12-month average
+            $avgPerUnit = null;
+            $avgPerSqft = null;
+
+            if ($prev12Total > 0) {
+                $monthlyAvg = $prev12Total / 12;
+
+                if ($property->unit_count && $property->unit_count > 0) {
+                    $avgPerUnit = round($monthlyAvg / $property->unit_count, 2);
+                }
+
+                if ($property->total_sqft && $property->total_sqft > 0) {
+                    $avgPerSqft = round($monthlyAvg / $property->total_sqft, 4);
+                }
+            }
+
+            $data[] = [
                 'property_id' => $property->id,
                 'property_name' => $property->name,
                 'unit_count' => $property->unit_count,
+                'total_sqft' => $property->total_sqft,
+                'current_month' => $currentMonth > 0 ? $currentMonth : null,
+                'prev_month' => $prevMonth > 0 ? $prevMonth : null,
+                'prev_3_months' => $prev3Monthly,
+                'prev_12_months' => $prev12Monthly,
+                'avg_per_unit' => $avgPerUnit,
+                'avg_per_sqft' => $avgPerSqft,
             ];
 
-            foreach ($utilityTypes as $type) {
-                $costPerUnit = $this->analyticsService->getCostPerUnit($property, $type, $period);
-                $avg = $portfolioAvg[$type];
-
-                $row[$type] = [
-                    'value' => $costPerUnit,
-                    'vs_avg' => $costPerUnit !== null && $avg > 0
-                        ? round((($costPerUnit - $avg) / $avg) * 100, 1)
-                        : null,
-                ];
-            }
-
-            $data[] = $row;
+            // Accumulate totals
+            $totals['current_month'] += $currentMonth;
+            $totals['prev_month'] += $prevMonth;
+            $totals['prev_3_months'] += $prev3Total;
+            $totals['prev_12_months'] += $prev12Total;
         }
+
+        // Calculate portfolio averages
+        $propertyCount = $properties->count();
+        $portfolioAvg = [
+            'current_month' => $propertyCount > 0 ? round($totals['current_month'] / $propertyCount, 2) : 0,
+            'prev_month' => $propertyCount > 0 ? round($totals['prev_month'] / $propertyCount, 2) : 0,
+            'prev_3_months' => $propertyCount > 0 ? round($totals['prev_3_months'] / 3 / $propertyCount, 2) : 0,
+            'prev_12_months' => $propertyCount > 0 ? round($totals['prev_12_months'] / 12 / $propertyCount, 2) : 0,
+        ];
 
         return [
             'properties' => $data,
+            'totals' => $totals,
             'averages' => $portfolioAvg,
+            'property_count' => $propertyCount,
         ];
     }
 

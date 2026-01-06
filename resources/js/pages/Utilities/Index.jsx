@@ -14,7 +14,8 @@ export default function UtilitiesIndex({
     portfolioTotal,
     anomalies,
     trendData,
-    heatMapData,
+    propertyComparison,
+    selectedUtilityType,
     utilityTypes,
 }) {
     const [selectedPeriod, setSelectedPeriod] = useState(period);
@@ -118,8 +119,13 @@ export default function UtilitiesIndex({
                 {/* Trend Chart */}
                 <UtilityTrendChart data={trendData} utilityTypes={utilityTypes} />
 
-                {/* Heat Map Table */}
-                <UtilityHeatMap data={heatMapData} utilityTypes={utilityTypes} />
+                {/* Property Comparison Table */}
+                <UtilityHeatMap
+                    data={propertyComparison}
+                    utilityTypes={utilityTypes}
+                    selectedType={selectedUtilityType}
+                    period={period}
+                />
             </div>
         </Layout>
     );
