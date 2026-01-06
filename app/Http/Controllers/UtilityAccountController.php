@@ -66,11 +66,11 @@ class UtilityAccountController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        // Check if there are any utility expenses using this account mapping
-        $expenseCount = UtilityExpense::where('gl_account_number', $utilityAccount->gl_account_number)->count();
+        // Check if there are any utility expenses using this utility type
+        $expenseCount = UtilityExpense::where('utility_type', $utilityAccount->utility_type)->count();
 
         if ($expenseCount > 0) {
-            return back()->with('error', "Cannot delete this mapping. There are {$expenseCount} utility expense(s) using this GL account. Consider deactivating the mapping instead.");
+            return back()->with('error', "Cannot delete this mapping. There are {$expenseCount} utility expense(s) of type '{$utilityAccount->utility_type}'. Consider deactivating the mapping instead.");
         }
 
         $utilityAccount->delete();

@@ -182,7 +182,19 @@ class UtilityExpenseService
             $glAccount = $glAccount['number'] ?? $glAccount['account_number'] ?? null;
         }
 
-        return $glAccount !== null ? (string) $glAccount : null;
+        if ($glAccount === null) {
+            return null;
+        }
+
+        $glAccount = (string) $glAccount;
+
+        // AppFolio returns GL accounts in format "6210 - Water" or just "6210"
+        // Extract just the numeric prefix for matching
+        if (preg_match('/^(\d+)/', $glAccount, $matches)) {
+            return $matches[1];
+        }
+
+        return $glAccount;
     }
 
     /**
