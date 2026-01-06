@@ -19,7 +19,6 @@ class UtilityExpense extends Model
         'property_id',
         'utility_account_id',
         'gl_account_number',
-        'utility_type',
         'expense_date',
         'period_start',
         'period_end',
@@ -56,21 +55,37 @@ class UtilityExpense extends Model
     }
 
     /**
+     * Get the utility type from the linked account.
+     */
+    public function getUtilityTypeAttribute(): ?string
+    {
+        return $this->utilityAccount?->utility_type;
+    }
+
+    /**
      * Get the display label for the utility type.
      */
     public function getUtilityTypeLabelAttribute(): string
     {
+        $type = $this->utility_type;
+
+        if ($type === null) {
+            return 'Unknown';
+        }
+
         $types = UtilityAccount::getUtilityTypeOptions();
 
-        return $types[$this->utility_type] ?? $this->utility_type;
+        return $types[$type] ?? $type;
     }
 
     /**
-     * Scope to filter by utility type.
+     * Scope to filter by utility type (via account relationship).
      */
     public function scopeOfType(Builder $query, string $type): Builder
     {
-        return $query->where('utility_type', $type);
+        return $query->whereHas('utilityAccount', function ($q) use ($type) {
+            $q->where('utility_type', $type);
+        });
     }
 
     /**

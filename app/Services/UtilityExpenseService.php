@@ -105,7 +105,6 @@ class UtilityExpenseService
         }
 
         $utilityAccountId = $utilityAccount->id;
-        $utilityType = $utilityAccount->utility_type;
 
         // Get property UUID from external property ID
         $propertyId = $this->lookupPropertyId($expense);
@@ -135,7 +134,6 @@ class UtilityExpenseService
             $propertyId,
             $utilityAccountId,
             $glAccountNumber,
-            $utilityType,
             $externalExpenseId,
             $amount,
             $expenseDate,
@@ -150,7 +148,6 @@ class UtilityExpenseService
                     'property_id' => $propertyId,
                     'utility_account_id' => $utilityAccountId,
                     'gl_account_number' => $glAccountNumber,
-                    'utility_type' => $utilityType,
                     'expense_date' => $expenseDate,
                     'period_start' => $periodStart,
                     'period_end' => $periodEnd,

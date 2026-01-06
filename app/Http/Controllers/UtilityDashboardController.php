@@ -145,8 +145,9 @@ class UtilityDashboardController extends Controller
             $propertyTrend[$type] = $trend;
         }
 
-        // Get recent expenses
+        // Get recent expenses (eager load utilityAccount to avoid N+1)
         $recentExpenses = UtilityExpense::query()
+            ->with('utilityAccount')
             ->forProperty($property->id)
             ->orderByDesc('expense_date')
             ->limit(20)
@@ -154,7 +155,7 @@ class UtilityDashboardController extends Controller
             ->map(fn ($expense) => [
                 'id' => $expense->id,
                 'utility_type' => $expense->utility_type,
-                'utility_label' => $utilityTypeOptions[$expense->utility_type] ?? $expense->utility_type,
+                'utility_label' => $utilityTypeOptions[$expense->utility_type] ?? $expense->utility_type ?? 'Unknown',
                 'amount' => $expense->amount,
                 'expense_date' => $expense->expense_date->toDateString(),
                 'vendor_name' => $expense->vendor_name,

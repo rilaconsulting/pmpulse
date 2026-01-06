@@ -166,15 +166,15 @@ class UtilityAccount extends Model
      * Remove a utility type.
      *
      * @param  string  $key  The utility type key to remove
-     * @return bool True if removed, false if in use
+     * @return bool True if removed, false if in use by accounts
      */
     public static function removeUtilityType(string $key): bool
     {
-        // Check if any accounts or expenses use this type
+        // Check if any accounts use this type
+        // Expenses are linked to accounts, so deleting the type only requires no accounts
         $accountCount = static::where('utility_type', $key)->count();
-        $expenseCount = UtilityExpense::where('utility_type', $key)->count();
 
-        if ($accountCount > 0 || $expenseCount > 0) {
+        if ($accountCount > 0) {
             return false;
         }
 

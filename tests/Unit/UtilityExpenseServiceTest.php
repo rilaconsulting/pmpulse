@@ -26,7 +26,7 @@ class UtilityExpenseServiceTest extends TestCase
     {
         // Create a property and utility account mapping
         $property = Property::factory()->create(['external_id' => '12345']);
-        UtilityAccount::factory()->create([
+        $account = UtilityAccount::factory()->create([
             'gl_account_number' => '6210',
             'utility_type' => 'water',
             'is_active' => true,
@@ -48,7 +48,8 @@ class UtilityExpenseServiceTest extends TestCase
         $this->assertEquals(0, $stats['unmatched']);
         $this->assertDatabaseHas('utility_expenses', [
             'property_id' => $property->id,
-            'utility_type' => 'water',
+            'utility_account_id' => $account->id,
+            'gl_account_number' => '6210',
             'amount' => '150.00',
             'vendor_name' => 'City Water',
         ]);
@@ -169,7 +170,7 @@ class UtilityExpenseServiceTest extends TestCase
     public function test_parses_various_amount_formats(): void
     {
         $property = Property::factory()->create(['external_id' => '12345']);
-        UtilityAccount::factory()->create([
+        $account = UtilityAccount::factory()->create([
             'gl_account_number' => '6240',
             'utility_type' => 'garbage',
             'is_active' => true,
@@ -188,7 +189,7 @@ class UtilityExpenseServiceTest extends TestCase
 
         $this->assertEquals(1, $stats['created']);
         $this->assertDatabaseHas('utility_expenses', [
-            'utility_type' => 'garbage',
+            'utility_account_id' => $account->id,
             'amount' => '1234.56',
         ]);
     }
@@ -196,7 +197,7 @@ class UtilityExpenseServiceTest extends TestCase
     public function test_handles_multiple_gl_account_field_names(): void
     {
         $property = Property::factory()->create(['external_id' => '12345']);
-        UtilityAccount::factory()->create([
+        $account = UtilityAccount::factory()->create([
             'gl_account_number' => '6250',
             'utility_type' => 'sewer',
             'is_active' => true,
@@ -216,7 +217,7 @@ class UtilityExpenseServiceTest extends TestCase
 
         $this->assertEquals(1, $stats['created']);
         $this->assertDatabaseHas('utility_expenses', [
-            'utility_type' => 'sewer',
+            'utility_account_id' => $account->id,
             'amount' => '50.00',
         ]);
     }
@@ -224,7 +225,7 @@ class UtilityExpenseServiceTest extends TestCase
     public function test_processes_billing_period_dates(): void
     {
         $property = Property::factory()->create(['external_id' => '12345']);
-        UtilityAccount::factory()->create([
+        $account = UtilityAccount::factory()->create([
             'gl_account_number' => '6210',
             'utility_type' => 'water',
             'is_active' => true,
@@ -246,7 +247,7 @@ class UtilityExpenseServiceTest extends TestCase
         $this->assertEquals(1, $stats['created']);
 
         // Verify the record was created with correct dates
-        $expense = \App\Models\UtilityExpense::where('utility_type', 'water')->first();
+        $expense = \App\Models\UtilityExpense::where('utility_account_id', $account->id)->first();
         $this->assertNotNull($expense);
         $this->assertEquals('2025-01-20', $expense->expense_date->format('Y-m-d'));
         $this->assertEquals('2024-12-15', $expense->period_start->format('Y-m-d'));

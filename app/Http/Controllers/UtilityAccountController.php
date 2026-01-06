@@ -7,7 +7,6 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreUtilityAccountRequest;
 use App\Http\Requests\UpdateUtilityAccountRequest;
 use App\Models\UtilityAccount;
-use App\Models\UtilityExpense;
 use App\Services\UtilityExpenseService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,19 +53,7 @@ class UtilityAccountController extends Controller
      */
     public function update(UpdateUtilityAccountRequest $request, UtilityAccount $utilityAccount): RedirectResponse
     {
-        $validated = $request->validated();
-        $oldUtilityType = $utilityAccount->utility_type;
-
-        $utilityAccount->update($validated);
-
-        // If utility type changed, cascade update to all linked expenses
-        if (isset($validated['utility_type']) && $validated['utility_type'] !== $oldUtilityType) {
-            $updatedCount = $utilityAccount->utilityExpenses()->update([
-                'utility_type' => $validated['utility_type'],
-            ]);
-
-            return back()->with('success', "Utility account mapping updated. {$updatedCount} expense(s) reclassified.");
-        }
+        $utilityAccount->update($request->validated());
 
         return back()->with('success', 'Utility account mapping updated successfully.');
     }
@@ -114,12 +101,15 @@ class UtilityAccountController extends Controller
 
         $types = UtilityAccount::getUtilityTypeOptions();
 
-        // Get usage counts for each type
+        // Get usage counts for each type (expenses counted via account relationship)
         $typeCounts = [];
         foreach (array_keys($types) as $typeKey) {
+            $accounts = UtilityAccount::where('utility_type', $typeKey)->get();
+            $expenseCount = $accounts->sum(fn ($account) => $account->utilityExpenses()->count());
+
             $typeCounts[$typeKey] = [
-                'accounts' => UtilityAccount::where('utility_type', $typeKey)->count(),
-                'expenses' => UtilityExpense::where('utility_type', $typeKey)->count(),
+                'accounts' => $accounts->count(),
+                'expenses' => $expenseCount,
             ];
         }
 
@@ -190,12 +180,11 @@ class UtilityAccountController extends Controller
             return back()->with('error', 'Utility type not found.');
         }
 
-        // Check if type is in use
+        // Check if type is in use by any accounts
         $accountCount = UtilityAccount::where('utility_type', $key)->count();
-        $expenseCount = UtilityExpense::where('utility_type', $key)->count();
 
-        if ($accountCount > 0 || $expenseCount > 0) {
-            return back()->with('error', "Cannot delete '{$types[$key]}'. It is used by {$accountCount} account mapping(s) and {$expenseCount} expense(s).");
+        if ($accountCount > 0) {
+            return back()->with('error', "Cannot delete '{$types[$key]}'. It is used by {$accountCount} account mapping(s). Delete or reassign those accounts first.");
         }
 
         UtilityAccount::removeUtilityType($key);
@@ -210,17 +199,16 @@ class UtilityAccountController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        // Check if any custom types are in use
+        // Check if any custom types are in use by accounts
         $defaultKeys = array_keys(UtilityAccount::DEFAULT_UTILITY_TYPES);
         $currentTypes = UtilityAccount::getUtilityTypeOptions();
         $customKeys = array_diff(array_keys($currentTypes), $defaultKeys);
 
         foreach ($customKeys as $key) {
             $accountCount = UtilityAccount::where('utility_type', $key)->count();
-            $expenseCount = UtilityExpense::where('utility_type', $key)->count();
 
-            if ($accountCount > 0 || $expenseCount > 0) {
-                return back()->with('error', "Cannot reset to defaults. Custom type '{$currentTypes[$key]}' is in use.");
+            if ($accountCount > 0) {
+                return back()->with('error', "Cannot reset to defaults. Custom type '{$currentTypes[$key]}' is used by {$accountCount} account(s).");
             }
         }
 
