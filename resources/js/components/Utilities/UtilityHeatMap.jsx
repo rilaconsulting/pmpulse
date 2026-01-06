@@ -106,11 +106,13 @@ export default function UtilityHeatMap({ data, utilityTypes, selectedType, perio
         ].join('\n');
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
         link.href = url;
         link.download = `utility-comparison-${selectedType}.csv`;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
         URL.revokeObjectURL(url);
     };
 
