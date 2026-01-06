@@ -406,6 +406,22 @@ class UtilityAnalyticsService
                 $date->copy()->startOfMonth(),
                 $date->copy()->endOfMonth(),
             ],
+            'last_month' => [
+                $date->copy()->subMonth()->startOfMonth(),
+                $date->copy()->subMonth()->endOfMonth(),
+            ],
+            'last_3_months' => [
+                $date->copy()->subMonths(2)->startOfMonth(),
+                $date->copy()->endOfMonth(),
+            ],
+            'last_6_months' => [
+                $date->copy()->subMonths(5)->startOfMonth(),
+                $date->copy()->endOfMonth(),
+            ],
+            'last_12_months' => [
+                $date->copy()->subMonths(11)->startOfMonth(),
+                $date->copy()->endOfMonth(),
+            ],
             'quarter' => [
                 $date->copy()->startOfQuarter(),
                 $date->copy()->endOfQuarter(),

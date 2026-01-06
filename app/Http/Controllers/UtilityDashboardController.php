@@ -15,7 +15,7 @@ use Inertia\Response;
 
 class UtilityDashboardController extends Controller
 {
-    private const VALID_PERIODS = ['month', 'quarter', 'ytd', 'year'];
+    private const VALID_PERIODS = ['month', 'last_month', 'last_3_months', 'last_6_months', 'last_12_months', 'quarter', 'ytd', 'year'];
 
     public function __construct(
         private readonly UtilityAnalyticsService $analyticsService
@@ -265,6 +265,10 @@ class UtilityDashboardController extends Controller
     {
         return match ($periodType) {
             'month' => $date->format('F Y'),
+            'last_month' => $date->copy()->subMonth()->format('F Y'),
+            'last_3_months' => $date->copy()->subMonths(2)->format('M Y').' - '.$date->format('M Y'),
+            'last_6_months' => $date->copy()->subMonths(5)->format('M Y').' - '.$date->format('M Y'),
+            'last_12_months' => $date->copy()->subMonths(11)->format('M Y').' - '.$date->format('M Y'),
             'quarter' => 'Q'.$date->quarter.' '.$date->year,
             'year' => (string) $date->year,
             'ytd' => 'YTD '.$date->year,

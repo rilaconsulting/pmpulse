@@ -45,6 +45,10 @@ export default function UtilitiesIndex({
                             className="input py-1.5 pr-8"
                         >
                             <option value="month">This Month</option>
+                            <option value="last_month">Last Month</option>
+                            <option value="last_3_months">Last 3 Months</option>
+                            <option value="last_6_months">Last 6 Months</option>
+                            <option value="last_12_months">Last 12 Months</option>
                             <option value="quarter">This Quarter</option>
                             <option value="ytd">Year to Date</option>
                             <option value="year">This Year</option>
