@@ -156,10 +156,19 @@ class PropertyFlagTest extends TestCase
             'flag_type' => 'tenant_pays_utilities',
         ]);
 
-        $renovationFlag = PropertyFlag::create([
+        $excludeFromReportsFlag = PropertyFlag::create([
             'property_id' => Property::create([
                 'external_id' => 'test-prop-3',
                 'name' => 'Test Property 3',
+                'is_active' => true,
+            ])->id,
+            'flag_type' => 'exclude_from_reports',
+        ]);
+
+        $renovationFlag = PropertyFlag::create([
+            'property_id' => Property::create([
+                'external_id' => 'test-prop-4',
+                'name' => 'Test Property 4',
                 'is_active' => true,
             ])->id,
             'flag_type' => 'under_renovation',
@@ -167,6 +176,7 @@ class PropertyFlagTest extends TestCase
 
         $this->assertTrue($hoaFlag->excludesFromUtilityReports());
         $this->assertTrue($tenantPaysFlag->excludesFromUtilityReports());
+        $this->assertTrue($excludeFromReportsFlag->excludesFromUtilityReports());
         $this->assertFalse($renovationFlag->excludesFromUtilityReports());
     }
 
@@ -299,6 +309,11 @@ class PropertyFlagTest extends TestCase
             'name' => 'Property 3',
             'is_active' => true,
         ]);
+        $property4 = Property::create([
+            'external_id' => 'test-prop-4',
+            'name' => 'Property 4',
+            'is_active' => true,
+        ]);
 
         PropertyFlag::create([
             'property_id' => $this->property->id,
@@ -308,11 +323,16 @@ class PropertyFlagTest extends TestCase
             'property_id' => $property2->id,
             'flag_type' => 'tenant_pays_utilities',
         ]);
+        PropertyFlag::create([
+            'property_id' => $property3->id,
+            'flag_type' => 'exclude_from_reports',
+        ]);
 
         $results = Property::forUtilityReports()->get();
 
+        // Only property4 should be included (no exclusion flags)
         $this->assertCount(1, $results);
-        $this->assertEquals($property3->id, $results->first()->id);
+        $this->assertEquals($property4->id, $results->first()->id);
     }
 
     public function test_scope_with_flag_returns_only_flagged_properties(): void

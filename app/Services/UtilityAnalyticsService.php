@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Property;
+use App\Models\PropertyUtilityExclusion;
 use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
 use Carbon\Carbon;
@@ -159,8 +160,14 @@ class UtilityAnalyticsService
      */
     private function computePortfolioData(string $utilityType, array $period, string $metric): array
     {
+        // Get properties excluded for this specific utility type
+        $utilityExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds($utilityType);
+
         $properties = Property::active()
             ->forUtilityReports()
+            ->when(! empty($utilityExcludedIds), function ($query) use ($utilityExcludedIds) {
+                $query->whereNotIn('id', $utilityExcludedIds);
+            })
             ->get();
 
         $values = [];
