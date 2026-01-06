@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Heat map table showing property utility costs relative to portfolio average with CSV export
 - Anomaly alerts highlighting properties with unusually high or low utility costs
 - Interactive trend charts for utility cost history with toggleable utility types
+- Utility-specific property exclusions allowing properties to be excluded from specific utility types only
+- Excluded properties list in utility dashboard showing all exclusions with reasons
 
 ---
 
