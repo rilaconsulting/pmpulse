@@ -143,6 +143,10 @@ class Property extends Model
      */
     public function isExcludedForUtilityType(string $utilityType): bool
     {
+        if ($this->relationLoaded('utilityExclusions')) {
+            return $this->utilityExclusions->contains('utility_type', $utilityType);
+        }
+
         return $this->utilityExclusions()->where('utility_type', $utilityType)->exists();
     }
 

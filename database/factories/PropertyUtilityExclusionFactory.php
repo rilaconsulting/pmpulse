@@ -25,7 +25,7 @@ class PropertyUtilityExclusionFactory extends Factory
     {
         return [
             'property_id' => Property::factory(),
-            'utility_type' => $this->faker->randomElement(['water', 'electric', 'gas', 'garbage', 'sewer']),
+            'utility_type' => $this->faker->randomElement(array_diff(array_keys(\App\Models\UtilityAccount::DEFAULT_UTILITY_TYPES), ['other'])),
             'reason' => $this->faker->sentence(),
             'created_by' => null,
         ];

@@ -27,6 +27,7 @@ export default function ExcludedPropertiesList({ excludedProperties }) {
     return (
         <div className="card border-gray-200 bg-gray-50">
             <button
+                type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="w-full card-header border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors cursor-pointer"
             >
@@ -89,9 +90,9 @@ export default function ExcludedPropertiesList({ excludedProperties }) {
                                                     Excluded from all utilities
                                                 </span>
                                                 <div className="mt-1 flex flex-wrap gap-2">
-                                                    {property.flags.map((flag, idx) => (
+                                                    {property.flags.map((flag) => (
                                                         <span
-                                                            key={idx}
+                                                            key={flag.type}
                                                             className="inline-flex items-center px-2 py-1 rounded-md bg-amber-50 text-amber-700 text-xs"
                                                             title={flag.reason || ''}
                                                         >
@@ -115,13 +116,13 @@ export default function ExcludedPropertiesList({ excludedProperties }) {
                                                     Excluded from specific utilities
                                                 </span>
                                                 <div className="mt-1 flex flex-wrap gap-2">
-                                                    {property.utility_exclusions.map((exclusion, idx) => {
+                                                    {property.utility_exclusions.map((exclusion) => {
                                                         const Icon = UtilityIcons[exclusion.utility_type];
                                                         const colors = UtilityColors[exclusion.utility_type] || UtilityColors.other;
 
                                                         return (
                                                             <span
-                                                                key={idx}
+                                                                key={exclusion.utility_type}
                                                                 className={`inline-flex items-center px-2 py-1 rounded-md text-xs ${colors.bg} ${colors.text}`}
                                                                 title={exclusion.reason ? `Reason: ${exclusion.reason}` : ''}
                                                             >

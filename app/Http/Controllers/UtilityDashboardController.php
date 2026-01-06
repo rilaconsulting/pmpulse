@@ -397,10 +397,10 @@ class UtilityDashboardController extends Controller
         // Get utility-specific exclusions (excluded from specific utility types only)
         $utilityExclusions = PropertyUtilityExclusion::query()
             ->with(['property' => function ($query) {
-                $query->active();
+                $query->where('is_active', true);
             }, 'creator'])
             ->whereHas('property', function ($query) {
-                $query->active();
+                $query->where('is_active', true);
             })
             ->get()
             ->groupBy('property_id');
@@ -411,7 +411,7 @@ class UtilityDashboardController extends Controller
         // Map utility-specific exclusions to properties (excluding those fully excluded by flags)
         $utilityExcludedProperties = $utilityExclusions
             ->filter(fn ($exclusions, $propertyId) => ! in_array($propertyId, $flagExcludedIds))
-            ->map(function ($exclusions) use ($utilityTypeOptions) {
+            ->map(function ($exclusions) {
                 $property = $exclusions->first()->property;
                 if (! $property) {
                     return null;
@@ -419,7 +419,7 @@ class UtilityDashboardController extends Controller
 
                 $utilityExclusionsList = $exclusions->map(fn ($exclusion) => [
                     'utility_type' => $exclusion->utility_type,
-                    'utility_label' => $utilityTypeOptions[$exclusion->utility_type] ?? ucfirst($exclusion->utility_type),
+                    'utility_label' => $exclusion->utility_type_label,
                     'reason' => $exclusion->reason,
                     'created_by' => $exclusion->creator?->name,
                     'created_at' => $exclusion->created_at->toDateString(),
