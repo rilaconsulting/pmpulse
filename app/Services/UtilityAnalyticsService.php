@@ -276,7 +276,7 @@ class UtilityAnalyticsService
      */
     public function getCostBreakdown(Property $property, array $period): array
     {
-        $utilityTypes = array_keys(UtilityAccount::UTILITY_TYPES);
+        $utilityTypes = array_keys(UtilityAccount::getUtilityTypeOptions());
         $breakdown = [];
         $total = 0;
 

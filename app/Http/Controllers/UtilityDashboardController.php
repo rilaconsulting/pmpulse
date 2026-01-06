@@ -38,7 +38,8 @@ class UtilityDashboardController extends Controller
         ];
 
         // Get utility types from configured accounts
-        $utilityTypes = array_keys(UtilityAccount::UTILITY_TYPES);
+        $utilityTypeOptions = UtilityAccount::getUtilityTypeOptions();
+        $utilityTypes = array_keys($utilityTypeOptions);
 
         // Calculate summary for each utility type
         $utilitySummary = [];
@@ -46,7 +47,7 @@ class UtilityDashboardController extends Controller
             $portfolioData = $this->analyticsService->getPortfolioAverage($type, $period);
             $utilitySummary[$type] = [
                 'type' => $type,
-                'label' => UtilityAccount::UTILITY_TYPES[$type],
+                'label' => $utilityTypeOptions[$type],
                 'total_cost' => $portfolioData['total_cost'],
                 'average_per_unit' => $portfolioData['average'],
                 'property_count' => $portfolioData['property_count'],
@@ -62,7 +63,7 @@ class UtilityDashboardController extends Controller
             $typeAnomalies = $this->analyticsService->getAnomalies($type, $period, 2.0);
             foreach ($typeAnomalies as $anomaly) {
                 $anomaly['utility_type'] = $type;
-                $anomaly['utility_label'] = UtilityAccount::UTILITY_TYPES[$type];
+                $anomaly['utility_label'] = $utilityTypeOptions[$type];
                 $anomalies[] = $anomaly;
             }
         }
@@ -84,7 +85,7 @@ class UtilityDashboardController extends Controller
             'anomalies' => $anomalies,
             'trendData' => $trendData,
             'heatMapData' => $heatMapData,
-            'utilityTypes' => UtilityAccount::UTILITY_TYPES,
+            'utilityTypes' => $utilityTypeOptions,
         ]);
     }
 
@@ -104,7 +105,8 @@ class UtilityDashboardController extends Controller
             'date' => $date,
         ];
 
-        $utilityTypes = array_keys(UtilityAccount::UTILITY_TYPES);
+        $utilityTypeOptions = UtilityAccount::getUtilityTypeOptions();
+        $utilityTypes = array_keys($utilityTypeOptions);
 
         // Get cost breakdown for this property
         $costBreakdown = $this->analyticsService->getCostBreakdown($property, $period);
@@ -118,7 +120,7 @@ class UtilityDashboardController extends Controller
 
             $comparisons[$type] = [
                 'type' => $type,
-                'label' => UtilityAccount::UTILITY_TYPES[$type],
+                'label' => $utilityTypeOptions[$type],
                 'current_month' => $comparison['current_month'],
                 'previous_month' => $comparison['previous_month'],
                 'month_change' => $comparison['month_change'],
@@ -152,7 +154,7 @@ class UtilityDashboardController extends Controller
             ->map(fn ($expense) => [
                 'id' => $expense->id,
                 'utility_type' => $expense->utility_type,
-                'utility_label' => UtilityAccount::UTILITY_TYPES[$expense->utility_type] ?? $expense->utility_type,
+                'utility_label' => $utilityTypeOptions[$expense->utility_type] ?? $expense->utility_type,
                 'amount' => $expense->amount,
                 'expense_date' => $expense->expense_date->toDateString(),
                 'vendor_name' => $expense->vendor_name,
@@ -171,7 +173,7 @@ class UtilityDashboardController extends Controller
             'comparisons' => array_values($comparisons),
             'propertyTrend' => $propertyTrend,
             'recentExpenses' => $recentExpenses,
-            'utilityTypes' => UtilityAccount::UTILITY_TYPES,
+            'utilityTypes' => $utilityTypeOptions,
         ]);
     }
 

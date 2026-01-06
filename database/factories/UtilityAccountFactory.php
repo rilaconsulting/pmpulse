@@ -21,7 +21,7 @@ class UtilityAccountFactory extends Factory
      */
     public function definition(): array
     {
-        $utilityTypes = array_keys(UtilityAccount::UTILITY_TYPES);
+        $utilityTypes = array_keys(UtilityAccount::DEFAULT_UTILITY_TYPES);
 
         return [
             'gl_account_number' => $this->faker->unique()->numerify('6###'),

@@ -20,11 +20,9 @@ use Illuminate\Support\Facades\Log;
 class UtilityExpenseService
 {
     /**
-     * Cache of GL account number => utility type mappings.
-     *
-     * @var array<string, string>|null
+     * Cache of GL account number => UtilityAccount mappings.
      */
-    private ?array $accountMappings = null;
+    private ?\Illuminate\Support\Collection $accountMappings = null;
 
     /**
      * Cache of property external_id => property UUID mappings.
@@ -93,10 +91,10 @@ class UtilityExpenseService
             return;
         }
 
-        // Check if this GL account maps to a utility type
-        $utilityType = $this->accountMappings[$glAccountNumber] ?? null;
+        // Check if this GL account maps to a utility account
+        $utilityAccount = $this->accountMappings->get($glAccountNumber);
 
-        if ($utilityType === null) {
+        if ($utilityAccount === null) {
             $this->unmatched++;
             Log::debug('Expense GL account not mapped to utility type', [
                 'gl_account' => $glAccountNumber,
@@ -105,6 +103,9 @@ class UtilityExpenseService
 
             return;
         }
+
+        $utilityAccountId = $utilityAccount->id;
+        $utilityType = $utilityAccount->utility_type;
 
         // Get property UUID from external property ID
         $propertyId = $this->lookupPropertyId($expense);
@@ -132,6 +133,8 @@ class UtilityExpenseService
         // Create or update utility expense record
         DB::transaction(function () use (
             $propertyId,
+            $utilityAccountId,
+            $glAccountNumber,
             $utilityType,
             $externalExpenseId,
             $amount,
@@ -145,6 +148,8 @@ class UtilityExpenseService
                 ['external_expense_id' => $externalExpenseId],
                 [
                     'property_id' => $propertyId,
+                    'utility_account_id' => $utilityAccountId,
+                    'gl_account_number' => $glAccountNumber,
                     'utility_type' => $utilityType,
                     'expense_date' => $expenseDate,
                     'period_start' => $periodStart,
@@ -288,10 +293,10 @@ class UtilityExpenseService
     private function loadAccountMappings(): void
     {
         if ($this->accountMappings === null) {
-            $this->accountMappings = UtilityAccount::getActiveAccountMappings();
+            $this->accountMappings = UtilityAccount::getActiveAccountsByGlNumber();
 
             Log::info('Loaded utility account mappings', [
-                'count' => count($this->accountMappings),
+                'count' => $this->accountMappings->count(),
             ]);
         }
     }
@@ -404,7 +409,7 @@ class UtilityExpenseService
             $expense = $event->payload_json;
             $glAccount = $this->extractGlAccountNumber($expense);
 
-            if ($glAccount && ! isset($this->accountMappings[$glAccount])) {
+            if ($glAccount && ! $this->accountMappings->has($glAccount)) {
                 $unmatchedCounts[$glAccount] = ($unmatchedCounts[$glAccount] ?? 0) + 1;
             }
         }

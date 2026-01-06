@@ -17,6 +17,8 @@ class UtilityExpense extends Model
 
     protected $fillable = [
         'property_id',
+        'utility_account_id',
+        'gl_account_number',
         'utility_type',
         'expense_date',
         'period_start',
@@ -46,11 +48,21 @@ class UtilityExpense extends Model
     }
 
     /**
+     * Get the utility account this expense is linked to.
+     */
+    public function utilityAccount(): BelongsTo
+    {
+        return $this->belongsTo(UtilityAccount::class);
+    }
+
+    /**
      * Get the display label for the utility type.
      */
     public function getUtilityTypeLabelAttribute(): string
     {
-        return UtilityAccount::UTILITY_TYPES[$this->utility_type] ?? $this->utility_type;
+        $types = UtilityAccount::getUtilityTypeOptions();
+
+        return $types[$this->utility_type] ?? $this->utility_type;
     }
 
     /**

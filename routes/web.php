@@ -108,6 +108,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/utility-accounts', [UtilityAccountController::class, 'store'])->name('utility-accounts.store');
         Route::patch('/utility-accounts/{utilityAccount}', [UtilityAccountController::class, 'update'])->name('utility-accounts.update');
         Route::delete('/utility-accounts/{utilityAccount}', [UtilityAccountController::class, 'destroy'])->name('utility-accounts.destroy');
+
+        // Utility Types
+        Route::get('/utility-types', [UtilityAccountController::class, 'types'])->name('utility-types.index');
+        Route::post('/utility-types', [UtilityAccountController::class, 'storeType'])->name('utility-types.store');
+        Route::patch('/utility-types/{key}', [UtilityAccountController::class, 'updateType'])->name('utility-types.update');
+        Route::delete('/utility-types/{key}', [UtilityAccountController::class, 'destroyType'])->name('utility-types.destroy');
+        Route::post('/utility-types/reset', [UtilityAccountController::class, 'resetTypes'])->name('utility-types.reset');
     });
 
     // Profile (all authenticated users)

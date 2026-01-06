@@ -23,7 +23,7 @@ class UtilityExpenseFactory extends Factory
      */
     public function definition(): array
     {
-        $utilityTypes = array_keys(UtilityAccount::UTILITY_TYPES);
+        $utilityTypes = array_keys(UtilityAccount::DEFAULT_UTILITY_TYPES);
         $expenseDate = $this->faker->dateTimeBetween('-6 months', 'now');
 
         return [
@@ -116,6 +116,18 @@ class UtilityExpenseFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'property_id' => $property->id,
+        ]);
+    }
+
+    /**
+     * Associate with a specific utility account.
+     */
+    public function forAccount(UtilityAccount $account): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'utility_account_id' => $account->id,
+            'gl_account_number' => $account->gl_account_number,
+            'utility_type' => $account->utility_type,
         ]);
     }
 }

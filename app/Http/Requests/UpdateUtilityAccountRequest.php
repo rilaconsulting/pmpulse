@@ -30,10 +30,10 @@ class UpdateUtilityAccountRequest extends FormRequest
                 'required',
                 'string',
                 'max:50',
-                Rule::unique('utility_accounts', 'gl_account_number')->ignore($this->route('utility_account')),
+                Rule::unique('utility_accounts', 'gl_account_number')->ignore($this->route('utilityAccount')),
             ],
             'gl_account_name' => ['required', 'string', 'max:255'],
-            'utility_type' => ['required', 'string', Rule::in(array_keys(UtilityAccount::UTILITY_TYPES))],
+            'utility_type' => ['required', 'string', Rule::in(array_keys(UtilityAccount::getUtilityTypeOptions()))],
             'is_active' => ['boolean'],
         ];
     }

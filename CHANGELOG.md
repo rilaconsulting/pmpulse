@@ -10,7 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Utility expense tracking with GL account to utility type mappings
 - Admin interface for configuring utility account mappings (water, electric, gas, garbage, sewer)
+- Configurable utility types allowing custom categories beyond the defaults
+- Admin page for managing utility types (add, edit, delete, reset to defaults)
 - Automatic categorization of synced expenses as utility costs based on configured GL accounts
+- Expenses now linked to utility accounts via foreign key for better data integrity
+- GL account number stored on expenses for audit trail
+- Automatic reclassification of expenses when utility account type is changed
 - Expense register sync from AppFolio with date range filtering
 - Utility expenses table for normalized cost tracking per property
 - Utility cost analytics with per-unit and per-square-foot metrics

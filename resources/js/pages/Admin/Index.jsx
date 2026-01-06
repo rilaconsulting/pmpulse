@@ -7,6 +7,7 @@ import {
     KeyIcon,
     AdjustmentsHorizontalIcon,
     BoltIcon,
+    TagIcon,
 } from '@heroicons/react/24/outline';
 
 const tabs = [
@@ -14,6 +15,7 @@ const tabs = [
     { name: 'Integrations', href: '/admin/integrations', icon: CloudIcon },
     { name: 'Authentication', href: '/admin/authentication', icon: KeyIcon },
     { name: 'Utility Accounts', href: '/admin/utility-accounts', icon: BoltIcon },
+    { name: 'Utility Types', href: '/admin/utility-types', icon: TagIcon },
     { name: 'Adjustments', href: '/admin/adjustments', icon: AdjustmentsHorizontalIcon },
     { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
 ];

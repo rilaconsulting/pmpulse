@@ -54,7 +54,19 @@ class UtilityAccountController extends Controller
      */
     public function update(UpdateUtilityAccountRequest $request, UtilityAccount $utilityAccount): RedirectResponse
     {
-        $utilityAccount->update($request->validated());
+        $validated = $request->validated();
+        $oldUtilityType = $utilityAccount->utility_type;
+
+        $utilityAccount->update($validated);
+
+        // If utility type changed, cascade update to all linked expenses
+        if (isset($validated['utility_type']) && $validated['utility_type'] !== $oldUtilityType) {
+            $updatedCount = $utilityAccount->utilityExpenses()->update([
+                'utility_type' => $validated['utility_type'],
+            ]);
+
+            return back()->with('success', "Utility account mapping updated. {$updatedCount} expense(s) reclassified.");
+        }
 
         return back()->with('success', 'Utility account mapping updated successfully.');
     }
@@ -66,11 +78,11 @@ class UtilityAccountController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        // Check if there are any utility expenses using this utility type
-        $expenseCount = UtilityExpense::where('utility_type', $utilityAccount->utility_type)->count();
+        // Check if there are any utility expenses linked to this account
+        $expenseCount = $utilityAccount->utilityExpenses()->count();
 
         if ($expenseCount > 0) {
-            return back()->with('error', "Cannot delete this mapping. There are {$expenseCount} utility expense(s) of type '{$utilityAccount->utility_type}'. Consider deactivating the mapping instead.");
+            return back()->with('error', "Cannot delete this mapping. There are {$expenseCount} utility expense(s) linked to this account. Consider deactivating the mapping instead.");
         }
 
         $utilityAccount->delete();
@@ -91,5 +103,129 @@ class UtilityAccountController extends Controller
             'unmatchedAccounts' => $unmatched,
             'utilityTypes' => UtilityAccount::getUtilityTypeOptions(),
         ]);
+    }
+
+    /**
+     * Display the utility types configuration page.
+     */
+    public function types(Request $request): Response
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $types = UtilityAccount::getUtilityTypeOptions();
+
+        // Get usage counts for each type
+        $typeCounts = [];
+        foreach (array_keys($types) as $typeKey) {
+            $typeCounts[$typeKey] = [
+                'accounts' => UtilityAccount::where('utility_type', $typeKey)->count(),
+                'expenses' => UtilityExpense::where('utility_type', $typeKey)->count(),
+            ];
+        }
+
+        return Inertia::render('Admin/UtilityTypes', [
+            'utilityTypes' => $types,
+            'typeCounts' => $typeCounts,
+            'defaultTypes' => UtilityAccount::DEFAULT_UTILITY_TYPES,
+        ]);
+    }
+
+    /**
+     * Add a new utility type.
+     */
+    public function storeType(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'key' => ['required', 'string', 'max:50', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'label' => ['required', 'string', 'max:100'],
+        ], [
+            'key.regex' => 'The key must start with a letter and contain only lowercase letters, numbers, and underscores.',
+        ]);
+
+        $types = UtilityAccount::getUtilityTypeOptions();
+
+        if (isset($types[$validated['key']])) {
+            return back()->with('error', 'A utility type with this key already exists.');
+        }
+
+        UtilityAccount::addUtilityType($validated['key'], $validated['label']);
+
+        return back()->with('success', 'Utility type added successfully.');
+    }
+
+    /**
+     * Update a utility type label.
+     */
+    public function updateType(Request $request, string $key): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'label' => ['required', 'string', 'max:100'],
+        ]);
+
+        $types = UtilityAccount::getUtilityTypeOptions();
+
+        if (! isset($types[$key])) {
+            return back()->with('error', 'Utility type not found.');
+        }
+
+        UtilityAccount::updateUtilityTypeLabel($key, $validated['label']);
+
+        return back()->with('success', 'Utility type updated successfully.');
+    }
+
+    /**
+     * Remove a utility type.
+     */
+    public function destroyType(Request $request, string $key): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $types = UtilityAccount::getUtilityTypeOptions();
+
+        if (! isset($types[$key])) {
+            return back()->with('error', 'Utility type not found.');
+        }
+
+        // Check if type is in use
+        $accountCount = UtilityAccount::where('utility_type', $key)->count();
+        $expenseCount = UtilityExpense::where('utility_type', $key)->count();
+
+        if ($accountCount > 0 || $expenseCount > 0) {
+            return back()->with('error', "Cannot delete '{$types[$key]}'. It is used by {$accountCount} account mapping(s) and {$expenseCount} expense(s).");
+        }
+
+        UtilityAccount::removeUtilityType($key);
+
+        return back()->with('success', 'Utility type deleted successfully.');
+    }
+
+    /**
+     * Reset utility types to defaults.
+     */
+    public function resetTypes(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        // Check if any custom types are in use
+        $defaultKeys = array_keys(UtilityAccount::DEFAULT_UTILITY_TYPES);
+        $currentTypes = UtilityAccount::getUtilityTypeOptions();
+        $customKeys = array_diff(array_keys($currentTypes), $defaultKeys);
+
+        foreach ($customKeys as $key) {
+            $accountCount = UtilityAccount::where('utility_type', $key)->count();
+            $expenseCount = UtilityExpense::where('utility_type', $key)->count();
+
+            if ($accountCount > 0 || $expenseCount > 0) {
+                return back()->with('error', "Cannot reset to defaults. Custom type '{$currentTypes[$key]}' is in use.");
+            }
+        }
+
+        UtilityAccount::setUtilityTypeOptions(UtilityAccount::DEFAULT_UTILITY_TYPES);
+
+        return back()->with('success', 'Utility types reset to defaults.');
     }
 }
