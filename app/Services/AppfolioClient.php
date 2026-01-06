@@ -39,6 +39,7 @@ class AppfolioClient
         'vendor_directory' => '/api/v2/reports/vendor_directory.json',
         'work_order' => '/api/v2/reports/work_order.json',
         'expense_register' => '/api/v2/reports/expense_register.json',
+        'bill_detail' => '/api/v2/reports/bill_detail.json',
         'rent_roll' => '/api/v2/reports/rent_roll.json',
         'delinquency' => '/api/v2/reports/delinquency.json',
     ];
@@ -435,8 +436,8 @@ class AppfolioClient
      * @param  array  $params  Request parameters:
      *                         - paginate_results: bool (default true)
      *                         - per_page: int (default 100, max 500)
-     *                         - from_date: string (YYYY-MM-DD, required)
-     *                         - to_date: string (YYYY-MM-DD, required)
+     *                         - from_date: string (YYYY-MM-DD, required) - mapped to occurred_on_from
+     *                         - to_date: string (YYYY-MM-DD, required) - mapped to occurred_on_to
      *                         - property_id: array (optional)
      *                         - gl_account_id: array (optional, filter by GL accounts)
      */
@@ -447,7 +448,19 @@ class AppfolioClient
             'per_page' => config('appfolio.sync.batch_size', 100),
         ];
 
-        return $this->request('POST', self::REPORT_ENDPOINTS['expense_register'], array_merge($defaults, $params)) ?? [];
+        $merged = array_merge($defaults, $params);
+
+        // Map our param names to AppFolio API param names
+        if (isset($merged['from_date'])) {
+            $merged['occurred_on_from'] = $merged['from_date'];
+            unset($merged['from_date']);
+        }
+        if (isset($merged['to_date'])) {
+            $merged['occurred_on_to'] = $merged['to_date'];
+            unset($merged['to_date']);
+        }
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['expense_register'], $merged) ?? [];
     }
 
     /**

@@ -23,12 +23,12 @@ class UtilityExpenseFactory extends Factory
      */
     public function definition(): array
     {
-        $utilityTypes = array_keys(UtilityAccount::UTILITY_TYPES);
         $expenseDate = $this->faker->dateTimeBetween('-6 months', 'now');
 
         return [
             'property_id' => Property::factory(),
-            'utility_type' => $this->faker->randomElement($utilityTypes),
+            'utility_account_id' => UtilityAccount::factory(),
+            'gl_account_number' => $this->faker->numerify('6###'),
             'expense_date' => $expenseDate,
             'period_start' => (clone $expenseDate)->modify('-1 month'),
             'period_end' => $expenseDate,
@@ -45,7 +45,7 @@ class UtilityExpenseFactory extends Factory
     public function water(): static
     {
         return $this->state(fn (array $attributes) => [
-            'utility_type' => 'water',
+            'utility_account_id' => UtilityAccount::factory()->state(['utility_type' => 'water']),
             'vendor_name' => 'City Water Department',
         ]);
     }
@@ -56,7 +56,7 @@ class UtilityExpenseFactory extends Factory
     public function electric(): static
     {
         return $this->state(fn (array $attributes) => [
-            'utility_type' => 'electric',
+            'utility_account_id' => UtilityAccount::factory()->state(['utility_type' => 'electric']),
             'vendor_name' => 'PG&E',
         ]);
     }
@@ -67,7 +67,7 @@ class UtilityExpenseFactory extends Factory
     public function gas(): static
     {
         return $this->state(fn (array $attributes) => [
-            'utility_type' => 'gas',
+            'utility_account_id' => UtilityAccount::factory()->state(['utility_type' => 'gas']),
             'vendor_name' => 'Gas Company',
         ]);
     }
@@ -78,7 +78,7 @@ class UtilityExpenseFactory extends Factory
     public function garbage(): static
     {
         return $this->state(fn (array $attributes) => [
-            'utility_type' => 'garbage',
+            'utility_account_id' => UtilityAccount::factory()->state(['utility_type' => 'garbage']),
             'vendor_name' => 'Waste Management',
         ]);
     }
@@ -89,7 +89,7 @@ class UtilityExpenseFactory extends Factory
     public function sewer(): static
     {
         return $this->state(fn (array $attributes) => [
-            'utility_type' => 'sewer',
+            'utility_account_id' => UtilityAccount::factory()->state(['utility_type' => 'sewer']),
             'vendor_name' => 'City Sewer Authority',
         ]);
     }
@@ -116,6 +116,17 @@ class UtilityExpenseFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'property_id' => $property->id,
+        ]);
+    }
+
+    /**
+     * Associate with a specific utility account.
+     */
+    public function forAccount(UtilityAccount $account): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'utility_account_id' => $account->id,
+            'gl_account_number' => $account->gl_account_number,
         ]);
     }
 }

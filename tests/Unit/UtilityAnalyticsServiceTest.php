@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\Models\Property;
 use App\Models\PropertyAdjustment;
 use App\Models\PropertyFlag;
+use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
 use App\Services\AdjustmentService;
 use App\Services\UtilityAnalyticsService;
@@ -36,16 +37,16 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
+        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+
         // Create utility expenses totaling $500
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
             'amount' => 300,
             'expense_date' => now()->startOfMonth()->addDays(5),
         ]);
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
             'amount' => 200,
             'expense_date' => now()->startOfMonth()->addDays(10),
         ]);
@@ -76,9 +77,10 @@ class UtilityAnalyticsServiceTest extends TestCase
             'reason' => 'Test adjustment',
         ]);
 
-        UtilityExpense::factory()->create([
+        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+
+        UtilityExpense::factory()->forAccount($electricAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'electric',
             'amount' => 400,
             'expense_date' => now()->startOfMonth()->addDays(5),
         ]);
@@ -99,9 +101,10 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        UtilityExpense::factory()->create([
+        $gasAccount = UtilityAccount::factory()->create(['utility_type' => 'gas']);
+
+        UtilityExpense::factory()->forAccount($gasAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'gas',
             'amount' => 250,
             'expense_date' => now()->startOfMonth()->addDays(5),
         ]);
@@ -122,9 +125,10 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        UtilityExpense::factory()->create([
+        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
             'amount' => 100,
             'expense_date' => now()->startOfMonth()->addDays(5),
         ]);
@@ -142,43 +146,39 @@ class UtilityAnalyticsServiceTest extends TestCase
         // Use a fixed reference date in mid-year for predictable quarter/YTD calculations
         $referenceDate = Carbon::create(2025, 6, 15);
         $property = Property::factory()->create(['is_active' => true]);
+        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
 
         // Current month expense (June 2025)
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
             'amount' => 200,
             'expense_date' => $referenceDate->copy()->startOfMonth()->addDays(5),
         ]);
 
         // Previous month expense (May 2025)
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
             'amount' => 180,
             'expense_date' => $referenceDate->copy()->subMonth()->startOfMonth()->addDays(5),
         ]);
 
         // Current quarter expense (Q2 2025 - April)
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
             'amount' => 150,
             'expense_date' => $referenceDate->copy()->startOfQuarter()->addDays(5),
         ]);
 
         // Previous quarter expense (Q1 2025 - February)
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
             'amount' => 120,
             'expense_date' => $referenceDate->copy()->subQuarter()->startOfQuarter()->addMonth()->addDays(5),
         ]);
 
         // Previous year same period expense (June 2024)
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
             'amount' => 160,
             'expense_date' => $referenceDate->copy()->subYear()->startOfMonth()->addDays(5),
         ]);
@@ -222,16 +222,16 @@ class UtilityAnalyticsServiceTest extends TestCase
             'reason' => 'Test',
         ]);
 
+        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+
         // Add expenses to both
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property1->id,
-            'utility_type' => 'water',
             'amount' => 100,
             'expense_date' => now()->startOfMonth()->addDays(5),
         ]);
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property2->id,
-            'utility_type' => 'water',
             'amount' => 500,
             'expense_date' => now()->startOfMonth()->addDays(5),
         ]);
@@ -252,6 +252,8 @@ class UtilityAnalyticsServiceTest extends TestCase
         $properties = [];
         $costs = [100, 105, 95, 102, 98, 500]; // Last one is an outlier
 
+        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+
         foreach ($costs as $i => $cost) {
             $property = Property::factory()->create([
                 'unit_count' => 10,
@@ -259,9 +261,8 @@ class UtilityAnalyticsServiceTest extends TestCase
             ]);
             $properties[] = $property;
 
-            UtilityExpense::factory()->create([
+            UtilityExpense::factory()->forAccount($electricAccount)->create([
                 'property_id' => $property->id,
-                'utility_type' => 'electric',
                 'amount' => $cost,
                 'expense_date' => now()->startOfMonth()->addDays(5),
             ]);
@@ -282,21 +283,22 @@ class UtilityAnalyticsServiceTest extends TestCase
     {
         $property = Property::factory()->create(['is_active' => true]);
 
-        UtilityExpense::factory()->create([
+        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+        $gasAccount = UtilityAccount::factory()->create(['utility_type' => 'gas']);
+
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
             'amount' => 100,
             'expense_date' => now()->startOfMonth()->addDays(5),
         ]);
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($electricAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'electric',
             'amount' => 300,
             'expense_date' => now()->startOfMonth()->addDays(5),
         ]);
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($gasAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'gas',
             'amount' => 100,
             'expense_date' => now()->startOfMonth()->addDays(5),
         ]);
@@ -322,11 +324,12 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
+        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+
         // Create expenses for last 3 months
         for ($i = 0; $i < 3; $i++) {
-            UtilityExpense::factory()->create([
+            UtilityExpense::factory()->forAccount($waterAccount)->create([
                 'property_id' => $property->id,
-                'utility_type' => 'water',
                 'amount' => 100 + ($i * 10),
                 'expense_date' => now()->subMonths($i)->startOfMonth()->addDays(5),
             ]);
@@ -348,17 +351,17 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
+        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+
         // Create expenses for current quarter
         $quarterStart = now()->startOfQuarter();
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
             'amount' => 100,
             'expense_date' => $quarterStart->copy()->addDays(10),
         ]);
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
             'amount' => 150,
             'expense_date' => $quarterStart->copy()->addMonth()->addDays(10),
         ]);
@@ -382,16 +385,16 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
+        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+
         $yearStart = $referenceDate->copy()->startOfYear();
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($electricAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'electric',
             'amount' => 200,
             'expense_date' => $yearStart->copy()->addMonth(), // Feb
         ]);
-        UtilityExpense::factory()->create([
+        UtilityExpense::factory()->forAccount($electricAccount)->create([
             'property_id' => $property->id,
-            'utility_type' => 'electric',
             'amount' => 300,
             'expense_date' => $yearStart->copy()->addMonths(3), // April
         ]);

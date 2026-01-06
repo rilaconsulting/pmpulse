@@ -9,6 +9,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\UtilityAccountController;
+use App\Http\Controllers\UtilityDashboardController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -54,6 +55,12 @@ Route::middleware('auth')->group(function () {
         ->name('properties.flags.store');
     Route::delete('/properties/{property}/flags/{flag}', [PropertyController::class, 'destroyFlag'])
         ->name('properties.flags.destroy');
+
+    // Utilities Dashboard
+    Route::get('/utilities', [UtilityDashboardController::class, 'index'])
+        ->name('utilities.index');
+    Route::get('/utilities/property/{property}', [UtilityDashboardController::class, 'show'])
+        ->name('utilities.show');
 
     // Property Adjustments
     Route::post('/properties/{property}/adjustments', [AdjustmentController::class, 'store'])
@@ -101,6 +108,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/utility-accounts', [UtilityAccountController::class, 'store'])->name('utility-accounts.store');
         Route::patch('/utility-accounts/{utilityAccount}', [UtilityAccountController::class, 'update'])->name('utility-accounts.update');
         Route::delete('/utility-accounts/{utilityAccount}', [UtilityAccountController::class, 'destroy'])->name('utility-accounts.destroy');
+
+        // Utility Types
+        Route::get('/utility-types', [UtilityAccountController::class, 'types'])->name('utility-types.index');
+        Route::post('/utility-types', [UtilityAccountController::class, 'storeType'])->name('utility-types.store');
+        Route::patch('/utility-types/{key}', [UtilityAccountController::class, 'updateType'])->name('utility-types.update');
+        Route::delete('/utility-types/{key}', [UtilityAccountController::class, 'destroyType'])->name('utility-types.destroy');
+        Route::post('/utility-types/reset', [UtilityAccountController::class, 'resetTypes'])->name('utility-types.reset');
     });
 
     // Profile (all authenticated users)
