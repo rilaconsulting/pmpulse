@@ -120,12 +120,13 @@ class UtilityExpenseService
         }
 
         // Extract expense data
-        $externalExpenseId = (string) ($expense['expense_id'] ?? $expense['id']);
+        // AppFolio expense_register doesn't have a unique ID, so we create a composite key
+        $externalExpenseId = $this->generateExpenseId($expense);
         $amount = $this->parseAmount($expense['amount'] ?? $expense['total'] ?? 0);
         $expenseDate = $this->parseDate($expense['expense_date'] ?? $expense['bill_date'] ?? $expense['date']);
         $periodStart = $this->parseDate($expense['period_start'] ?? $expense['service_start'] ?? null);
         $periodEnd = $this->parseDate($expense['period_end'] ?? $expense['service_end'] ?? null);
-        $vendorName = $expense['vendor_name'] ?? $expense['vendor'] ?? $expense['payee'] ?? null;
+        $vendorName = $expense['payee_name'] ?? $expense['vendor_name'] ?? $expense['vendor'] ?? $expense['payee'] ?? null;
         $description = $expense['description'] ?? $expense['memo'] ?? null;
 
         // Create or update utility expense record
@@ -163,6 +164,24 @@ class UtilityExpenseService
     }
 
     /**
+     * Generate a unique ID for an expense from composite fields.
+     *
+     * AppFolio expense_register doesn't have a unique expense ID,
+     * so we create one from property, date, account, and amount.
+     */
+    private function generateExpenseId(array $expense): string
+    {
+        $propertyId = $expense['property_id'] ?? 'unknown';
+        $billDate = $expense['bill_date'] ?? $expense['expense_date'] ?? 'unknown';
+        $account = $expense['expense_account_number'] ?? $expense['expense_account'] ?? 'unknown';
+        $amount = $expense['amount'] ?? '0';
+        $reference = $expense['reference_number'] ?? '';
+
+        // Create a deterministic hash from the composite fields
+        return md5("{$propertyId}|{$billDate}|{$account}|{$amount}|{$reference}");
+    }
+
+    /**
      * Extract GL account number from expense data.
      *
      * AppFolio expense data may have the GL account in different fields.
@@ -170,7 +189,9 @@ class UtilityExpenseService
     private function extractGlAccountNumber(array $expense): ?string
     {
         // Try various field names that might contain the GL account
-        $glAccount = $expense['gl_account_number']
+        // expense_account_number is the direct numeric code from AppFolio
+        $glAccount = $expense['expense_account_number']
+            ?? $expense['gl_account_number']
             ?? $expense['gl_account']
             ?? $expense['expense_account']
             ?? $expense['account_number']
