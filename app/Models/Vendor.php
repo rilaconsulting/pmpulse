@@ -177,6 +177,11 @@ class Vendor extends Model
      */
     public function getCanonicalVendor(): Vendor
     {
+        // Check FK first to avoid lazy loading for canonical vendors
+        if ($this->canonical_vendor_id === null) {
+            return $this;
+        }
+
         return $this->canonicalVendor ?? $this;
     }
 

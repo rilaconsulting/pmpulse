@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Trade-based vendor analysis with grouping, averages, and within-trade ranking
 - Vendor response time metrics including completion time breakdowns by priority
 - Portfolio-wide vendor benchmarks for performance comparison
+- Vendor list page with search, filtering by trade/insurance status/active status, and sortable columns
+- Vendor insurance compliance report with categorized views for expired, expiring soon, and compliant vendors
+- Workers comp tracking section in compliance report for focused insurance monitoring
+- Do Not Use vendor list in compliance report highlighting vendors flagged as unusable
 
 ---
 
