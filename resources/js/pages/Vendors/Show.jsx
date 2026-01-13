@@ -83,27 +83,34 @@ export default function VendorShow({
     };
 
     const exportSpendDataToCSV = () => {
-        const headers = ['Period', 'Spend', 'Work Orders', 'Avg Cost'];
-        const rows = (spendTrend?.data || []).map(item => [
-            item.period,
-            item.total_spend || 0,
-            item.work_order_count || 0,
-            item.avg_cost_per_wo || 0,
-        ]);
+        try {
+            const headers = ['Period', 'Spend', 'Work Orders', 'Avg Cost'];
+            const rows = (spendTrend?.data || []).map(item => [
+                item.period,
+                item.total_spend || 0,
+                item.work_order_count || 0,
+                item.avg_cost_per_wo || 0,
+            ]);
 
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.join(','))
-        ].join('\n');
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.join(','))
+            ].join('\n');
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `vendor-spend-${vendor.company_name.replace(/\s+/g, '-').toLowerCase()}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            // Sanitize filename by removing special characters
+            const safeName = vendor.company_name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').toLowerCase();
+            link.setAttribute('href', url);
+            link.setAttribute('download', `vendor-spend-${safeName}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to export CSV:', error);
+        }
     };
 
     const InsuranceStatusBadge = ({ status, date, label }) => {
@@ -170,7 +177,7 @@ export default function VendorShow({
 
         return (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
-                {status?.replace('_', ' ') || 'Unknown'}
+                {status?.replace(/_/g, ' ') || 'Unknown'}
             </span>
         );
     };
@@ -335,7 +342,7 @@ export default function VendorShow({
                     </div>
 
                     {/* Trade Comparison */}
-                    {tradeAnalysis?.has_trade && (
+                    {tradeAnalysis?.primary_trade && (
                         <div className="card lg:col-span-2">
                             <div className="card-header">
                                 <h2 className="text-lg font-medium text-gray-900">

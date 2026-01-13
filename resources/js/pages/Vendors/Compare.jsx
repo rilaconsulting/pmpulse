@@ -7,8 +7,6 @@ import {
     XCircleIcon,
     ClockIcon,
     ExclamationTriangleIcon,
-    ArrowUpIcon,
-    ArrowDownIcon,
     ScaleIcon,
 } from '@heroicons/react/24/outline';
 
@@ -40,29 +38,18 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
             return '';
         }
 
-        if (value === comparison[metric].best) {
+        // Use tolerance-based comparison for floating point values
+        const tolerance = 0.0001;
+        const best = comparison[metric].best;
+        const worst = comparison[metric].worst;
+
+        if (Math.abs(value - best) < tolerance) {
             return 'bg-green-100 text-green-800 font-semibold';
         }
-        if (value === comparison[metric].worst) {
+        if (Math.abs(value - worst) < tolerance) {
             return 'bg-red-100 text-red-800';
         }
         return '';
-    };
-
-    const getBestLabel = (metric) => {
-        // For these metrics, higher is better
-        if (metric === 'work_order_count' || metric === 'total_spend') {
-            return 'Most';
-        }
-        // For these metrics, lower is better
-        return 'Fastest';
-    };
-
-    const getWorstLabel = (metric) => {
-        if (metric === 'work_order_count' || metric === 'total_spend') {
-            return 'Least';
-        }
-        return 'Slowest';
     };
 
     const InsuranceStatusBadge = ({ status }) => {
@@ -190,7 +177,7 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
                         </div>
                     </div>
                 ) : (
-                    <div className="card">
+                    <div className="card hidden md:block">
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">

@@ -176,13 +176,6 @@ class VendorController extends Controller
         // Get spending trend (last 12 months)
         $spendTrend = $this->analyticsService->getVendorTrend($canonicalVendor, 12, 'month');
 
-        // Get previous year trend for comparison
-        $previousYearTrend = $this->analyticsService->getVendorTrend(
-            $canonicalVendor,
-            12,
-            'month'
-        );
-
         // Get spend by property
         $spendByProperty = $this->getSpendByProperty($canonicalVendor, $period);
 
@@ -230,13 +223,24 @@ class VendorController extends Controller
             ->unique('id')
             ->values();
 
-        // Get work order status counts
+        // Get work order status counts using a single aggregated query
+        $statsRow = \App\Models\WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open,
+                SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+                COALESCE(SUM(amount), 0) as total_spend
+            ")
+            ->first();
+
         $workOrderStats = [
-            'total' => \App\Models\WorkOrder::whereIn('vendor_id', $vendorIds)->count(),
-            'completed' => \App\Models\WorkOrder::whereIn('vendor_id', $vendorIds)->where('status', 'completed')->count(),
-            'open' => \App\Models\WorkOrder::whereIn('vendor_id', $vendorIds)->where('status', 'open')->count(),
-            'in_progress' => \App\Models\WorkOrder::whereIn('vendor_id', $vendorIds)->where('status', 'in_progress')->count(),
-            'total_spend' => \App\Models\WorkOrder::whereIn('vendor_id', $vendorIds)->sum('amount'),
+            'total' => (int) ($statsRow->total ?? 0),
+            'completed' => (int) ($statsRow->completed ?? 0),
+            'open' => (int) ($statsRow->open ?? 0),
+            'in_progress' => (int) ($statsRow->in_progress ?? 0),
+            'total_spend' => (float) ($statsRow->total_spend ?? 0),
         ];
 
         return Inertia::render('Vendors/Show', [
@@ -355,8 +359,9 @@ class VendorController extends Controller
         // Get all unique trades
         $allTrades = $this->analyticsService->getAllTrades();
 
-        // Selected trade
-        $selectedTrade = $request->get('trade', $allTrades[0] ?? null);
+        // Selected trade - validate it exists in the list to prevent SQL injection
+        $requestedTrade = $request->get('trade', $allTrades[0] ?? null);
+        $selectedTrade = in_array($requestedTrade, $allTrades, true) ? $requestedTrade : ($allTrades[0] ?? null);
 
         // Get vendors in the selected trade
         $vendors = [];
