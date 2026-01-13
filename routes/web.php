@@ -68,6 +68,10 @@ Route::middleware('auth')->group(function () {
         ->name('vendors.index');
     Route::get('/vendors/compliance', [VendorController::class, 'compliance'])
         ->name('vendors.compliance');
+    Route::get('/vendors/compare', [VendorController::class, 'compare'])
+        ->name('vendors.compare');
+    Route::get('/vendors/{vendor}', [VendorController::class, 'show'])
+        ->name('vendors.show');
 
     // Property Adjustments
     Route::post('/properties/{property}/adjustments', [AdjustmentController::class, 'store'])

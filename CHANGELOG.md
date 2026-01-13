@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Vendor detail page with comprehensive metrics, insurance status, and contact information
+- Vendor spend analysis charts with line/bar toggle and CSV export functionality
+- Vendor spend breakdown by property with interactive pie chart visualization
+- Vendor work order history with filtering by status and property, sortable columns, and pagination
+- Days to complete column in work order history with color-coded indicators
+- Vendor comparison view for side-by-side analysis of vendors within a trade
+- Trade selector for filtering vendor comparisons
+- Visual highlighting of best/worst vendor metrics in comparison view
+- Trade averages summary in vendor comparison
 - Vendor directory sync from AppFolio with contact info, trades, and insurance expiration tracking
 - Work orders now linked to vendors with cost tracking (amount, vendor bill, estimate)
 - Vendor deduplication support allowing multiple AppFolio vendor records to be linked as the same entity
