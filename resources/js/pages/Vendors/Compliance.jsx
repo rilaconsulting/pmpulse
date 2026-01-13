@@ -6,10 +6,8 @@ import {
     CheckCircleIcon,
     ClockIcon,
     XCircleIcon,
-    ShieldExclamationIcon,
     NoSymbolIcon,
     PrinterIcon,
-    ArrowDownTrayIcon,
     ChevronDownIcon,
     ChevronUpIcon,
 } from '@heroicons/react/24/outline';

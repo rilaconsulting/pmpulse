@@ -115,10 +115,16 @@ class VendorController extends Controller
         });
 
         // Get summary stats
+        $today = now()->startOfDay();
         $stats = [
             'total_vendors' => Vendor::canonical()->count(),
             'active_vendors' => Vendor::canonical()->active()->count(),
-            'expired_insurance' => Vendor::canonical()->active()->get()->filter(fn ($v) => $v->hasExpiredInsurance())->count(),
+            'expired_insurance' => Vendor::canonical()->active()
+                ->where(function ($q) use ($today) {
+                    $q->where('workers_comp_expires', '<', $today)
+                        ->orWhere('liability_ins_expires', '<', $today)
+                        ->orWhere('auto_ins_expires', '<', $today);
+                })->count(),
             'portfolio_stats' => $this->analyticsService->getPortfolioStats($period),
         ];
 
@@ -141,7 +147,7 @@ class VendorController extends Controller
     /**
      * Display vendor compliance report.
      */
-    public function compliance(Request $request): Response
+    public function compliance(): Response
     {
         $today = now()->startOfDay();
         $thirtyDays = $today->copy()->addDays(30);
