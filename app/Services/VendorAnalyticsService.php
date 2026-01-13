@@ -34,8 +34,8 @@ class VendorAnalyticsService
         $query = WorkOrder::query()
             ->whereBetween('opened_at', [$startDate, $endDate]);
 
-        if ($includeGroup && ! $vendor->isCanonical()) {
-            // Include work orders from canonical vendor group
+        if ($includeGroup) {
+            // Include work orders from canonical vendor group (handles both canonical and duplicate vendors)
             $query->whereIn('vendor_id', $vendor->getAllGroupVendorIds());
         } else {
             $query->where('vendor_id', $vendor->id);
@@ -59,7 +59,7 @@ class VendorAnalyticsService
         $query = WorkOrder::query()
             ->whereBetween('opened_at', [$startDate, $endDate]);
 
-        if ($includeGroup && ! $vendor->isCanonical()) {
+        if ($includeGroup) {
             $query->whereIn('vendor_id', $vendor->getAllGroupVendorIds());
         } else {
             $query->where('vendor_id', $vendor->id);
@@ -85,7 +85,7 @@ class VendorAnalyticsService
             ->whereNotNull('amount')
             ->where('amount', '>', 0);
 
-        if ($includeGroup && ! $vendor->isCanonical()) {
+        if ($includeGroup) {
             $query->whereIn('vendor_id', $vendor->getAllGroupVendorIds());
         } else {
             $query->where('vendor_id', $vendor->id);
@@ -119,7 +119,7 @@ class VendorAnalyticsService
             ->whereNotNull('closed_at')
             ->whereIn('status', ['completed', 'cancelled']);
 
-        if ($includeGroup && ! $vendor->isCanonical()) {
+        if ($includeGroup) {
             $query->whereIn('vendor_id', $vendor->getAllGroupVendorIds());
         } else {
             $query->where('vendor_id', $vendor->id);
@@ -1080,10 +1080,10 @@ class VendorAnalyticsService
         $buckets = [
             'same_day' => ['label' => 'Same Day', 'min' => 0, 'max' => 1, 'count' => 0],
             '1_3_days' => ['label' => '1-3 Days', 'min' => 1, 'max' => 3, 'count' => 0],
-            '4_7_days' => ['label' => '4-7 Days', 'min' => 3, 'max' => 7, 'count' => 0],
-            '1_2_weeks' => ['label' => '1-2 Weeks', 'min' => 7, 'max' => 14, 'count' => 0],
-            '2_4_weeks' => ['label' => '2-4 Weeks', 'min' => 14, 'max' => 28, 'count' => 0],
-            'over_4_weeks' => ['label' => '4+ Weeks', 'min' => 28, 'max' => PHP_INT_MAX, 'count' => 0],
+            '4_7_days' => ['label' => '4-7 Days', 'min' => 4, 'max' => 7, 'count' => 0],
+            '1_2_weeks' => ['label' => '1-2 Weeks', 'min' => 8, 'max' => 14, 'count' => 0],
+            '2_4_weeks' => ['label' => '2-4 Weeks', 'min' => 15, 'max' => 28, 'count' => 0],
+            'over_4_weeks' => ['label' => '4+ Weeks', 'min' => 29, 'max' => PHP_INT_MAX, 'count' => 0],
         ];
 
         $total = count($completionDays);
@@ -1105,7 +1105,7 @@ class VendorAnalyticsService
         }
 
         // Add percentages
-        foreach ($buckets as $key => &$bucket) {
+        foreach ($buckets as &$bucket) {
             $bucket['percentage'] = $total > 0 ? round(($bucket['count'] / $total) * 100, 1) : 0;
         }
 
@@ -1413,10 +1413,9 @@ class VendorAnalyticsService
                 $date->copy()->startOfYear(),
                 $date->copy(),
             ],
-            'custom' => [
-                Carbon::parse($period['start']),
-                Carbon::parse($period['end']),
-            ],
+            'custom' => isset($period['start'], $period['end'])
+                ? [Carbon::parse($period['start']), Carbon::parse($period['end'])]
+                : throw new \InvalidArgumentException('Custom period requires start and end dates'),
             default => [
                 $date->copy()->startOfMonth(),
                 $date->copy()->endOfMonth(),
