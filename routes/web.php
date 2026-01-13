@@ -10,6 +10,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\UtilityAccountController;
 use App\Http\Controllers\UtilityDashboardController;
+use App\Http\Controllers\VendorController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -61,6 +62,12 @@ Route::middleware('auth')->group(function () {
         ->name('utilities.index');
     Route::get('/utilities/property/{property}', [UtilityDashboardController::class, 'show'])
         ->name('utilities.show');
+
+    // Vendors
+    Route::get('/vendors', [VendorController::class, 'index'])
+        ->name('vendors.index');
+    Route::get('/vendors/compliance', [VendorController::class, 'compliance'])
+        ->name('vendors.compliance');
 
     // Property Adjustments
     Route::post('/properties/{property}/adjustments', [AdjustmentController::class, 'store'])
