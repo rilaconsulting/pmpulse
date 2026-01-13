@@ -230,6 +230,8 @@ class VendorAnalyticsService
      */
     public function getVendorSummary(Vendor $vendor, array $period): array
     {
+        [$startDate, $endDate] = $this->getPeriodDates($period);
+
         return [
             'vendor_id' => $vendor->id,
             'company_name' => $vendor->company_name,
@@ -241,8 +243,8 @@ class VendorAnalyticsService
             'avg_completion_time' => $this->getAverageCompletionTime($vendor, $period),
             'period' => [
                 'type' => $period['type'] ?? 'month',
-                'start' => $this->getPeriodDates($period)[0]->toDateString(),
-                'end' => $this->getPeriodDates($period)[1]->toDateString(),
+                'start' => $startDate->toDateString(),
+                'end' => $endDate->toDateString(),
             ],
         ];
     }
@@ -478,7 +480,7 @@ class VendorAnalyticsService
             $firstAvg = array_sum($firstHalf) / count($firstHalf);
             $secondAvg = array_sum($secondHalf) / count($secondHalf);
 
-            if ($firstAvg == 0) {
+            if (abs($firstAvg) < 0.00001) {
                 $trends[$metric] = $secondAvg > 0 ? 'increasing' : 'stable';
             } else {
                 $changePercent = (($secondAvg - $firstAvg) / $firstAvg) * 100;
@@ -1377,7 +1379,7 @@ class VendorAnalyticsService
      * Get start and end dates for a period.
      *
      * @param  array  $period  Period configuration
-     * @return array{Carbon, Carbon} [startDate, endDate]
+     * @return Carbon[] Array containing [startDate, endDate]
      */
     private function getPeriodDates(array $period): array
     {
