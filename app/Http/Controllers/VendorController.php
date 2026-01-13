@@ -23,6 +23,7 @@ class VendorController extends Controller
     {
         $query = Vendor::query()
             ->canonical()
+            ->with(['duplicateVendors']) // Eager load for getAllGroupVendorIds()
             ->withCount(['workOrders', 'duplicateVendors']);
 
         // Search by name, contact, or email
