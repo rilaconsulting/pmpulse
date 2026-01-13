@@ -600,14 +600,31 @@ class AppfolioClient
                     break;
                 }
 
+                // Parse metadata_id and page from the next_page_url
+                // URL format: /api/v2/reports/{report}.json?metadata_id={id}&page={n}
+                $nextUrl = $response['next_page_url'];
+                preg_match('/metadata_id=([^&]+)/', $nextUrl, $metadataMatch);
+                preg_match('/page=(\d+)/', $nextUrl, $pageMatch);
+
+                $metadataId = $metadataMatch[1] ?? null;
+                $pageNum = (int) ($pageMatch[1] ?? $page);
+
+                // Extract the base endpoint from the URL
+                $endpoint = preg_replace('/\?.*$/', '', $nextUrl);
+
                 Log::debug('Following pagination', [
                     'method' => $method,
                     'page' => $page,
-                    'url' => $response['next_page_url'],
+                    'metadata_id' => $metadataId,
+                    'endpoint' => $endpoint,
                 ]);
 
-                // Make request to the next page URL directly
-                $response = $this->request('POST', $response['next_page_url'], []) ?? [];
+                // AppFolio pagination requires POST with metadata_id and page in body
+                // (not as query params, and not with original filters)
+                $response = $this->request('POST', $endpoint, [
+                    'metadata_id' => $metadataId,
+                    'page' => $pageNum,
+                ]) ?? [];
 
                 if (isset($response['results'])) {
                     $allResults = array_merge($allResults, $response['results']);

@@ -14,7 +14,7 @@ export default function SyncConfigurationForm({ syncConfiguration, syncStatus, t
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post('/admin/integrations/sync-configuration');
+        post('/admin/sync/configuration');
     };
 
     const hourOptions = Array.from({ length: 24 }, (_, i) => ({

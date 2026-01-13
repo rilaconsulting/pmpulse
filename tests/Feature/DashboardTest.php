@@ -64,20 +64,7 @@ class DashboardTest extends TestCase
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
             ->component('Admin/Integrations')
-            ->has('connection')
-            ->has('syncHistory')
-        );
-    }
-
-    public function test_admin_authentication_page_loads_for_admin(): void
-    {
-        $user = User::factory()->admin()->create();
-
-        $response = $this->actingAs($user)->get('/admin/authentication');
-
-        $response->assertStatus(200);
-        $response->assertInertia(fn ($page) => $page
-            ->component('Admin/Authentication')
+            ->has('googleMaps')
             ->has('googleSso')
         );
     }

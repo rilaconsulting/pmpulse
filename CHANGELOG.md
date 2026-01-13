@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Bill details sync from AppFolio for improved expense tracking with unique transaction identifiers
+- Admin Sync utilities tab for centralized sync management and history
+- Custom date range options for syncs (6 months, 1 year, 2 years, all time, or custom dates)
+- Ability to reset and rebuild utility expenses from bill details
+- Enhanced sync history with expandable rows showing per-resource metrics and error details
 - Vendor detail page with comprehensive metrics, insurance status, and contact information
 - Vendor spend analysis charts with line/bar toggle and CSV export functionality
 - Vendor spend breakdown by property with interactive pie chart visualization
@@ -31,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Vendor insurance compliance report with categorized views for expired, expiring soon, and compliant vendors
 - Workers comp tracking section in compliance report for focused insurance monitoring
 - Do Not Use vendor list in compliance report highlighting vendors flagged as unusable
+
+### Changed
+- Replaced expense register sync with bill details endpoint for better data integrity
+- Consolidated admin panel: Integrations tab now includes AppFolio, Google Maps, and Google SSO with visual icons
+- Moved sync history and schedule configuration to dedicated Sync tab
+- Removed separate Authentication tab (now part of Integrations)
 
 ---
 

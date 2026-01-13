@@ -4,16 +4,16 @@ import {
     UsersIcon,
     Cog6ToothIcon,
     CloudIcon,
-    KeyIcon,
     AdjustmentsHorizontalIcon,
     BoltIcon,
     TagIcon,
+    ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 
 const tabs = [
     { name: 'Users', href: '/admin/users', icon: UsersIcon },
     { name: 'Integrations', href: '/admin/integrations', icon: CloudIcon },
-    { name: 'Authentication', href: '/admin/authentication', icon: KeyIcon },
+    { name: 'Sync', href: '/admin/sync', icon: ArrowPathIcon },
     { name: 'Utility Accounts', href: '/admin/utility-accounts', icon: BoltIcon },
     { name: 'Utility Types', href: '/admin/utility-types', icon: TagIcon },
     { name: 'Adjustments', href: '/admin/adjustments', icon: AdjustmentsHorizontalIcon },

@@ -117,17 +117,38 @@ class IngestionService
 
         $params = $this->buildQueryParams($resourceType);
 
-        // Fetch data from AppFolio Reports API V2
-        $data = match ($resourceType) {
-            'properties' => $this->appfolioClient->getPropertyDirectory($params),
-            'units' => $this->appfolioClient->getUnitDirectory($params),
-            'vendors' => $this->appfolioClient->getVendorDirectory($params),
-            'work_orders' => $this->appfolioClient->getWorkOrderReport($params),
-            'bill_details' => $this->appfolioClient->getBillDetail($params),
-            'rent_roll' => $this->appfolioClient->getRentRoll($params),
-            'delinquency' => $this->appfolioClient->getDelinquency($params),
-            default => throw new \InvalidArgumentException("Unknown resource type: {$resourceType}"),
-        };
+        // Map resource types to AppfolioClient method names
+        $methodMap = [
+            'properties' => 'getPropertyDirectory',
+            'units' => 'getUnitDirectory',
+            'vendors' => 'getVendorDirectory',
+            'work_orders' => 'getWorkOrderReport',
+            'bill_details' => 'getBillDetail',
+            'rent_roll' => 'getRentRoll',
+            'delinquency' => 'getDelinquency',
+        ];
+
+        if (! isset($methodMap[$resourceType])) {
+            throw new \InvalidArgumentException("Unknown resource type: {$resourceType}");
+        }
+
+        $method = $methodMap[$resourceType];
+
+        // Fetch ALL pages from AppFolio Reports API V2
+        // This uses pagination to get the complete dataset
+        $allResults = $this->appfolioClient->fetchAllPages(
+            $method,
+            $params,
+            function (int $page, int $recordsFetched, bool $hasMore) use ($resourceType) {
+                Log::info("Fetched page {$page} for {$resourceType}", [
+                    'records_so_far' => $recordsFetched,
+                    'has_more' => $hasMore,
+                ]);
+            }
+        );
+
+        // Wrap results in expected format for processItems
+        $data = ['results' => $allResults];
 
         // Store raw data and normalize
         $this->processItems($resourceType, $data);
@@ -155,17 +176,25 @@ class IngestionService
         // Resources that require date range parameters
         $dateRangeResources = ['bill_details', 'work_orders'];
 
+        // Check for custom date range in SyncRun metadata (takes priority)
+        $customDateRange = $this->syncRun->getCustomDateRange();
+
         if (in_array($resourceType, $dateRangeResources, true)) {
             // For date range resources, always use from_date and to_date
-            if ($this->syncRun->mode === 'incremental') {
+            if ($customDateRange) {
+                // Use custom date range from sync run metadata
+                $params['from_date'] = $customDateRange['from_date'];
+                $params['to_date'] = $customDateRange['to_date'];
+            } elseif ($this->syncRun->mode === 'incremental') {
                 $days = config('appfolio.sync.incremental_days', 7);
                 $params['from_date'] = now()->subDays($days)->format('Y-m-d');
+                $params['to_date'] = now()->format('Y-m-d');
             } else {
                 // Full sync: look back configured number of days
                 $days = config('appfolio.sync.full_sync_lookback_days', 365);
                 $params['from_date'] = now()->subDays($days)->format('Y-m-d');
+                $params['to_date'] = now()->format('Y-m-d');
             }
-            $params['to_date'] = now()->format('Y-m-d');
         } elseif ($this->syncRun->mode === 'incremental') {
             // For other resources, use modified_since for incremental sync
             $days = config('appfolio.sync.incremental_days', 7);
@@ -245,11 +274,8 @@ class IngestionService
             }
         }
 
-        // Handle pagination if present
-        // TODO: Adjust based on actual AppFolio pagination structure
-        if (isset($data['next_page_url']) || isset($data['meta']['next_cursor'])) {
-            $this->handlePagination($resourceType, $data);
-        }
+        // Note: Pagination is now handled by AppfolioClient::fetchAllPages()
+        // before data reaches this method, so no pagination handling needed here.
     }
 
     /**
@@ -1141,20 +1167,6 @@ class IngestionService
             'emergency', 'critical', 'immediate' => 'emergency',
             default => 'normal',
         };
-    }
-
-    /**
-     * Handle pagination for large result sets.
-     *
-     * TODO: Implement based on actual AppFolio pagination structure.
-     */
-    private function handlePagination(string $resourceType, array $data): void
-    {
-        // This is a placeholder implementation
-        // TODO: Implement actual pagination handling based on AppFolio API
-        Log::info('Pagination detected but not yet implemented', [
-            'resource' => $resourceType,
-        ]);
     }
 
     /**
