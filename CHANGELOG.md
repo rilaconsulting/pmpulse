@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Work orders now linked to vendors with cost tracking (amount, vendor bill, estimate)
 - Vendor deduplication support allowing multiple AppFolio vendor records to be linked as the same entity
 - Canonical vendor grouping for accurate spend reporting across duplicate vendor records
+- Vendor performance analytics with work order counts, total spend, and average cost metrics
+- Period-over-period vendor comparisons (30-day, 90-day, 12-month, year-to-date)
+- Vendor performance trend tracking with direction indicators
+- Trade-based vendor analysis with grouping, averages, and within-trade ranking
+- Vendor response time metrics including completion time breakdowns by priority
+- Portfolio-wide vendor benchmarks for performance comparison
 
 ---
 
