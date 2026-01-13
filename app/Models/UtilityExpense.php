@@ -26,6 +26,7 @@ class UtilityExpense extends Model
         'vendor_name',
         'description',
         'external_expense_id',
+        'bill_detail_id',
     ];
 
     protected function casts(): array
@@ -52,6 +53,14 @@ class UtilityExpense extends Model
     public function utilityAccount(): BelongsTo
     {
         return $this->belongsTo(UtilityAccount::class);
+    }
+
+    /**
+     * Get the bill detail this expense was created from.
+     */
+    public function billDetail(): BelongsTo
+    {
+        return $this->belongsTo(BillDetail::class);
     }
 
     /**

@@ -464,6 +464,42 @@ class AppfolioClient
     }
 
     /**
+     * Fetch bill details from Reports API.
+     *
+     * Returns detailed bill information including unique txn_id and payable_invoice_detail_id,
+     * GL account, vendor, amounts, work order linkage, and payment information.
+     *
+     * @param  array  $params  Request parameters:
+     *                         - paginate_results: bool (default true)
+     *                         - per_page: int (default 100, max 500)
+     *                         - from_date: string (YYYY-MM-DD, required) - mapped to occurred_on_from
+     *                         - to_date: string (YYYY-MM-DD, required) - mapped to occurred_on_to
+     *                         - property_id: array (optional)
+     *                         - vendor_id: array (optional)
+     */
+    public function getBillDetail(array $params = []): array
+    {
+        $defaults = [
+            'paginate_results' => true,
+            'per_page' => config('appfolio.sync.batch_size', 100),
+        ];
+
+        $merged = array_merge($defaults, $params);
+
+        // Map our param names to AppFolio API param names
+        if (isset($merged['from_date'])) {
+            $merged['occurred_on_from'] = $merged['from_date'];
+            unset($merged['from_date']);
+        }
+        if (isset($merged['to_date'])) {
+            $merged['occurred_on_to'] = $merged['to_date'];
+            unset($merged['to_date']);
+        }
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['bill_detail'], $merged) ?? [];
+    }
+
+    /**
      * Fetch rent roll from Reports API.
      *
      * Returns current lease and rent information for all units.

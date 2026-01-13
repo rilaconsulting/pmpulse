@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\BillDetail;
 use App\Models\Lease;
 use App\Models\LedgerTransaction;
 use App\Models\Person;
@@ -54,9 +55,6 @@ class IngestionService
     /** @var array<string, string> Cache of vendor external_id => id mappings */
     private array $vendorCache = [];
 
-    /** @var array Raw expense data to be processed for utility mapping */
-    private array $expenseData = [];
-
     public function __construct(
         private readonly AppfolioClient $appfolioClient,
         private readonly UtilityExpenseService $utilityExpenseService
@@ -77,7 +75,6 @@ class IngestionService
         $this->unitCache = [];
         $this->personCache = [];
         $this->vendorCache = [];
-        $this->expenseData = [];
 
         $syncRun->markAsRunning();
 
@@ -126,7 +123,7 @@ class IngestionService
             'units' => $this->appfolioClient->getUnitDirectory($params),
             'vendors' => $this->appfolioClient->getVendorDirectory($params),
             'work_orders' => $this->appfolioClient->getWorkOrderReport($params),
-            'expenses' => $this->appfolioClient->getExpenseRegister($params),
+            'bill_details' => $this->appfolioClient->getBillDetail($params),
             'rent_roll' => $this->appfolioClient->getRentRoll($params),
             'delinquency' => $this->appfolioClient->getDelinquency($params),
             default => throw new \InvalidArgumentException("Unknown resource type: {$resourceType}"),
@@ -145,7 +142,7 @@ class IngestionService
      * Build query parameters based on sync mode and resource type.
      *
      * Different resource types require different parameters:
-     * - expenses: requires from_date and to_date
+     * - bill_details: requires from_date and to_date
      * - work_orders: requires from_date and to_date
      * - others: use modified_since for incremental sync
      */
@@ -156,7 +153,7 @@ class IngestionService
         ];
 
         // Resources that require date range parameters
-        $dateRangeResources = ['expenses', 'work_orders'];
+        $dateRangeResources = ['bill_details', 'work_orders'];
 
         if (in_array($resourceType, $dateRangeResources, true)) {
             // For date range resources, always use from_date and to_date
@@ -193,11 +190,6 @@ class IngestionService
             return;
         }
 
-        // Collect expense data for utility expense processing
-        if ($resourceType === 'expenses') {
-            $this->expenseData = array_merge($this->expenseData, $items);
-        }
-
         // Prefetch related entities to avoid N+1 queries
         $this->prefetchRelatedEntities($resourceType, $items);
 
@@ -205,13 +197,18 @@ class IngestionService
             try {
                 $result = null;
 
-                DB::transaction(function () use ($resourceType, $item, &$result) {
-                    // Store raw event
-                    $this->storeRawEvent($resourceType, $item);
+                // Bill details go directly to bill_details table (has unique txn_id)
+                if ($resourceType === 'bill_details') {
+                    $result = $this->upsertBillDetail($item);
+                } else {
+                    DB::transaction(function () use ($resourceType, $item, &$result) {
+                        // Store raw event
+                        $this->storeRawEvent($resourceType, $item);
 
-                    // Normalize and upsert - returns true if created, false if updated, null if skipped
-                    $result = $this->normalizeAndUpsert($resourceType, $item);
-                });
+                        // Normalize and upsert - returns true if created, false if updated, null if skipped
+                        $result = $this->normalizeAndUpsert($resourceType, $item);
+                    });
+                }
 
                 // Track result: created, updated, or skipped
                 if ($this->currentTracker) {
@@ -487,7 +484,7 @@ class IngestionService
      * - unit_directory: unit_id
      * - vendor_directory: vendor_id
      * - work_order: work_order_id
-     * - expense_register: expense_id
+     * - bill_detail: txn_id (handled separately via upsertBillDetail)
      * - rent_roll: lease_id or unit_id
      * - delinquency: unit_id
      */
@@ -498,7 +495,6 @@ class IngestionService
             'units' => 'unit_id',
             'vendors' => 'vendor_id',
             'work_orders' => 'work_order_id',
-            'expenses' => 'expense_id',
             'rent_roll' => 'lease_id',
             'delinquency' => 'unit_id',
             default => 'id',
@@ -962,6 +958,112 @@ class IngestionService
     }
 
     /**
+     * Upsert a bill detail record.
+     *
+     * Maps AppFolio bill_detail.json response fields to our schema.
+     * Uses txn_id as the unique identifier.
+     *
+     * @return bool True if record was created, false if updated
+     */
+    private function upsertBillDetail(array $item): bool
+    {
+        // Look up property and unit using cache to avoid N+1 queries
+        $propertyExternalId = isset($item['property_id']) ? (string) $item['property_id'] : null;
+        $propertyId = $propertyExternalId ? $this->lookupPropertyId($propertyExternalId) : null;
+
+        $unitExternalId = isset($item['unit_id']) ? (string) $item['unit_id'] : null;
+        $unitId = $unitExternalId ? $this->lookupUnitId($unitExternalId) : null;
+
+        // Extract GL account number from various formats
+        $glAccountNumber = $this->extractGlAccountNumber($item);
+
+        // Map AppFolio bill_detail fields to our schema
+        $data = [
+            'sync_run_id' => $this->syncRun->id,
+            'payable_invoice_detail_id' => $item['payable_invoice_detail_id'] ?? null,
+            'reference_number' => $item['reference_number'] ?? null,
+            'bill_date' => $this->parseDate($item['bill_date'] ?? null),
+            'due_date' => $this->parseDate($item['due_date'] ?? null),
+            'description' => $item['description'] ?? null,
+            'gl_account' => $item['account'] ?? null,
+            'gl_account_name' => $item['account_name'] ?? null,
+            'gl_account_number' => $glAccountNumber,
+            'gl_account_id' => $item['gl_account_id'] ?? null,
+            'property_external_id' => $propertyExternalId,
+            'property_id' => $propertyId,
+            'unit_external_id' => $unitExternalId,
+            'unit_id' => $unitId,
+            'payee_name' => $item['payee_name'] ?? null,
+            'party_id' => $item['party_id'] ?? null,
+            'party_type' => $item['party_type'] ?? null,
+            'vendor_id' => $item['vendor_id'] ?? null,
+            'vendor_account_number' => $item['vendor_account_number'] ?? null,
+            'paid' => $this->parseAmount($item['paid'] ?? null),
+            'unpaid' => $this->parseAmount($item['unpaid'] ?? null),
+            'quantity' => $this->parseAmount($item['quantity'] ?? null),
+            'rate' => $this->parseAmount($item['rate'] ?? null),
+            'check_number' => $item['check_number'] ?? null,
+            'payment_date' => $this->parseDate($item['payment_date'] ?? null),
+            'cash_account' => $item['cash_account'] ?? null,
+            'bank_account' => $item['bank_account'] ?? null,
+            'other_payment_type' => $item['other_payment_type'] ?? null,
+            'work_order_number' => $item['work_order'] ?? null,
+            'work_order_id' => $item['work_order_id'] ?? null,
+            'work_order_assignee' => $item['work_order_assignee'] ?? null,
+            'work_order_issue' => $item['work_order_issue'] ?? null,
+            'service_request_id' => $item['service_request_id'] ?? null,
+            'purchase_order_number' => $item['purchase_order_number'] ?? null,
+            'purchase_order_id' => $item['purchase_order_id'] ?? null,
+            'service_from' => $this->parseDate($item['service_from'] ?? null),
+            'service_to' => $this->parseDate($item['service_to'] ?? null),
+            'approval_status' => $item['approval_status'] ?? null,
+            'approved_by' => $item['approved_by'] ?? null,
+            'last_approver' => $item['last_approver'] ?? null,
+            'next_approvers' => $item['next_approvers'] ?? null,
+            'days_pending_approval' => $item['days_pending_approval'] ?? null,
+            'board_approval_status' => $item['board_approval_status'] ?? null,
+            'cost_center_name' => $item['cost_center_name'] ?? null,
+            'cost_center_number' => $item['cost_center_number'] ?? null,
+            'created_by' => $item['created_by'] ?? null,
+            'txn_created_at' => $this->parseDateTime($item['txn_created_at'] ?? null),
+            'txn_updated_at' => $this->parseDateTime($item['txn_updated_at'] ?? null),
+            'pulled_at' => now(),
+        ];
+
+        $txnId = (int) $item['txn_id'];
+
+        $billDetail = BillDetail::updateOrCreate(
+            ['txn_id' => $txnId],
+            $data
+        );
+
+        return $billDetail->wasRecentlyCreated;
+    }
+
+    /**
+     * Extract GL account number from bill detail data.
+     */
+    private function extractGlAccountNumber(array $item): ?string
+    {
+        $glAccount = $item['account_number']
+            ?? $item['gl_account_number']
+            ?? $item['account']
+            ?? null;
+
+        if ($glAccount === null) {
+            return null;
+        }
+
+        // AppFolio returns GL accounts in format "6210 - Water" or just "6210"
+        // Extract just the numeric prefix
+        if (preg_match('/^(\d+)/', (string) $glAccount, $matches)) {
+            return $matches[1];
+        }
+
+        return (string) $glAccount;
+    }
+
+    /**
      * Parse an amount string from AppFolio API response.
      *
      * Handles amounts that may be strings with currency symbols or commas.
@@ -984,6 +1086,29 @@ class IngestionService
         }
 
         return null;
+    }
+
+    /**
+     * Parse a datetime string from AppFolio API response.
+     *
+     * Similar to parseDate but semantically for timestamps.
+     */
+    private function parseDateTime(?string $dateTimeString): ?\Carbon\Carbon
+    {
+        if (empty($dateTimeString)) {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::parse($dateTimeString);
+        } catch (\Exception $e) {
+            Log::warning('Failed to parse datetime', [
+                'datetime_string' => $dateTimeString,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     /**
@@ -1070,19 +1195,26 @@ class IngestionService
     }
 
     /**
-     * Process collected expense data to create utility expense records.
+     * Process bill details to create utility expense records.
+     *
+     * Reads from bill_details table and creates utility_expenses
+     * for bills matching configured GL accounts.
      */
     private function processUtilityExpenses(): void
     {
-        if (empty($this->expenseData)) {
+        // Check if there are bill details from this sync run
+        $billDetailCount = BillDetail::where('sync_run_id', $this->syncRun->id)->count();
+
+        if ($billDetailCount === 0) {
             return;
         }
 
         try {
-            $stats = $this->utilityExpenseService->processExpenses($this->expenseData);
+            $stats = $this->utilityExpenseService->processFromBillDetails($this->syncRun->id);
 
             Log::info('Utility expenses processed during sync', [
                 'sync_run_id' => $this->syncRun->id,
+                'bill_details_processed' => $billDetailCount,
                 'created' => $stats['created'],
                 'updated' => $stats['updated'],
                 'skipped' => $stats['skipped'],
