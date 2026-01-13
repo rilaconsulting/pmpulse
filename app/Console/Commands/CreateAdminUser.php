@@ -57,14 +57,14 @@ class CreateAdminUser extends Command
             return Command::FAILURE;
         }
 
-        // Get admin role
-        $adminRole = Role::where('name', Role::ADMIN)->first();
-
-        if (! $adminRole) {
-            $this->error('Admin role not found. Please run migrations and seeders first.');
-
-            return Command::FAILURE;
-        }
+        // Get or create admin role
+        $adminRole = Role::firstOrCreate(
+            ['name' => Role::ADMIN],
+            [
+                'description' => 'Full system access',
+                'permissions' => [],
+            ]
+        );
 
         // Prompt for password if not provided
         if (! $password) {
