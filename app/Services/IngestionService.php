@@ -367,14 +367,14 @@ class IngestionService
             ->all();
 
         $unitExternalIds = collect($items)
-            ->map(fn ($item) => isset($item['unit_id']) ? (string) $item['unit_id'] : null)
+            ->map(fn ($item) => (string) ($item['unit_id'] ?? null))
             ->filter()
             ->unique()
             ->values()
             ->all();
 
         $vendorExternalIds = collect($items)
-            ->map(fn ($item) => isset($item['vendor_id']) ? (string) $item['vendor_id'] : null)
+            ->map(fn ($item) => (string) ($item['vendor_id'] ?? null))
             ->filter()
             ->unique()
             ->values()
