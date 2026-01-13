@@ -134,13 +134,21 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                             Manage vendors and track insurance compliance
                         </p>
                     </div>
-                    <Link
-                        href="/vendors/compliance"
-                        className="btn-primary flex items-center"
-                    >
-                        <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
-                        Compliance Report
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        <Link
+                            href="/vendors/compare"
+                            className="btn-secondary flex items-center"
+                        >
+                            Compare Vendors
+                        </Link>
+                        <Link
+                            href="/vendors/compliance"
+                            className="btn-primary flex items-center"
+                        >
+                            <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
+                            Compliance Report
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Stats Cards */}
@@ -317,12 +325,12 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                                     vendors.data.map((vendor) => (
                                         <tr key={vendor.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center">
+                                                <Link href={`/vendors/${vendor.id}`} className="flex items-center group">
                                                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                                                         <WrenchScrewdriverIcon className="w-5 h-5 text-blue-600" />
                                                     </div>
                                                     <div className="ml-4">
-                                                        <div className="text-sm font-medium text-gray-900">
+                                                        <div className="text-sm font-medium text-gray-900 group-hover:text-blue-600">
                                                             {vendor.company_name}
                                                             {vendor.duplicate_vendors_count > 0 && (
                                                                 <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
@@ -337,7 +345,7 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                                                             </div>
                                                         )}
                                                     </div>
-                                                </div>
+                                                </Link>
                                             </td>
                                             <td className="px-6 py-4">
                                                 {vendor.vendor_trades ? (
