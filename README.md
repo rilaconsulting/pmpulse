@@ -185,6 +185,9 @@ The following tasks run automatically:
 ### Console Commands
 
 ```bash
+# Create an admin user (for first-time setup)
+php artisan user:create-admin "Admin Name" admin@company.com
+
 # Run a sync manually
 php artisan appfolio:sync --mode=incremental
 php artisan appfolio:sync --mode=full
@@ -258,6 +261,23 @@ MAIL_FROM_ADDRESS=noreply@yourdomain.com
 APPFOLIO_CLIENT_ID=<client-id>
 APPFOLIO_CLIENT_SECRET=<client-secret>
 ```
+
+### First-Time Setup
+
+After deploying to a new environment, create an initial admin user:
+
+```bash
+# Via Laravel Cloud console or SSH
+php artisan user:create-admin "Admin Name" admin@company.com
+```
+
+The command will prompt for a password securely. You can also pass it inline (not recommended for production):
+
+```bash
+php artisan user:create-admin "Admin Name" admin@company.com --password=secretpassword
+```
+
+Once logged in, configure Google SSO credentials in Admin → Authentication to enable Google login for other users.
 
 For detailed deployment documentation, see [CLAUDE.md](CLAUDE.md).
 
