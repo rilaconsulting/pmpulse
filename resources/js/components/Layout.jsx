@@ -5,6 +5,7 @@ import {
     BoltIcon,
     Cog6ToothIcon,
     ArrowRightOnRectangleIcon,
+    WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import PropertySearch from './PropertySearch';
 
@@ -17,6 +18,7 @@ export default function Layout({ children }) {
         { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
         { name: 'Properties', href: '/properties', icon: BuildingOfficeIcon },
         { name: 'Utilities', href: '/utilities', icon: BoltIcon },
+        { name: 'Vendors', href: '/vendors', icon: WrenchScrewdriverIcon },
         ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: Cog6ToothIcon }] : []),
     ];
 
