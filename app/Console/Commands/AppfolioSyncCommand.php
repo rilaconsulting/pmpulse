@@ -14,6 +14,7 @@ class AppfolioSyncCommand extends Command
      */
     protected $signature = 'appfolio:sync
                             {--mode=incremental : Sync mode (incremental or full)}
+                            {--days= : Override lookback days for full sync (default: 365)}
                             {--force : Force sync even if another sync is running}';
 
     /**

@@ -470,13 +470,21 @@ class IngestionService
             throw new \InvalidArgumentException('Item is missing an external ID and cannot be processed.');
         }
 
-        RawAppfolioEvent::create([
-            'sync_run_id' => $this->syncRun->id,
-            'resource_type' => $resourceType,
-            'external_id' => $externalId,
-            'payload_json' => $item,
-            'pulled_at' => now(),
-        ]);
+        try {
+            RawAppfolioEvent::create([
+                'sync_run_id' => $this->syncRun->id,
+                'resource_type' => $resourceType,
+                'external_id' => $externalId,
+                'payload_json' => $item,
+                'pulled_at' => now(),
+            ]);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            // Silently skip duplicate records (common for expenses with composite keys)
+            Log::debug('Skipping duplicate raw event', [
+                'resource_type' => $resourceType,
+                'external_id' => $externalId,
+            ]);
+        }
     }
 
     /**
@@ -493,12 +501,16 @@ class IngestionService
      */
     private function extractExternalId(string $resourceType, array $item): ?string
     {
+        // Expenses don't have a unique ID in AppFolio - generate a composite key
+        if ($resourceType === 'expenses') {
+            return $this->generateExpenseExternalId($item);
+        }
+
         $idField = match ($resourceType) {
             'properties' => 'property_id',
             'units' => 'unit_id',
             'vendors' => 'vendor_id',
             'work_orders' => 'work_order_id',
-            'expenses' => 'expense_id',
             'rent_roll' => 'lease_id',
             'delinquency' => 'unit_id',
             default => 'id',
@@ -508,6 +520,26 @@ class IngestionService
         $value = $item[$idField] ?? $item['id'] ?? null;
 
         return $value !== null ? (string) $value : null;
+    }
+
+    /**
+     * Generate a composite external ID for expenses.
+     *
+     * AppFolio expense_register doesn't have a unique expense ID,
+     * so we create one from property, date, account, amount, and reference.
+     */
+    private function generateExpenseExternalId(array $expense): string
+    {
+        $propertyId = $expense['property_id'] ?? 'unknown';
+        $unitId = $expense['unit_id'] ?? '';
+        $billDate = $expense['bill_date'] ?? $expense['expense_date'] ?? $expense['date'] ?? 'unknown';
+        $checkDate = $expense['check_date'] ?? '';
+        $dueDate = $expense['due_date'] ?? '';
+        $account = $expense['expense_account_number'] ?? $expense['expense_account'] ?? $expense['gl_account'] ?? 'unknown';
+        $reference = $expense['reference_number'] ?? $expense['check_number'] ?? '';
+
+        // Create a deterministic hash from stable ID fields and dates
+        return md5("{$propertyId}|{$unitId}|{$billDate}|{$checkDate}|{$dueDate}|{$account}|{$reference}");
     }
 
     /**
