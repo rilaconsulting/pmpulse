@@ -11,6 +11,7 @@ use App\Models\Property;
 use App\Models\RawAppfolioEvent;
 use App\Models\SyncRun;
 use App\Models\Unit;
+use App\Models\Vendor;
 use App\Models\WorkOrder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -50,6 +51,9 @@ class IngestionService
     /** @var array<string, int> Cache of person external_id => id mappings */
     private array $personCache = [];
 
+    /** @var array<string, string> Cache of vendor external_id => id mappings */
+    private array $vendorCache = [];
+
     /** @var array Raw expense data to be processed for utility mapping */
     private array $expenseData = [];
 
@@ -72,6 +76,7 @@ class IngestionService
         $this->propertyCache = [];
         $this->unitCache = [];
         $this->personCache = [];
+        $this->vendorCache = [];
         $this->expenseData = [];
 
         $syncRun->markAsRunning();
@@ -258,7 +263,8 @@ class IngestionService
         match ($resourceType) {
             'units' => $this->prefetchProperties($items),
             'leases' => $this->prefetchUnitsAndPeople($items),
-            'ledger_transactions', 'work_orders' => $this->prefetchPropertiesAndUnits($items),
+            'ledger_transactions' => $this->prefetchPropertiesAndUnits($items),
+            'work_orders' => $this->prefetchWorkOrderRelations($items),
             default => null,
         };
     }
@@ -345,6 +351,51 @@ class IngestionService
             Unit::whereIn('external_id', $unitExternalIds)
                 ->pluck('id', 'external_id')
                 ->each(fn ($id, $externalId) => $this->unitCache[$externalId] = $id);
+        }
+    }
+
+    /**
+     * Prefetch properties, units, and vendors for work order processing.
+     */
+    private function prefetchWorkOrderRelations(array $items): void
+    {
+        $propertyExternalIds = collect($items)
+            ->map(fn ($item) => (string) ($item['property_id'] ?? null))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $unitExternalIds = collect($items)
+            ->map(fn ($item) => isset($item['unit_id']) ? (string) $item['unit_id'] : null)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $vendorExternalIds = collect($items)
+            ->map(fn ($item) => isset($item['vendor_id']) ? (string) $item['vendor_id'] : null)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (! empty($propertyExternalIds)) {
+            Property::whereIn('external_id', $propertyExternalIds)
+                ->pluck('id', 'external_id')
+                ->each(fn ($id, $externalId) => $this->propertyCache[$externalId] = $id);
+        }
+
+        if (! empty($unitExternalIds)) {
+            Unit::whereIn('external_id', $unitExternalIds)
+                ->pluck('id', 'external_id')
+                ->each(fn ($id, $externalId) => $this->unitCache[$externalId] = $id);
+        }
+
+        if (! empty($vendorExternalIds)) {
+            Vendor::whereIn('external_id', $vendorExternalIds)
+                ->pluck('id', 'external_id')
+                ->each(fn ($id, $externalId) => $this->vendorCache[$externalId] = $id);
         }
     }
 
@@ -469,6 +520,7 @@ class IngestionService
         return match ($resourceType) {
             'properties' => $this->upsertProperty($item),
             'units' => $this->upsertUnit($item),
+            'vendors' => $this->upsertVendor($item),
             'people' => $this->upsertPerson($item),
             'leases' => $this->upsertLease($item),
             'ledger_transactions' => $this->upsertLedgerTransaction($item),
@@ -587,6 +639,113 @@ class IngestionService
             'not ready', 'not_ready', 'maintenance' => 'not_ready',
             default => 'vacant',
         };
+    }
+
+    /**
+     * Upsert a vendor record.
+     *
+     * Maps AppFolio vendor_directory.json response fields to our schema.
+     *
+     * @return bool True if record was created, false if updated
+     */
+    private function upsertVendor(array $item): bool
+    {
+        // Map AppFolio vendor_directory fields to our schema
+        // Parse date fields - AppFolio returns dates as strings
+        $workersCompExpires = $this->parseDate($item['workers_comp_expires'] ?? null);
+        $liabilityInsExpires = $this->parseDate($item['liability_ins_expires'] ?? null);
+        $autoInsExpires = $this->parseDate($item['auto_ins_expires'] ?? null);
+        $stateLicExpires = $this->parseDate($item['state_lic_expires'] ?? null);
+
+        $data = [
+            'company_name' => $item['company_name'] ?? $item['name'] ?? 'Unknown Vendor',
+            'contact_name' => $item['name'] ?? $item['contact_name'] ?? null,
+            'email' => $item['email'] ?? $item['primary_email'] ?? null,
+            'phone' => $item['phone'] ?? $item['primary_phone'] ?? null,
+            'address_street' => $item['address'] ?? $item['street'] ?? null,
+            'address_city' => $item['city'] ?? null,
+            'address_state' => $item['state'] ?? null,
+            'address_zip' => $item['zip'] ?? $item['postal_code'] ?? null,
+            'vendor_type' => $item['vendor_type'] ?? null,
+            'vendor_trades' => $item['vendor_trades'] ?? null,
+            'workers_comp_expires' => $workersCompExpires,
+            'liability_ins_expires' => $liabilityInsExpires,
+            'auto_ins_expires' => $autoInsExpires,
+            'state_lic_expires' => $stateLicExpires,
+            // do_not_use_for_work_order is a boolean or "Yes"/"No" string
+            'do_not_use' => $this->parseBoolean($item['do_not_use_for_work_order'] ?? $item['do_not_use'] ?? false),
+            'is_active' => ($item['visibility'] ?? 'Active') === 'Active',
+        ];
+
+        $externalId = (string) ($item['vendor_id'] ?? $item['id']);
+
+        $vendor = Vendor::updateOrCreate(
+            ['external_id' => $externalId],
+            $data
+        );
+
+        // Cache the vendor ID for later use (work order linking)
+        $this->vendorCache[$externalId] = $vendor->id;
+
+        return $vendor->wasRecentlyCreated;
+    }
+
+    /**
+     * Parse a date string from AppFolio API response.
+     */
+    private function parseDate(?string $dateString): ?\Carbon\Carbon
+    {
+        if (empty($dateString)) {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::parse($dateString);
+        } catch (\Exception $e) {
+            Log::warning('Failed to parse date', [
+                'date_string' => $dateString,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Parse a boolean value from AppFolio API response.
+     *
+     * Handles "Yes"/"No" strings as well as actual booleans.
+     */
+    private function parseBoolean(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            return strtolower($value) === 'yes' || strtolower($value) === 'true' || $value === '1';
+        }
+
+        return (bool) $value;
+    }
+
+    /**
+     * Look up a vendor ID from cache or database.
+     */
+    private function lookupVendorId(string $externalId): ?string
+    {
+        if (isset($this->vendorCache[$externalId])) {
+            return $this->vendorCache[$externalId];
+        }
+
+        $vendor = Vendor::where('external_id', $externalId)->first();
+        if ($vendor) {
+            $this->vendorCache[$externalId] = $vendor->id;
+
+            return $vendor->id;
+        }
+
+        return null;
     }
 
     /**
@@ -764,6 +923,10 @@ class IngestionService
         $unitExternalId = $item['unit_id'] ? (string) $item['unit_id'] : null;
         $unitId = $unitExternalId ? $this->lookupUnitId($unitExternalId) : null;
 
+        // Look up vendor using cache - vendor_id in AppFolio is an external ID
+        $vendorExternalId = isset($item['vendor_id']) ? (string) $item['vendor_id'] : null;
+        $vendorId = $vendorExternalId ? $this->lookupVendorId($vendorExternalId) : null;
+
         // Map AppFolio fields to our schema
         // created_at = when the work order was created
         // completed_on = when the work was completed
@@ -771,12 +934,21 @@ class IngestionService
         $data = [
             'property_id' => $propertyId,
             'unit_id' => $unitId,
+            'vendor_id' => $vendorId,
+            'vendor_name' => $item['vendor_name'] ?? $item['vendor'] ?? null,
             'opened_at' => $item['created_at'] ?? now(),
             'closed_at' => $item['completed_on'] ?? $item['work_completed_on'] ?? null,
             'status' => $this->mapWorkOrderStatus($item['status'] ?? 'open'),
             'priority' => $this->mapWorkOrderPriority($item['priority'] ?? 'normal'),
             'category' => $item['work_order_type'] ?? $item['work_order_issue'] ?? null,
             'description' => $item['job_description'] ?? $item['service_request_description'] ?? $item['instructions'] ?? null,
+            // Cost fields
+            'amount' => $this->parseAmount($item['amount'] ?? null),
+            'vendor_bill_amount' => $this->parseAmount($item['vendor_bill_amount'] ?? null),
+            'estimate_amount' => $this->parseAmount($item['estimate_amount'] ?? $item['estimate'] ?? null),
+            // Additional metadata
+            'vendor_trade' => $item['vendor_trade'] ?? null,
+            'work_order_type' => $item['work_order_type'] ?? null,
         ];
 
         $externalId = (string) ($item['work_order_id'] ?? $item['id']);
@@ -787,6 +959,31 @@ class IngestionService
         );
 
         return $workOrder->wasRecentlyCreated;
+    }
+
+    /**
+     * Parse an amount string from AppFolio API response.
+     *
+     * Handles amounts that may be strings with currency symbols or commas.
+     */
+    private function parseAmount(mixed $amount): ?float
+    {
+        if ($amount === null || $amount === '') {
+            return null;
+        }
+
+        if (is_numeric($amount)) {
+            return (float) $amount;
+        }
+
+        if (is_string($amount)) {
+            // Remove currency symbols, commas, and whitespace
+            $cleaned = preg_replace('/[^0-9.\-]/', '', $amount);
+
+            return is_numeric($cleaned) ? (float) $cleaned : null;
+        }
+
+        return null;
     }
 
     /**
