@@ -111,4 +111,25 @@ class VendorFactory extends Factory
             'external_id' => $externalId,
         ]);
     }
+
+    /**
+     * Create a vendor as a duplicate of another vendor.
+     */
+    public function duplicateOf(Vendor $canonicalVendor): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'canonical_vendor_id' => $canonicalVendor->id,
+            'company_name' => $canonicalVendor->company_name, // Same company
+        ]);
+    }
+
+    /**
+     * Create a vendor with a specific canonical vendor ID.
+     */
+    public function withCanonicalVendorId(string $canonicalVendorId): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'canonical_vendor_id' => $canonicalVendorId,
+        ]);
+    }
 }

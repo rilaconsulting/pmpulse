@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Vendor extends Model
@@ -16,6 +17,7 @@ class Vendor extends Model
 
     protected $fillable = [
         'external_id',
+        'canonical_vendor_id',
         'company_name',
         'contact_name',
         'email',
@@ -52,6 +54,38 @@ class Vendor extends Model
     public function workOrders(): HasMany
     {
         return $this->hasMany(WorkOrder::class);
+    }
+
+    /**
+     * Get the canonical vendor this vendor is a duplicate of.
+     */
+    public function canonicalVendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class, 'canonical_vendor_id');
+    }
+
+    /**
+     * Get all duplicate vendors that point to this vendor as canonical.
+     */
+    public function duplicateVendors(): HasMany
+    {
+        return $this->hasMany(Vendor::class, 'canonical_vendor_id');
+    }
+
+    /**
+     * Scope to get only canonical vendors (not duplicates).
+     */
+    public function scopeCanonical(Builder $query): Builder
+    {
+        return $query->whereNull('canonical_vendor_id');
+    }
+
+    /**
+     * Scope to get only duplicate vendors.
+     */
+    public function scopeDuplicates(Builder $query): Builder
+    {
+        return $query->whereNotNull('canonical_vendor_id');
     }
 
     /**
@@ -119,5 +153,97 @@ class Vendor extends Model
         ]);
 
         return ! empty($parts) ? implode(', ', $parts) : null;
+    }
+
+    /**
+     * Check if this vendor is canonical (not a duplicate).
+     */
+    public function isCanonical(): bool
+    {
+        return $this->canonical_vendor_id === null;
+    }
+
+    /**
+     * Check if this vendor is a duplicate of another vendor.
+     */
+    public function isDuplicate(): bool
+    {
+        return $this->canonical_vendor_id !== null;
+    }
+
+    /**
+     * Get the canonical vendor for this vendor.
+     * Returns self if this is already a canonical vendor.
+     */
+    public function getCanonicalVendor(): Vendor
+    {
+        return $this->canonicalVendor ?? $this;
+    }
+
+    /**
+     * Get the effective vendor ID for grouping/reporting.
+     * Returns the canonical vendor's ID if this is a duplicate, otherwise returns own ID.
+     */
+    public function getEffectiveVendorId(): string
+    {
+        return $this->canonical_vendor_id ?? $this->id;
+    }
+
+    /**
+     * Get all vendor IDs in the same canonical group (for queries).
+     * Includes this vendor and all its duplicates (if canonical),
+     * or the canonical vendor and all its duplicates (if duplicate).
+     */
+    public function getAllGroupVendorIds(): array
+    {
+        $canonical = $this->getCanonicalVendor();
+
+        $ids = [$canonical->id];
+
+        foreach ($canonical->duplicateVendors as $duplicate) {
+            $ids[] = $duplicate->id;
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Get all work orders for this vendor's canonical group.
+     * Combines work orders from the canonical vendor and all duplicates.
+     */
+    public function getGroupWorkOrders(): HasMany
+    {
+        return $this->getCanonicalVendor()
+            ->workOrders()
+            ->orWhereIn('vendor_id', $this->getAllGroupVendorIds());
+    }
+
+    /**
+     * Set this vendor as a duplicate of another vendor.
+     */
+    public function markAsDuplicateOf(Vendor $canonicalVendor): bool
+    {
+        if ($canonicalVendor->isDuplicate()) {
+            // The target is also a duplicate, use its canonical instead
+            $canonicalVendor = $canonicalVendor->getCanonicalVendor();
+        }
+
+        if ($canonicalVendor->id === $this->id) {
+            return false; // Can't mark as duplicate of self
+        }
+
+        $this->canonical_vendor_id = $canonicalVendor->id;
+
+        return $this->save();
+    }
+
+    /**
+     * Remove this vendor from its canonical group (make it canonical).
+     */
+    public function markAsCanonical(): bool
+    {
+        $this->canonical_vendor_id = null;
+
+        return $this->save();
     }
 }
