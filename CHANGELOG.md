@@ -7,23 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
 ### Added
-New features
-
-### Changed
-Changes in existing functionality
-
-### Fixed
-Bug fixes
-
-### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
--->
+- Vendor directory sync from AppFolio with contact info, trades, and insurance expiration tracking
+- Work orders now linked to vendors with cost tracking (amount, vendor bill, estimate)
+- Vendor deduplication support allowing multiple AppFolio vendor records to be linked as the same entity
+- Canonical vendor grouping for accurate spend reporting across duplicate vendor records
 
 ---
 

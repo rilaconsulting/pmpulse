@@ -17,12 +17,19 @@ class WorkOrder extends Model
         'external_id',
         'property_id',
         'unit_id',
+        'vendor_id',
+        'vendor_name',
         'opened_at',
         'closed_at',
         'status',
         'priority',
         'category',
         'description',
+        'amount',
+        'vendor_bill_amount',
+        'estimate_amount',
+        'vendor_trade',
+        'work_order_type',
     ];
 
     protected function casts(): array
@@ -30,6 +37,9 @@ class WorkOrder extends Model
         return [
             'opened_at' => 'datetime',
             'closed_at' => 'datetime',
+            'amount' => 'decimal:2',
+            'vendor_bill_amount' => 'decimal:2',
+            'estimate_amount' => 'decimal:2',
         ];
     }
 
@@ -47,6 +57,14 @@ class WorkOrder extends Model
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    /**
+     * Get the vendor assigned to this work order.
+     */
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class);
     }
 
     /**

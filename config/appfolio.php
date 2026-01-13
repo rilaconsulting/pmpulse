@@ -116,6 +116,7 @@ return [
     'resources' => [
         'properties',
         'units',
+        'vendors',
         'work_orders',
         'expenses',
     ],
