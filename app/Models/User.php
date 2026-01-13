@@ -39,6 +39,8 @@ class User extends Authenticatable
         'force_sso',
         'role_id',
         'created_by',
+        'api_token',
+        'email_verified_at',
     ];
 
     /**
