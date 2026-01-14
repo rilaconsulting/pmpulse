@@ -57,8 +57,10 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
         try {
             const response = await fetch(`/api/vendors/${selectedVendor.id}/mark-duplicate`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
                 },
                 body: JSON.stringify({ canonical_vendor_id: selectedCanonical }),
@@ -86,8 +88,10 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
         try {
             const response = await fetch(`/api/vendors/${vendorId}/mark-canonical`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
                 },
             });
@@ -110,7 +114,9 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
         setLoadingPotential(true);
         try {
             const response = await fetch('/api/vendors/potential-duplicates?threshold=0.5&limit=20', {
+                credentials: 'include',
                 headers: {
+                    'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
                 },
             });

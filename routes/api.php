@@ -46,7 +46,10 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('api.users.roles');
     Route::apiResource('users', UserController::class);
 
-    // Vendor deduplication (admin only)
+});
+
+// Vendor deduplication API (uses web session auth for same-origin requests)
+Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/vendors/potential-duplicates', [VendorApiController::class, 'potentialDuplicates'])
         ->name('api.vendors.potential-duplicates');
     Route::post('/vendors/{vendor}/mark-duplicate', [VendorApiController::class, 'markDuplicate'])
