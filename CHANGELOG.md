@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Vendor insurance compliance report with categorized views for expired, expiring soon, and compliant vendors
 - Workers comp tracking section in compliance report for focused insurance monitoring
 - Do Not Use vendor list in compliance report highlighting vendors flagged as unusable
+- Vendor deduplication management page for identifying and linking duplicate vendor records
+- Potential duplicate finder using fuzzy matching on vendor names, phones, and emails
+- Expandable duplicate groups on vendor list showing all linked vendor records
+- Canonical vendor indicators and grouping filter on vendor list page
+- Quick link/unlink actions for managing vendor duplicate relationships
 
 ### Changed
 - Replaced expense register sync with bill details endpoint for better data integrity
