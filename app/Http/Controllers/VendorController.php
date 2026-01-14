@@ -446,6 +446,59 @@ class VendorController extends Controller
     }
 
     /**
+     * Display vendor deduplication management page.
+     */
+    public function deduplication(): Response
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        // Get canonical vendors with their duplicates
+        $canonicalGroups = Vendor::query()
+            ->canonical()
+            ->has('duplicateVendors')
+            ->with(['duplicateVendors' => fn ($q) => $q->orderBy('company_name')])
+            ->withCount('duplicateVendors')
+            ->orderBy('company_name')
+            ->get()
+            ->map(fn ($vendor) => [
+                'id' => $vendor->id,
+                'company_name' => $vendor->company_name,
+                'contact_name' => $vendor->contact_name,
+                'email' => $vendor->email,
+                'phone' => $vendor->phone,
+                'vendor_trades' => $vendor->vendor_trades,
+                'duplicate_count' => $vendor->duplicate_vendors_count,
+                'duplicates' => $vendor->duplicateVendors->map(fn ($dup) => [
+                    'id' => $dup->id,
+                    'company_name' => $dup->company_name,
+                    'contact_name' => $dup->contact_name,
+                    'email' => $dup->email,
+                    'phone' => $dup->phone,
+                ]),
+            ]);
+
+        // Get all canonical vendors for linking dropdown
+        $allCanonicalVendors = Vendor::query()
+            ->canonical()
+            ->orderBy('company_name')
+            ->get(['id', 'company_name', 'contact_name', 'vendor_trades']);
+
+        // Stats
+        $stats = [
+            'total_vendors' => Vendor::count(),
+            'canonical_vendors' => Vendor::canonical()->count(),
+            'duplicate_vendors' => Vendor::duplicates()->count(),
+            'canonical_with_duplicates' => $canonicalGroups->count(),
+        ];
+
+        return Inertia::render('Vendors/Deduplication', [
+            'canonicalGroups' => $canonicalGroups,
+            'allCanonicalVendors' => $allCanonicalVendors,
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
      * Get spend breakdown by property for a vendor.
      */
     private function getSpendByProperty(Vendor $vendor, array $period): array
