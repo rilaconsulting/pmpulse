@@ -208,13 +208,22 @@ class VendorApiController extends Controller
 
         // Email match (exact or domain)
         if ($vendor1->email && $vendor2->email) {
-            if (strtolower($vendor1->email) === strtolower($vendor2->email)) {
+            $email1 = strtolower($vendor1->email);
+            $email2 = strtolower($vendor2->email);
+
+            if ($email1 === $email2) {
                 $scores[] = 0.15; // 15% weight for exact match
             } else {
-                $domain1 = substr(strrchr(strtolower($vendor1->email), '@'), 1);
-                $domain2 = substr(strrchr(strtolower($vendor2->email), '@'), 1);
-                if ($domain1 === $domain2 && ! in_array($domain1, ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'])) {
-                    $scores[] = 0.05; // 5% weight for same company domain
+                $pos1 = strrpos($email1, '@');
+                $pos2 = strrpos($email2, '@');
+
+                if ($pos1 !== false && $pos2 !== false) {
+                    $domain1 = substr($email1, $pos1 + 1);
+                    $domain2 = substr($email2, $pos2 + 1);
+
+                    if ($domain1 !== '' && $domain1 === $domain2 && ! in_array($domain1, ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'])) {
+                        $scores[] = 0.05; // 5% weight for same company domain
+                    }
                 }
             }
         }

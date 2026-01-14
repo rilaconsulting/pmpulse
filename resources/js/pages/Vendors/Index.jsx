@@ -307,7 +307,7 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                                 >
                                     <option value="canonical_only">Canonical Only</option>
                                     <option value="all">Show All</option>
-                                    <option value="unlinked_only">Unlinked Only</option>
+                                    <option value="duplicates_only">Duplicates Only</option>
                                 </select>
                             </div>
 

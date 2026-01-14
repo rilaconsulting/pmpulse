@@ -29,10 +29,10 @@ class VendorController extends Controller
             ->withCount(['workOrders', 'duplicateVendors']);
 
         // Apply canonical filtering
-        match ($canonicalFilter) {
+        $query = match ($canonicalFilter) {
             'canonical_only' => $query->canonical(),
-            'all' => null, // No filter
-            'unlinked_only' => $query->canonical()->has('duplicateVendors', '=', 0),
+            'all' => $query, // No filter
+            'duplicates_only' => $query->duplicates(),
             default => $query->canonical(),
         };
 

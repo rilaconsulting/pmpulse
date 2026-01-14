@@ -233,8 +233,8 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                     No potential duplicates found
                                 </div>
                             ) : (
-                                potentialDuplicates.map((pair, index) => (
-                                    <div key={index} className="p-4 hover:bg-gray-50">
+                                potentialDuplicates.map((pair) => (
+                                    <div key={`${pair.vendor1.id}-${pair.vendor2.id}`} className="p-4 hover:bg-gray-50">
                                         <div className="flex items-start justify-between">
                                             <div className="flex-1 grid grid-cols-2 gap-4">
                                                 <div>
@@ -275,15 +275,17 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                                         type="button"
                                                         onClick={() => openLinkModal(pair.vendor2)}
                                                         className="text-sm text-blue-600 hover:text-blue-700"
+                                                        title={`Mark ${pair.vendor2.company_name} as duplicate of ${pair.vendor1.company_name}`}
                                                     >
-                                                        Link to first
+                                                        Link to {pair.vendor1.company_name?.substring(0, 15)}{pair.vendor1.company_name?.length > 15 ? '...' : ''}
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => openLinkModal(pair.vendor1)}
                                                         className="text-sm text-blue-600 hover:text-blue-700"
+                                                        title={`Mark ${pair.vendor1.company_name} as duplicate of ${pair.vendor2.company_name}`}
                                                     >
-                                                        Link to second
+                                                        Link to {pair.vendor2.company_name?.substring(0, 15)}{pair.vendor2.company_name?.length > 15 ? '...' : ''}
                                                     </button>
                                                 </div>
                                             </div>
@@ -406,7 +408,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                 <div className="fixed inset-0 z-50 overflow-y-auto">
                     <div className="flex min-h-full items-center justify-center p-4">
                         <div className="fixed inset-0 bg-black/50" onClick={closeLinkModal} />
-                        <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full">
+                        <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
                             <div className="p-6">
                                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                                     Link Vendor as Duplicate
