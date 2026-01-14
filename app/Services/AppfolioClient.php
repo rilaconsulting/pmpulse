@@ -412,19 +412,36 @@ class AppfolioClient
      * @param  array  $params  Request parameters:
      *                         - paginate_results: bool (default true)
      *                         - per_page: int (default 100, max 500)
-     *                         - from_date: string (YYYY-MM-DD, required for date range)
-     *                         - to_date: string (YYYY-MM-DD, required for date range)
+     *                         - status_date_range_from: string (YYYY-MM-DD)
+     *                         - status_date_range_to: string (YYYY-MM-DD)
      *                         - property_id: array (optional)
-     *                         - status: string (optional: open, completed, cancelled)
+     *                         - work_order_statuses: array (optional, defaults to ALL statuses)
      */
     public function getWorkOrderReport(array $params = []): array
     {
         $defaults = [
             'paginate_results' => true,
             'per_page' => config('appfolio.sync.batch_size', 100),
+            // Include ALL work order statuses by default (AppFolio excludes completed/canceled)
+            // 0=New, 1=Estimate Requested, 2=Estimated, 3=Scheduled, 4=Completed,
+            // 5=Canceled, 6=Waiting, 7=Completed No Need To Bill, 8=Work Done,
+            // 9=Assigned, 12=Ready to Bill
+            'work_order_statuses' => ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '12'],
         ];
 
-        return $this->request('POST', self::REPORT_ENDPOINTS['work_order'], array_merge($defaults, $params)) ?? [];
+        $merged = array_merge($defaults, $params);
+
+        // Map our param names to AppFolio API param names
+        if (isset($merged['from_date'])) {
+            $merged['status_date_range_from'] = $merged['from_date'];
+            unset($merged['from_date']);
+        }
+        if (isset($merged['to_date'])) {
+            $merged['status_date_range_to'] = $merged['to_date'];
+            unset($merged['to_date']);
+        }
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['work_order'], $merged) ?? [];
     }
 
     /**
