@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
 import Layout from '../../components/Layout';
 import {
@@ -18,6 +18,8 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filters }) {
+    const { auth } = usePage().props;
+    const isAdmin = auth.user?.role?.name === 'admin';
     const [search, setSearch] = useState(filters.search || '');
     const [expandedVendors, setExpandedVendors] = useState(new Set());
 
@@ -151,6 +153,15 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
+                        {isAdmin && (
+                            <Link
+                                href="/vendors/deduplication"
+                                className="btn-secondary flex items-center"
+                            >
+                                <LinkIcon className="w-4 h-4 mr-2" />
+                                Deduplication
+                            </Link>
+                        )}
                         <Link
                             href="/vendors/compare"
                             className="btn-secondary flex items-center"
