@@ -479,9 +479,9 @@ class UtilityExpenseService
         }
 
         // Calculate total amount (paid + unpaid)
-        $amount = ($billDetail->paid ?? 0) + ($billDetail->unpaid ?? 0);
+        $amount = (float) (($billDetail->paid ?? 0) + ($billDetail->unpaid ?? 0));
 
-        if ($amount == 0) {
+        if ($amount === 0.0) {
             $this->skipped++;
 
             return;

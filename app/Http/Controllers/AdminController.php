@@ -12,10 +12,12 @@ use App\Http\Requests\SaveConnectionRequest;
 use App\Http\Requests\SaveSyncConfigurationRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Jobs\SyncAppfolioResourceJob;
+use App\Models\BillDetail;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\SyncRun;
 use App\Models\User;
+use App\Models\UtilityExpense;
 use App\Services\AppfolioClient;
 use App\Services\BusinessHoursService;
 use App\Services\UserService;
@@ -331,8 +333,8 @@ class AdminController extends Controller
             'successful_runs' => SyncRun::where('status', 'completed')->where('errors_count', 0)->count(),
             'runs_with_errors' => SyncRun::where('errors_count', '>', 0)->count(),
             'failed_runs' => SyncRun::where('status', 'failed')->count(),
-            'utility_expenses_count' => \App\Models\UtilityExpense::count(),
-            'bill_details_count' => \App\Models\BillDetail::count(),
+            'utility_expenses_count' => UtilityExpense::count(),
+            'bill_details_count' => BillDetail::count(),
         ];
 
         // Get sync configuration
@@ -423,7 +425,7 @@ class AdminController extends Controller
         abort_unless(auth()->user()?->isAdmin(), 403);
 
         // Truncate utility_expenses table
-        \App\Models\UtilityExpense::truncate();
+        UtilityExpense::truncate();
 
         // Reprocess from bill_details
         $stats = $utilityExpenseService->processFromBillDetails(null);
