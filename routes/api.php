@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\DashboardApiController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\SyncApiController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\VendorApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -44,4 +45,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/roles', [UserController::class, 'roles'])
         ->name('api.users.roles');
     Route::apiResource('users', UserController::class);
+
+    // Vendor deduplication (admin only)
+    Route::get('/vendors/potential-duplicates', [VendorApiController::class, 'potentialDuplicates'])
+        ->name('api.vendors.potential-duplicates');
+    Route::post('/vendors/{vendor}/mark-duplicate', [VendorApiController::class, 'markDuplicate'])
+        ->name('api.vendors.mark-duplicate');
+    Route::post('/vendors/{vendor}/mark-canonical', [VendorApiController::class, 'markCanonical'])
+        ->name('api.vendors.mark-canonical');
+    Route::get('/vendors/{vendor}/duplicates', [VendorApiController::class, 'duplicates'])
+        ->name('api.vendors.duplicates');
 });
