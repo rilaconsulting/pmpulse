@@ -70,6 +70,8 @@ Route::middleware('auth')->group(function () {
         ->name('vendors.compliance');
     Route::get('/vendors/compare', [VendorController::class, 'compare'])
         ->name('vendors.compare');
+    Route::get('/vendors/deduplication', [VendorController::class, 'deduplication'])
+        ->name('vendors.deduplication');
     Route::get('/vendors/{vendor}', [VendorController::class, 'show'])
         ->name('vendors.show');
 

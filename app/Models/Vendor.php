@@ -203,13 +203,12 @@ class Vendor extends Model
     {
         $canonical = $this->getCanonicalVendor();
 
-        $ids = [$canonical->id];
+        // Use a query instead of relationship to avoid lazy loading violation
+        $duplicateIds = self::where('canonical_vendor_id', $canonical->id)
+            ->pluck('id')
+            ->all();
 
-        foreach ($canonical->duplicateVendors as $duplicate) {
-            $ids[] = $duplicate->id;
-        }
-
-        return $ids;
+        return array_merge([$canonical->id], $duplicateIds);
     }
 
     /**

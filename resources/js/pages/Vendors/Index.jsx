@@ -1,5 +1,5 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import React, { useState } from 'react';
 import Layout from '../../components/Layout';
 import {
     MagnifyingGlassIcon,
@@ -13,10 +13,27 @@ import {
     CheckCircleIcon,
     ClockIcon,
     XCircleIcon,
+    LinkIcon,
+    UsersIcon,
 } from '@heroicons/react/24/outline';
 
 export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filters }) {
+    const { auth } = usePage().props;
+    const isAdmin = auth.user?.role?.name === 'admin';
     const [search, setSearch] = useState(filters.search || '');
+    const [expandedVendors, setExpandedVendors] = useState(new Set());
+
+    const toggleExpanded = (vendorId) => {
+        setExpandedVendors((prev) => {
+            const next = new Set(prev);
+            if (next.has(vendorId)) {
+                next.delete(vendorId);
+            } else {
+                next.add(vendorId);
+            }
+            return next;
+        });
+    };
 
     const handleFilter = (key, value) => {
         router.get('/vendors', {
@@ -58,7 +75,8 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
     const hasActiveFilters = Boolean(filters.search) ||
         Boolean(filters.trade) ||
         Boolean(filters.insurance_status) ||
-        (filters.is_active !== '' && filters.is_active !== null && filters.is_active !== undefined);
+        (filters.is_active !== '' && filters.is_active !== null && filters.is_active !== undefined) ||
+        (filters.canonical_filter && filters.canonical_filter !== 'canonical_only');
 
     const formatCurrency = (amount) => {
         if (amount === null || amount === undefined) return '-';
@@ -135,6 +153,15 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
+                        {isAdmin && (
+                            <Link
+                                href="/vendors/deduplication"
+                                className="btn-secondary flex items-center"
+                            >
+                                <LinkIcon className="w-4 h-4 mr-2" />
+                                Deduplication
+                            </Link>
+                        )}
                         <Link
                             href="/vendors/compare"
                             className="btn-secondary flex items-center"
@@ -267,6 +294,23 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                                 </select>
                             </div>
 
+                            {/* Canonical Filter */}
+                            <div>
+                                <label htmlFor="canonical_filter" className="label">
+                                    Grouping
+                                </label>
+                                <select
+                                    id="canonical_filter"
+                                    className="input"
+                                    value={filters.canonical_filter || 'canonical_only'}
+                                    onChange={(e) => handleFilter('canonical_filter', e.target.value)}
+                                >
+                                    <option value="canonical_only">Canonical Only</option>
+                                    <option value="all">Show All</option>
+                                    <option value="duplicates_only">Duplicates Only</option>
+                                </select>
+                            </div>
+
                             {/* Clear Filters */}
                             {hasActiveFilters && (
                                 <button
@@ -322,31 +366,72 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                                         </td>
                                     </tr>
                                 ) : (
-                                    vendors.data.map((vendor) => (
-                                        <tr key={vendor.id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4">
-                                                <Link href={`/vendors/${vendor.id}`} className="flex items-center group">
-                                                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                        <WrenchScrewdriverIcon className="w-5 h-5 text-blue-600" />
-                                                    </div>
-                                                    <div className="ml-4">
-                                                        <div className="text-sm font-medium text-gray-900 group-hover:text-blue-600">
-                                                            {vendor.company_name}
-                                                            {vendor.duplicate_vendors_count > 0 && (
-                                                                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                                                                    +{vendor.duplicate_vendors_count}
-                                                                </span>
+                                    vendors.data.map((vendor) => {
+                                        const hasDuplicates = vendor.duplicate_vendors_count > 0;
+                                        const isExpanded = expandedVendors.has(vendor.id);
+                                        const isDuplicate = vendor.canonical_vendor_id !== null;
+
+                                        return (
+                                            <React.Fragment key={vendor.id}>
+                                                <tr className={`hover:bg-gray-50 ${isDuplicate ? 'bg-gray-50/50' : ''}`}>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center">
+                                                            {/* Expand button for canonical vendors with duplicates */}
+                                                            {hasDuplicates ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleExpanded(vendor.id)}
+                                                                    className="mr-2 p-1 rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                    aria-expanded={isExpanded}
+                                                                    aria-label={isExpanded ? 'Collapse duplicates' : 'Expand duplicates'}
+                                                                >
+                                                                    {isExpanded ? (
+                                                                        <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                                                                    ) : (
+                                                                        <ChevronRightIcon className="w-4 h-4 text-gray-500" />
+                                                                    )}
+                                                                </button>
+                                                            ) : (
+                                                                <div className="w-7" /> // Spacer for alignment
                                                             )}
+                                                            <Link href={`/vendors/${vendor.id}`} className="flex items-center group">
+                                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                                                    isDuplicate ? 'bg-gray-100' : 'bg-blue-100'
+                                                                }`}>
+                                                                    {isDuplicate ? (
+                                                                        <LinkIcon className="w-5 h-5 text-gray-500" />
+                                                                    ) : (
+                                                                        <WrenchScrewdriverIcon className="w-5 h-5 text-blue-600" />
+                                                                    )}
+                                                                </div>
+                                                                <div className="ml-4">
+                                                                    <div className={`text-sm font-medium group-hover:text-blue-600 ${
+                                                                        isDuplicate ? 'text-gray-600' : 'text-gray-900'
+                                                                    }`}>
+                                                                        {vendor.company_name}
+                                                                        {hasDuplicates && (
+                                                                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                                                                                <UsersIcon className="w-3 h-3 mr-0.5" />
+                                                                                +{vendor.duplicate_vendors_count}
+                                                                            </span>
+                                                                        )}
+                                                                        {isDuplicate && (
+                                                                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                                                                                <LinkIcon className="w-3 h-3 mr-0.5" />
+                                                                                Linked
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    {vendor.contact_name && (
+                                                                        <div className="text-xs text-gray-500">
+                                                                            {vendor.contact_name}
+                                                                            {vendor.phone && ` | ${vendor.phone}`}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </Link>
                                                         </div>
-                                                        {vendor.contact_name && (
-                                                            <div className="text-xs text-gray-500">
-                                                                {vendor.contact_name}
-                                                                {vendor.phone && ` | ${vendor.phone}`}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </Link>
-                                            </td>
+                                                    </td>
                                             <td className="px-6 py-4">
                                                 {vendor.vendor_trades ? (
                                                     <div className="flex flex-wrap gap-1">
@@ -396,8 +481,41 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                                                     {vendor.is_active ? 'Active' : 'Inactive'}
                                                 </span>
                                             </td>
-                                        </tr>
-                                    ))
+                                                </tr>
+                                                {/* Expanded duplicates section */}
+                                                {isExpanded && hasDuplicates && vendor.duplicate_vendors && (
+                                                    vendor.duplicate_vendors.map((duplicate) => (
+                                                        <tr key={duplicate.id} className="bg-purple-50/30">
+                                                            <td className="px-6 py-3 pl-20">
+                                                                <Link href={`/vendors/${duplicate.id}`} className="flex items-center group">
+                                                                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                                        <LinkIcon className="w-4 h-4 text-purple-600" />
+                                                                    </div>
+                                                                    <div className="ml-3">
+                                                                        <div className="text-sm text-gray-700 group-hover:text-blue-600">
+                                                                            {duplicate.company_name}
+                                                                            <span className="ml-2 text-xs text-purple-600">
+                                                                                (linked)
+                                                                            </span>
+                                                                        </div>
+                                                                        {duplicate.contact_name && (
+                                                                            <div className="text-xs text-gray-500">
+                                                                                {duplicate.contact_name}
+                                                                                {duplicate.phone && ` | ${duplicate.phone}`}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </Link>
+                                                            </td>
+                                                            <td colSpan="6" className="px-6 py-3 text-xs text-gray-500">
+                                                                Metrics combined with canonical vendor
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
