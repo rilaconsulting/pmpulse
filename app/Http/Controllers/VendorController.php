@@ -21,10 +21,20 @@ class VendorController extends Controller
      */
     public function index(Request $request): Response
     {
+        // Handle canonical filter
+        $canonicalFilter = $request->get('canonical_filter', 'canonical_only');
+
         $query = Vendor::query()
-            ->canonical()
-            ->with(['duplicateVendors']) // Eager load for getAllGroupVendorIds()
+            ->with(['duplicateVendors:id,canonical_vendor_id,company_name,contact_name,phone,email']) // Eager load for getAllGroupVendorIds()
             ->withCount(['workOrders', 'duplicateVendors']);
+
+        // Apply canonical filtering
+        match ($canonicalFilter) {
+            'canonical_only' => $query->canonical(),
+            'all' => null, // No filter
+            'unlinked_only' => $query->canonical()->has('duplicateVendors', '=', 0),
+            default => $query->canonical(),
+        };
 
         // Search by name, contact, or email
         if ($search = $request->get('search')) {
@@ -138,6 +148,7 @@ class VendorController extends Controller
                 'trade' => $request->get('trade', ''),
                 'is_active' => $request->get('is_active', ''),
                 'insurance_status' => $request->get('insurance_status', ''),
+                'canonical_filter' => $canonicalFilter,
                 'sort' => $sortField,
                 'direction' => $sortDirection,
             ],
