@@ -96,19 +96,20 @@ Route::middleware('auth')->group(function () {
         Route::patch('/users/{user}', [AdminController::class, 'usersUpdate'])->name('users.update');
         Route::delete('/users/{user}', [AdminController::class, 'usersDestroy'])->name('users.destroy');
 
-        // Integrations (AppFolio)
+        // Integrations (AppFolio, Google Maps, Google SSO)
         Route::get('/integrations', [AdminController::class, 'integrations'])->name('integrations');
         Route::post('/integrations/connection', [AdminController::class, 'saveConnection'])->name('integrations.connection');
-        Route::post('/integrations/sync', [AdminController::class, 'triggerSync'])->name('integrations.sync');
-        Route::post('/integrations/sync-configuration', [AdminController::class, 'saveSyncConfiguration'])->name('integrations.sync-configuration');
+        Route::post('/integrations/google-maps', [AdminController::class, 'saveGoogleMapsSettings'])->name('integrations.google-maps');
+        Route::post('/integrations/google-sso', [AdminController::class, 'saveGoogleSso'])->name('integrations.google-sso');
 
-        // Authentication (Google SSO)
-        Route::get('/authentication', [AdminController::class, 'authentication'])->name('authentication');
-        Route::post('/authentication', [AdminController::class, 'saveAuthentication'])->name('authentication.save');
+        // Sync Utilities
+        Route::get('/sync', [AdminController::class, 'sync'])->name('sync');
+        Route::post('/sync/trigger', [AdminController::class, 'triggerSyncWithOptions'])->name('sync.trigger');
+        Route::post('/sync/configuration', [AdminController::class, 'saveSyncConfiguration'])->name('sync.configuration');
+        Route::post('/sync/reset-utility-expenses', [AdminController::class, 'resetUtilityExpenses'])->name('sync.reset-utility');
 
-        // Settings
+        // Settings (Feature Flags)
         Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
-        Route::post('/settings/google-maps', [AdminController::class, 'saveGoogleMapsSettings'])->name('settings.google-maps');
 
         // Adjustments Report
         Route::get('/adjustments', [AdjustmentReportController::class, 'index'])->name('adjustments.index');

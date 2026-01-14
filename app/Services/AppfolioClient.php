@@ -412,19 +412,36 @@ class AppfolioClient
      * @param  array  $params  Request parameters:
      *                         - paginate_results: bool (default true)
      *                         - per_page: int (default 100, max 500)
-     *                         - from_date: string (YYYY-MM-DD, required for date range)
-     *                         - to_date: string (YYYY-MM-DD, required for date range)
+     *                         - status_date_range_from: string (YYYY-MM-DD)
+     *                         - status_date_range_to: string (YYYY-MM-DD)
      *                         - property_id: array (optional)
-     *                         - status: string (optional: open, completed, cancelled)
+     *                         - work_order_statuses: array (optional, defaults to ALL statuses)
      */
     public function getWorkOrderReport(array $params = []): array
     {
         $defaults = [
             'paginate_results' => true,
             'per_page' => config('appfolio.sync.batch_size', 100),
+            // Include ALL work order statuses by default (AppFolio excludes completed/canceled)
+            // 0=New, 1=Estimate Requested, 2=Estimated, 3=Scheduled, 4=Completed,
+            // 5=Canceled, 6=Waiting, 7=Completed No Need To Bill, 8=Work Done,
+            // 9=Assigned, 12=Ready to Bill
+            'work_order_statuses' => ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '12'],
         ];
 
-        return $this->request('POST', self::REPORT_ENDPOINTS['work_order'], array_merge($defaults, $params)) ?? [];
+        $merged = array_merge($defaults, $params);
+
+        // Map our param names to AppFolio API param names
+        if (isset($merged['from_date'])) {
+            $merged['status_date_range_from'] = $merged['from_date'];
+            unset($merged['from_date']);
+        }
+        if (isset($merged['to_date'])) {
+            $merged['status_date_range_to'] = $merged['to_date'];
+            unset($merged['to_date']);
+        }
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['work_order'], $merged) ?? [];
     }
 
     /**
@@ -461,6 +478,42 @@ class AppfolioClient
         }
 
         return $this->request('POST', self::REPORT_ENDPOINTS['expense_register'], $merged) ?? [];
+    }
+
+    /**
+     * Fetch bill details from Reports API.
+     *
+     * Returns detailed bill information including unique txn_id and payable_invoice_detail_id,
+     * GL account, vendor, amounts, work order linkage, and payment information.
+     *
+     * @param  array  $params  Request parameters:
+     *                         - paginate_results: bool (default true)
+     *                         - per_page: int (default 100, max 500)
+     *                         - from_date: string (YYYY-MM-DD, required) - mapped to occurred_on_from
+     *                         - to_date: string (YYYY-MM-DD, required) - mapped to occurred_on_to
+     *                         - property_id: array (optional)
+     *                         - vendor_id: array (optional)
+     */
+    public function getBillDetail(array $params = []): array
+    {
+        $defaults = [
+            'paginate_results' => true,
+            'per_page' => config('appfolio.sync.batch_size', 100),
+        ];
+
+        $merged = array_merge($defaults, $params);
+
+        // Map our param names to AppFolio API param names
+        if (isset($merged['from_date'])) {
+            $merged['occurred_on_from'] = $merged['from_date'];
+            unset($merged['from_date']);
+        }
+        if (isset($merged['to_date'])) {
+            $merged['occurred_on_to'] = $merged['to_date'];
+            unset($merged['to_date']);
+        }
+
+        return $this->request('POST', self::REPORT_ENDPOINTS['bill_detail'], $merged) ?? [];
     }
 
     /**
@@ -564,14 +617,31 @@ class AppfolioClient
                     break;
                 }
 
+                // Parse metadata_id and page from the next_page_url
+                // URL format: /api/v2/reports/{report}.json?metadata_id={id}&page={n}
+                $nextUrl = $response['next_page_url'];
+                preg_match('/metadata_id=([^&]+)/', $nextUrl, $metadataMatch);
+                preg_match('/page=(\d+)/', $nextUrl, $pageMatch);
+
+                $metadataId = $metadataMatch[1] ?? null;
+                $pageNum = (int) ($pageMatch[1] ?? $page);
+
+                // Extract the base endpoint from the URL
+                $endpoint = preg_replace('/\?.*$/', '', $nextUrl);
+
                 Log::debug('Following pagination', [
                     'method' => $method,
                     'page' => $page,
-                    'url' => $response['next_page_url'],
+                    'metadata_id' => $metadataId,
+                    'endpoint' => $endpoint,
                 ]);
 
-                // Make request to the next page URL directly
-                $response = $this->request('POST', $response['next_page_url'], []) ?? [];
+                // AppFolio pagination requires POST with metadata_id and page in body
+                // (not as query params, and not with original filters)
+                $response = $this->request('POST', $endpoint, [
+                    'metadata_id' => $metadataId,
+                    'page' => $pageNum,
+                ]) ?? [];
 
                 if (isset($response['results'])) {
                     $allResults = array_merge($allResults, $response['results']);

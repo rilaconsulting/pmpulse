@@ -104,12 +104,12 @@ return [
     | - units -> /api/v2/reports/unit_directory.json
     | - vendors -> /api/v2/reports/vendor_directory.json
     | - work_orders -> /api/v2/reports/work_order.json
-    | - expenses -> /api/v2/reports/expense_register.json
+    | - bill_details -> /api/v2/reports/bill_detail.json (has unique txn_id)
     | - rent_roll -> /api/v2/reports/rent_roll.json
     | - delinquency -> /api/v2/reports/delinquency.json
     |
-    | Note: people, leases, and ledger_transactions don't have direct
-    | API endpoints - this data is available through rent_roll and other reports.
+    | Note: bill_details replaces expenses - it has a unique txn_id for tracking.
+    | People, leases, and ledger_transactions don't have direct API endpoints.
     |
     */
 
@@ -118,7 +118,7 @@ return [
         'units',
         'vendors',
         'work_orders',
-        'expenses',
+        'bill_details',
     ],
 
     /*

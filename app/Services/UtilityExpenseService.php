@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\BillDetail;
 use App\Models\Property;
 use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
@@ -381,6 +382,144 @@ class UtilityExpenseService
             ->all();
 
         return $this->processExpenses($expenses);
+    }
+
+    /**
+     * Process bill details to create utility expense records.
+     *
+     * This method reads from the bill_details table and creates utility expense
+     * records for bills that match configured GL accounts in utility_accounts.
+     *
+     * @param  string|null  $syncRunId  Optional sync run ID to filter by
+     * @return array Processing statistics
+     */
+    public function processFromBillDetails(?string $syncRunId = null): array
+    {
+        $this->resetStats();
+        $this->loadAccountMappings();
+
+        // Get the GL account numbers that are mapped to utility accounts
+        $utilityGlAccounts = $this->accountMappings->keys()->all();
+
+        if (empty($utilityGlAccounts)) {
+            Log::info('No utility accounts configured, skipping utility expense processing');
+
+            return $this->getStats();
+        }
+
+        // Query bill details that match utility GL accounts
+        $query = BillDetail::whereIn('gl_account_number', $utilityGlAccounts);
+
+        if ($syncRunId !== null) {
+            $query->where('sync_run_id', $syncRunId);
+        }
+
+        $totalCount = $query->count();
+
+        Log::info('Processing bill details for utility expenses', [
+            'total_bill_details' => $totalCount,
+            'utility_gl_accounts' => $utilityGlAccounts,
+            'sync_run_id' => $syncRunId,
+        ]);
+
+        // Process in chunks to manage memory for large datasets
+        $query->chunk(500, function ($billDetails) {
+            foreach ($billDetails as $billDetail) {
+                try {
+                    $this->processBillDetailToUtilityExpense($billDetail);
+                } catch (\Exception $e) {
+                    $this->errors[] = [
+                        'txn_id' => $billDetail->txn_id,
+                        'error' => $e->getMessage(),
+                    ];
+                    Log::error('Failed to process bill detail to utility expense', [
+                        'txn_id' => $billDetail->txn_id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        });
+
+        $stats = $this->getStats();
+        $this->logSummary($stats);
+
+        return $stats;
+    }
+
+    /**
+     * Process a single bill detail to create/update a utility expense.
+     */
+    private function processBillDetailToUtilityExpense(BillDetail $billDetail): void
+    {
+        $glAccountNumber = $billDetail->gl_account_number;
+
+        if (empty($glAccountNumber)) {
+            $this->skipped++;
+
+            return;
+        }
+
+        // Get the utility account for this GL account number
+        $utilityAccount = $this->accountMappings->get($glAccountNumber);
+
+        if ($utilityAccount === null) {
+            $this->unmatched++;
+
+            return;
+        }
+
+        // Skip if no property linked
+        if ($billDetail->property_id === null) {
+            $this->skipped++;
+            Log::debug('Bill detail has no property, skipping', [
+                'txn_id' => $billDetail->txn_id,
+            ]);
+
+            return;
+        }
+
+        // Calculate total amount (paid + unpaid)
+        $amount = (float) (($billDetail->paid ?? 0) + ($billDetail->unpaid ?? 0));
+
+        if ($amount === 0.0) {
+            $this->skipped++;
+
+            return;
+        }
+
+        // Use txn_id as the unique identifier for the expense
+        $externalExpenseId = 'txn_'.$billDetail->txn_id;
+
+        // Create or update utility expense record
+        DB::transaction(function () use (
+            $billDetail,
+            $utilityAccount,
+            $glAccountNumber,
+            $externalExpenseId,
+            $amount
+        ) {
+            $utilityExpense = UtilityExpense::updateOrCreate(
+                ['external_expense_id' => $externalExpenseId],
+                [
+                    'property_id' => $billDetail->property_id,
+                    'utility_account_id' => $utilityAccount->id,
+                    'gl_account_number' => $glAccountNumber,
+                    'expense_date' => $billDetail->bill_date,
+                    'period_start' => $billDetail->service_from,
+                    'period_end' => $billDetail->service_to,
+                    'amount' => abs($amount),
+                    'vendor_name' => $billDetail->payee_name,
+                    'description' => $billDetail->description,
+                    'bill_detail_id' => $billDetail->id,
+                ]
+            );
+
+            if ($utilityExpense->wasRecentlyCreated) {
+                $this->created++;
+            } else {
+                $this->updated++;
+            }
+        });
     }
 
     /**

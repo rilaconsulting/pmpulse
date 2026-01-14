@@ -116,6 +116,30 @@ class SyncRun extends Model
     }
 
     /**
+     * Get custom date range from metadata if set.
+     *
+     * @return array{from_date: string, to_date: string, preset: string}|null
+     */
+    public function getCustomDateRange(): ?array
+    {
+        return $this->metadata['custom_date_range'] ?? null;
+    }
+
+    /**
+     * Set custom date range in metadata.
+     */
+    public function setCustomDateRange(string $fromDate, string $toDate, string $preset = 'custom'): void
+    {
+        $metadata = $this->metadata ?? [];
+        $metadata['custom_date_range'] = [
+            'from_date' => $fromDate,
+            'to_date' => $toDate,
+            'preset' => $preset,
+        ];
+        $this->update(['metadata' => $metadata]);
+    }
+
+    /**
      * Update resource metrics in metadata.
      */
     public function updateResourceMetrics(string $resourceType, array $metrics): void

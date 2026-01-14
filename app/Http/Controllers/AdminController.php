@@ -12,13 +12,16 @@ use App\Http\Requests\SaveConnectionRequest;
 use App\Http\Requests\SaveSyncConfigurationRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Jobs\SyncAppfolioResourceJob;
+use App\Models\BillDetail;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\SyncRun;
 use App\Models\User;
+use App\Models\UtilityExpense;
 use App\Services\AppfolioClient;
 use App\Services\BusinessHoursService;
 use App\Services\UserService;
+use App\Services\UtilityExpenseService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -160,42 +163,41 @@ class AdminController extends Controller
     /**
      * Display the integrations page.
      */
-    public function integrations(BusinessHoursService $businessHoursService): Response
+    public function integrations(): Response
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
-        // Get current connection settings from settings table
+        // Get AppFolio settings
         $appfolioSettings = Setting::getCategory('appfolio');
-
-        // Get sync run history (last 20 runs)
-        $syncHistory = SyncRun::query()
-            ->latest('started_at')
-            ->limit(20)
-            ->get();
-
-        // Get sync configuration from Settings
-        $syncConfig = $this->getSyncConfiguration();
-
-        $connection = null;
+        $appfolio = null;
         if (! empty($appfolioSettings['client_id'])) {
-            $database = $appfolioSettings['database'] ?? null;
-            $connection = [
+            $appfolio = [
                 'client_id' => $appfolioSettings['client_id'],
-                'database' => $database,
-                'api_base_url' => $database ? "https://{$database}.appfolio.com" : null,
-                'status' => $appfolioSettings['status'] ?? 'configured',
-                'last_success_at' => $appfolioSettings['last_success_at'] ?? null,
-                'last_error' => $appfolioSettings['last_error'] ?? null,
+                'database' => $appfolioSettings['database'] ?? null,
                 'has_secret' => ! empty($appfolioSettings['client_secret']),
             ];
         }
 
+        // Get Google Maps settings
+        $googleSettings = Setting::getCategory('google');
+        $googleMaps = [
+            'has_api_key' => ! empty($googleSettings['maps_api_key']),
+        ];
+
+        // Get Google SSO settings
+        $googleSsoSettings = Setting::getCategory('google_sso');
+        $googleSso = [
+            'enabled' => $googleSsoSettings['enabled'] ?? false,
+            'client_id' => $googleSsoSettings['client_id'] ?? '',
+            'has_secret' => ! empty($googleSsoSettings['client_secret']),
+            'configured' => ! empty($googleSsoSettings['client_id']) && ! empty($googleSsoSettings['client_secret']),
+            'redirect_uri' => url('/auth/google/callback'),
+        ];
+
         return Inertia::render('Admin/Integrations', [
-            'connection' => $connection,
-            'syncHistory' => $syncHistory->toArray(),
-            'syncConfiguration' => $syncConfig,
-            'syncStatus' => $businessHoursService->getConfiguration(),
-            'timezones' => self::TIMEZONES,
+            'appfolio' => $appfolio,
+            'googleMaps' => $googleMaps,
+            'googleSso' => $googleSso,
         ]);
     }
 
@@ -289,34 +291,155 @@ class AdminController extends Controller
     }
 
     // ========================================
-    // Authentication (Google SSO)
+    // Sync Utilities
     // ========================================
 
     /**
-     * Display the authentication settings page.
+     * Display the sync utilities page.
      */
-    public function authentication(): Response
+    public function sync(BusinessHoursService $businessHoursService): Response
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
-        $googleConfig = Setting::getCategory('google_sso');
+        // Get sync run history (last 50 runs for detailed view)
+        $syncHistory = SyncRun::query()
+            ->latest('started_at')
+            ->limit(50)
+            ->get()
+            ->map(function ($run) {
+                return [
+                    'id' => $run->id,
+                    'mode' => $run->mode,
+                    'status' => $run->status,
+                    'started_at' => $run->started_at?->toIso8601String(),
+                    'ended_at' => $run->ended_at?->toIso8601String(),
+                    'resources_synced' => $run->resources_synced,
+                    'errors_count' => $run->errors_count,
+                    'error_summary' => $run->error_summary,
+                    'metadata' => $run->metadata,
+                    'resource_metrics' => $run->getResourceMetrics(),
+                    'resource_errors' => $run->metadata['resource_errors'] ?? [],
+                    'custom_date_range' => $run->getCustomDateRange(),
+                ];
+            });
 
-        return Inertia::render('Admin/Authentication', [
-            'googleSso' => [
-                'enabled' => $googleConfig['enabled'] ?? false,
-                'client_id' => $googleConfig['client_id'] ?? '',
-                'has_secret' => ! empty($googleConfig['client_secret']),
-                'configured' => ! empty($googleConfig['client_id']) && ! empty($googleConfig['client_secret']),
-                'redirect_uri' => url('/auth/google/callback'),
-            ],
+        // Get connection status
+        $appfolioSettings = Setting::getCategory('appfolio');
+        $hasConnection = ! empty($appfolioSettings['client_id']) && ! empty($appfolioSettings['client_secret']);
+
+        // Get stats
+        $stats = [
+            'total_runs' => SyncRun::count(),
+            'successful_runs' => SyncRun::where('status', 'completed')->where('errors_count', 0)->count(),
+            'runs_with_errors' => SyncRun::where('errors_count', '>', 0)->count(),
+            'failed_runs' => SyncRun::where('status', 'failed')->count(),
+            'utility_expenses_count' => UtilityExpense::count(),
+            'bill_details_count' => BillDetail::count(),
+        ];
+
+        // Get sync configuration
+        $syncConfig = $this->getSyncConfiguration();
+
+        return Inertia::render('Admin/Sync', [
+            'syncHistory' => $syncHistory->toArray(),
+            'hasConnection' => $hasConnection,
+            'stats' => $stats,
+            'syncConfiguration' => $syncConfig,
+            'syncStatus' => $businessHoursService->getConfiguration(),
+            'timezones' => self::TIMEZONES,
         ]);
     }
 
     /**
-     * Save authentication settings.
+     * Trigger a sync with custom options (date range).
      */
-    public function saveAuthentication(SaveAuthenticationRequest $request): RedirectResponse
+    public function triggerSyncWithOptions(Request $request): RedirectResponse
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'mode' => ['required', 'in:incremental,full'],
+            'date_range_preset' => ['nullable', 'in:6_months,1_year,2_years,all_time,custom'],
+            'from_date' => ['nullable', 'date', 'before_or_equal:to_date'],
+            'to_date' => ['nullable', 'date', 'after_or_equal:from_date'],
+        ]);
+
+        if (! $this->appfolioClient->isConfigured()) {
+            return back()->with('error', 'Please configure AppFolio connection first.');
+        }
+
+        // Determine date range based on preset or custom values
+        $dateRange = null;
+        $preset = $validated['date_range_preset'] ?? null;
+
+        if ($preset === 'custom' && ! empty($validated['from_date'])) {
+            $dateRange = [
+                'from_date' => $validated['from_date'],
+                'to_date' => $validated['to_date'] ?? now()->format('Y-m-d'),
+                'preset' => 'custom',
+            ];
+        } elseif ($preset && $preset !== 'all_time') {
+            $days = match ($preset) {
+                '6_months' => 180,
+                '1_year' => 365,
+                '2_years' => 730,
+                default => 365,
+            };
+            $dateRange = [
+                'from_date' => now()->subDays($days)->format('Y-m-d'),
+                'to_date' => now()->format('Y-m-d'),
+                'preset' => $preset,
+            ];
+        }
+        // If 'all_time' or no preset, dateRange stays null (uses config defaults)
+
+        // Create a new sync run with custom date range in metadata
+        $metadata = ['triggered_by' => 'manual', 'user_id' => auth()->id()];
+        if ($dateRange) {
+            $metadata['custom_date_range'] = $dateRange;
+        }
+
+        $syncRun = SyncRun::create([
+            'mode' => $validated['mode'],
+            'status' => 'pending',
+            'started_at' => now(),
+            'metadata' => $metadata,
+        ]);
+
+        // Dispatch the sync job
+        SyncAppfolioResourceJob::dispatch($syncRun);
+
+        $message = 'Sync job has been queued.';
+        if ($dateRange) {
+            $message .= " Date range: {$dateRange['from_date']} to {$dateRange['to_date']}";
+        }
+
+        return back()->with('success', $message);
+    }
+
+    /**
+     * Reset utility expenses and rebuild from bill details.
+     */
+    public function resetUtilityExpenses(UtilityExpenseService $utilityExpenseService): RedirectResponse
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        // Truncate utility_expenses table
+        UtilityExpense::truncate();
+
+        // Reprocess from bill_details
+        $stats = $utilityExpenseService->processFromBillDetails(null);
+
+        return back()->with('success', "Utility expenses reset. Created: {$stats['created']}, Unmatched GL accounts: {$stats['unmatched']}");
+    }
+
+    /**
+     * Save Google SSO settings.
+     */
+    public function saveGoogleSso(SaveAuthenticationRequest $request): RedirectResponse
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         $validated = $request->validated();
 
         $settingsToUpdate = [
@@ -338,31 +461,7 @@ class AdminController extends Controller
             Setting::set('google_sso', $key, $value, encrypted: $isSecret);
         }
 
-        return back()->with('success', 'Authentication settings saved successfully.');
-    }
-
-    // ========================================
-    // Settings
-    // ========================================
-
-    /**
-     * Display the general settings page.
-     */
-    public function settings(): Response
-    {
-        abort_unless(auth()->user()?->isAdmin(), 403);
-
-        $googleSettings = Setting::getCategory('google');
-
-        return Inertia::render('Admin/Settings', [
-            'features' => [
-                'incremental_sync' => Setting::isFeatureEnabled('incremental_sync', true),
-                'notifications' => Setting::isFeatureEnabled('notifications', true),
-            ],
-            'googleMaps' => [
-                'has_api_key' => ! empty($googleSettings['maps_api_key']),
-            ],
-        ]);
+        return back()->with('success', 'Google SSO settings saved successfully.');
     }
 
     /**
@@ -383,5 +482,24 @@ class AdminController extends Controller
         }
 
         return back()->with('success', 'Google Maps settings saved successfully.');
+    }
+
+    // ========================================
+    // Settings
+    // ========================================
+
+    /**
+     * Display the general settings page.
+     */
+    public function settings(): Response
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        return Inertia::render('Admin/Settings', [
+            'features' => [
+                'incremental_sync' => Setting::isFeatureEnabled('incremental_sync', true),
+                'notifications' => Setting::isFeatureEnabled('notifications', true),
+            ],
+        ]);
     }
 }
