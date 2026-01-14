@@ -107,8 +107,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Indexes for common queries
-            $table->index('sync_run_id');
-            $table->index('property_id');
+            // Note: sync_run_id, property_id, unit_id already indexed by foreignUuid constraints
             $table->index('property_external_id');
             $table->index('vendor_id');
             $table->index('work_order_id');

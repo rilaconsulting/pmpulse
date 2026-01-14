@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -119,7 +120,7 @@ class BillDetail extends Model
     /**
      * Scope to filter by property.
      */
-    public function scopeForProperty($query, string $propertyId)
+    public function scopeForProperty(Builder $query, string $propertyId): Builder
     {
         return $query->where('property_id', $propertyId);
     }
@@ -127,7 +128,7 @@ class BillDetail extends Model
     /**
      * Scope to filter by GL account number.
      */
-    public function scopeForGlAccount($query, string $accountNumber)
+    public function scopeForGlAccount(Builder $query, string $accountNumber): Builder
     {
         return $query->where('gl_account_number', $accountNumber);
     }
@@ -135,7 +136,7 @@ class BillDetail extends Model
     /**
      * Scope to filter by work order.
      */
-    public function scopeForWorkOrder($query, int $workOrderId)
+    public function scopeForWorkOrder(Builder $query, int $workOrderId): Builder
     {
         return $query->where('work_order_id', $workOrderId);
     }
@@ -143,20 +144,22 @@ class BillDetail extends Model
     /**
      * Scope to filter by vendor.
      */
-    public function scopeForVendor($query, int $vendorId)
+    public function scopeForVendor(Builder $query, int $vendorId): Builder
     {
         return $query->where('vendor_id', $vendorId);
     }
 
     /**
      * Scope for utility expenses (matching GL accounts in utility_accounts).
+     * Uses a subquery for better performance instead of fetching IDs first.
      */
-    public function scopeUtilityExpenses($query)
+    public function scopeUtilityExpenses(Builder $query): Builder
     {
-        $utilityGlAccounts = UtilityAccount::where('is_active', true)
-            ->pluck('gl_account_number');
-
-        return $query->whereIn('gl_account_number', $utilityGlAccounts);
+        return $query->whereIn('gl_account_number', function ($subQuery) {
+            $subQuery->select('gl_account_number')
+                ->from('utility_accounts')
+                ->where('is_active', true);
+        });
     }
 
     /**

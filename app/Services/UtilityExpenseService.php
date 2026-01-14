@@ -414,28 +414,31 @@ class UtilityExpenseService
             $query->where('sync_run_id', $syncRunId);
         }
 
-        $billDetails = $query->get();
+        $totalCount = $query->count();
 
         Log::info('Processing bill details for utility expenses', [
-            'total_bill_details' => $billDetails->count(),
+            'total_bill_details' => $totalCount,
             'utility_gl_accounts' => $utilityGlAccounts,
             'sync_run_id' => $syncRunId,
         ]);
 
-        foreach ($billDetails as $billDetail) {
-            try {
-                $this->processBillDetailToUtilityExpense($billDetail);
-            } catch (\Exception $e) {
-                $this->errors[] = [
-                    'txn_id' => $billDetail->txn_id,
-                    'error' => $e->getMessage(),
-                ];
-                Log::error('Failed to process bill detail to utility expense', [
-                    'txn_id' => $billDetail->txn_id,
-                    'error' => $e->getMessage(),
-                ]);
+        // Process in chunks to manage memory for large datasets
+        $query->chunk(500, function ($billDetails) {
+            foreach ($billDetails as $billDetail) {
+                try {
+                    $this->processBillDetailToUtilityExpense($billDetail);
+                } catch (\Exception $e) {
+                    $this->errors[] = [
+                        'txn_id' => $billDetail->txn_id,
+                        'error' => $e->getMessage(),
+                    ];
+                    Log::error('Failed to process bill detail to utility expense', [
+                        'txn_id' => $billDetail->txn_id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
-        }
+        });
 
         $stats = $this->getStats();
         $this->logSummary($stats);

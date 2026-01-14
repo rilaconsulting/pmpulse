@@ -228,7 +228,11 @@ class IngestionService
 
                 // Bill details go directly to bill_details table (has unique txn_id)
                 if ($resourceType === 'bill_details') {
-                    $result = $this->upsertBillDetail($item);
+                    DB::transaction(function () use ($resourceType, $item, &$result) {
+                        // Store raw event for audit trail
+                        $this->storeRawEvent($resourceType, $item);
+                        $result = $this->upsertBillDetail($item);
+                    });
                 } else {
                     DB::transaction(function () use ($resourceType, $item, &$result) {
                         // Store raw event
@@ -521,6 +525,7 @@ class IngestionService
             'units' => 'unit_id',
             'vendors' => 'vendor_id',
             'work_orders' => 'work_order_id',
+            'bill_details' => 'txn_id',
             'rent_roll' => 'lease_id',
             'delinquency' => 'unit_id',
             default => 'id',
@@ -989,10 +994,19 @@ class IngestionService
      * Maps AppFolio bill_detail.json response fields to our schema.
      * Uses txn_id as the unique identifier.
      *
-     * @return bool True if record was created, false if updated
+     * @return bool|null True if created, false if updated, null if skipped
      */
-    private function upsertBillDetail(array $item): bool
+    private function upsertBillDetail(array $item): ?bool
     {
+        // Validate txn_id exists to avoid collisions on 0
+        if (! isset($item['txn_id']) || $item['txn_id'] === null || $item['txn_id'] === '') {
+            Log::warning('Skipping bill detail with missing txn_id', [
+                'item' => array_intersect_key($item, array_flip(['reference_number', 'bill_date', 'description'])),
+            ]);
+
+            return null;
+        }
+
         // Look up property and unit using cache to avoid N+1 queries
         $propertyExternalId = isset($item['property_id']) ? (string) $item['property_id'] : null;
         $propertyId = $propertyExternalId ? $this->lookupPropertyId($propertyExternalId) : null;
