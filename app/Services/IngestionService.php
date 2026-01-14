@@ -497,13 +497,21 @@ class IngestionService
             throw new \InvalidArgumentException('Item is missing an external ID and cannot be processed.');
         }
 
-        RawAppfolioEvent::create([
-            'sync_run_id' => $this->syncRun->id,
-            'resource_type' => $resourceType,
-            'external_id' => $externalId,
-            'payload_json' => $item,
-            'pulled_at' => now(),
-        ]);
+        $pulledAt = now();
+
+        // Use updateOrCreate to handle duplicates gracefully.
+        // This can happen if AppFolio returns duplicate records or pagination overlaps.
+        RawAppfolioEvent::updateOrCreate(
+            [
+                'resource_type' => $resourceType,
+                'external_id' => $externalId,
+                'pulled_at' => $pulledAt,
+            ],
+            [
+                'sync_run_id' => $this->syncRun->id,
+                'payload_json' => $item,
+            ]
+        );
     }
 
     /**
