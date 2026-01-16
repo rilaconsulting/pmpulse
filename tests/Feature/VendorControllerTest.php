@@ -570,10 +570,11 @@ class VendorControllerTest extends TestCase
 
     public function test_compliance_page_categorizes_expiring_soon_vendors(): void
     {
+        // Use startOfDay() to ensure date comparisons align with the scope's calculations
         Vendor::factory()->create([
             'company_name' => 'Expiring Vendor',
-            'workers_comp_expires' => now()->addDays(15),
-            'liability_ins_expires' => now()->addMonths(6),
+            'workers_comp_expires' => now()->startOfDay()->addDays(15),
+            'liability_ins_expires' => now()->startOfDay()->addMonths(6),
             'is_active' => true,
             'do_not_use' => false,
         ]);
@@ -589,10 +590,12 @@ class VendorControllerTest extends TestCase
 
     public function test_compliance_page_categorizes_expiring_quarter_vendors(): void
     {
+        // Use startOfDay() to ensure date comparisons align with the scope's calculations
+        // which also uses startOfDay() for determining the 31-90 day range
         Vendor::factory()->create([
             'company_name' => 'Quarter Expiring',
-            'workers_comp_expires' => now()->addDays(60),
-            'liability_ins_expires' => now()->addMonths(6),
+            'workers_comp_expires' => now()->startOfDay()->addDays(60),
+            'liability_ins_expires' => now()->startOfDay()->addMonths(6),
             'is_active' => true,
             'do_not_use' => false,
         ]);
