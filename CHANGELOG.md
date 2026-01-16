@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Configurable similarity threshold and result limit controls in vendor deduplication
+- Background job processing for vendor duplicate analysis with progress indicator
 
 ### Changed
 - Replaced browser alerts with toast notifications for better user feedback in vendor deduplication
 - Improved accessibility for sortable table headers with screen reader announcements
 - Improved accessibility for deduplication modal with keyboard navigation and focus trapping
+- Optimized vendor compliance page to load categories directly from database
+- Optimized vendor list page queries (45+ queries reduced to 2)
+- Optimized vendor analytics queries for trends and period comparisons
 
 ---
 
