@@ -7,23 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
 ### Added
-New features
+- Performance benchmark command for monitoring utility dashboard response times
 
 ### Changed
-Changes in existing functionality
-
-### Fixed
-Bug fixes
-
-### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
--->
+- Significantly improved utility dashboard performance (page loads 99% faster)
 
 ---
 

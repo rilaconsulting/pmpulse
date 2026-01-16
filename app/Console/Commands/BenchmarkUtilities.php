@@ -30,7 +30,7 @@ class BenchmarkUtilities extends Command
 
         // Get controller instance
         $controller = app(UtilityDashboardController::class);
-        $request = new Request();
+        $request = new Request;
 
         // Warmup iterations
         if ($warmup > 0) {
