@@ -259,15 +259,17 @@ class VendorControllerTest extends TestCase
     {
         $this->skipIfNotPostgres();
 
+        $today = now()->startOfDay(); // Align with scope's date boundary calculations
+
         Vendor::factory()->create([
             'company_name' => 'Current Vendor',
-            'workers_comp_expires' => now()->addMonths(6),
-            'liability_ins_expires' => now()->addMonths(6),
+            'workers_comp_expires' => $today->copy()->addMonths(6),
+            'liability_ins_expires' => $today->copy()->addMonths(6),
         ]);
         Vendor::factory()->create([
             'company_name' => 'Expiring Vendor',
-            'workers_comp_expires' => now()->addDays(15),
-            'liability_ins_expires' => now()->addMonths(6),
+            'workers_comp_expires' => $today->copy()->addDays(15),
+            'liability_ins_expires' => $today->copy()->addMonths(6),
         ]);
 
         $response = $this->actingAs($this->user)->get('/vendors?insurance_status=expiring_soon');
@@ -570,11 +572,12 @@ class VendorControllerTest extends TestCase
 
     public function test_compliance_page_categorizes_expiring_soon_vendors(): void
     {
-        // Use startOfDay() to ensure date comparisons align with the scope's calculations
+        $today = now()->startOfDay(); // Align with scope's date boundary calculations
+
         Vendor::factory()->create([
             'company_name' => 'Expiring Vendor',
-            'workers_comp_expires' => now()->startOfDay()->addDays(15),
-            'liability_ins_expires' => now()->startOfDay()->addMonths(6),
+            'workers_comp_expires' => $today->copy()->addDays(15),
+            'liability_ins_expires' => $today->copy()->addMonths(6),
             'is_active' => true,
             'do_not_use' => false,
         ]);
@@ -590,12 +593,12 @@ class VendorControllerTest extends TestCase
 
     public function test_compliance_page_categorizes_expiring_quarter_vendors(): void
     {
-        // Use startOfDay() to ensure date comparisons align with the scope's calculations
-        // which also uses startOfDay() for determining the 31-90 day range
+        $today = now()->startOfDay(); // Align with scope's 31-90 day range calculations
+
         Vendor::factory()->create([
             'company_name' => 'Quarter Expiring',
-            'workers_comp_expires' => now()->startOfDay()->addDays(60),
-            'liability_ins_expires' => now()->startOfDay()->addMonths(6),
+            'workers_comp_expires' => $today->copy()->addDays(60),
+            'liability_ins_expires' => $today->copy()->addMonths(6),
             'is_active' => true,
             'do_not_use' => false,
         ]);
@@ -626,19 +629,21 @@ class VendorControllerTest extends TestCase
 
     public function test_compliance_page_workers_comp_section(): void
     {
+        $today = now()->startOfDay(); // Align with scope's date boundary calculations
+
         // Expired workers comp
         Vendor::factory()->create([
             'company_name' => 'WC Expired',
-            'workers_comp_expires' => now()->subDays(10),
-            'liability_ins_expires' => now()->addMonths(6),
+            'workers_comp_expires' => $today->copy()->subDays(10),
+            'liability_ins_expires' => $today->copy()->addMonths(6),
             'is_active' => true,
             'do_not_use' => false,
         ]);
         // Expiring workers comp
         Vendor::factory()->create([
             'company_name' => 'WC Expiring',
-            'workers_comp_expires' => now()->addDays(15),
-            'liability_ins_expires' => now()->addMonths(6),
+            'workers_comp_expires' => $today->copy()->addDays(15),
+            'liability_ins_expires' => $today->copy()->addMonths(6),
             'is_active' => true,
             'do_not_use' => false,
         ]);
@@ -646,7 +651,7 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->create([
             'company_name' => 'WC Missing',
             'workers_comp_expires' => null,
-            'liability_ins_expires' => now()->addMonths(6),
+            'liability_ins_expires' => $today->copy()->addMonths(6),
             'is_active' => true,
             'do_not_use' => false,
         ]);
