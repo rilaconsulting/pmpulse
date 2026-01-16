@@ -18,7 +18,7 @@ class VendorDeduplicationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new VendorDeduplicationService();
+        $this->service = new VendorDeduplicationService;
     }
 
     // ==================== normalizeString Tests ====================

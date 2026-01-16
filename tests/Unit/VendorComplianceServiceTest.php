@@ -19,7 +19,7 @@ class VendorComplianceServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new VendorComplianceService();
+        $this->service = new VendorComplianceService;
     }
 
     // ==================== getInsuranceIssues Tests ====================

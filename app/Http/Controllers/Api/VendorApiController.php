@@ -7,7 +7,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MarkVendorCanonicalRequest;
 use App\Http\Requests\MarkVendorDuplicateRequest;
+use App\Jobs\FindPotentialDuplicateVendorsJob;
 use App\Models\Vendor;
+use App\Models\VendorDuplicateAnalysis;
 use App\Services\VendorDeduplicationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +19,7 @@ class VendorApiController extends Controller
     public function __construct(
         private readonly VendorDeduplicationService $deduplicationService
     ) {}
+
     /**
      * Mark a vendor as a duplicate of another vendor.
      *
@@ -134,6 +137,89 @@ class VendorApiController extends Controller
                 'potential_duplicates_count' => count($potentialDuplicates),
                 'threshold' => $threshold,
             ],
+        ]);
+    }
+
+    /**
+     * Start a background job to find potential duplicate vendors.
+     *
+     * POST /api/vendors/duplicate-analysis
+     * Body: { "threshold": 0.6, "limit": 50 }
+     */
+    public function startDuplicateAnalysis(Request $request): JsonResponse
+    {
+        $this->authorize('admin');
+
+        $validated = $request->validate([
+            'threshold' => ['sometimes', 'numeric', 'min:0.1', 'max:1.0'],
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:500'],
+        ]);
+
+        // Check if there's already an analysis in progress
+        $pendingAnalysis = VendorDuplicateAnalysis::query()
+            ->whereIn('status', ['pending', 'processing'])
+            ->first();
+
+        if ($pendingAnalysis) {
+            return response()->json([
+                'message' => 'An analysis is already in progress.',
+                'data' => $pendingAnalysis,
+            ], 409);
+        }
+
+        // Create a new analysis record
+        $analysis = VendorDuplicateAnalysis::create([
+            'requested_by' => auth()->id(),
+            'status' => 'pending',
+            'threshold' => $validated['threshold'] ?? 0.6,
+            'limit' => $validated['limit'] ?? 50,
+        ]);
+
+        // Dispatch the job
+        FindPotentialDuplicateVendorsJob::dispatch($analysis);
+
+        return response()->json([
+            'message' => 'Duplicate analysis started.',
+            'data' => $analysis,
+        ], 202);
+    }
+
+    /**
+     * Get the status and results of a duplicate analysis.
+     *
+     * GET /api/vendors/duplicate-analysis/{analysis}
+     */
+    public function getDuplicateAnalysis(VendorDuplicateAnalysis $analysis): JsonResponse
+    {
+        $this->authorize('admin');
+
+        return response()->json([
+            'data' => $analysis,
+        ]);
+    }
+
+    /**
+     * Get the most recent duplicate analysis.
+     *
+     * GET /api/vendors/duplicate-analysis/latest
+     */
+    public function getLatestDuplicateAnalysis(): JsonResponse
+    {
+        $this->authorize('admin');
+
+        $analysis = VendorDuplicateAnalysis::query()
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (! $analysis) {
+            return response()->json([
+                'message' => 'No analysis found.',
+                'data' => null,
+            ], 404);
+        }
+
+        return response()->json([
+            'data' => $analysis,
         ]);
     }
 

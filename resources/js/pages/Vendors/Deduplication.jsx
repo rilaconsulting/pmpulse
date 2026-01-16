@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import Layout from '../../components/Layout';
 import { useToast } from '../../components/Toast';
@@ -13,6 +13,7 @@ import {
     ExclamationTriangleIcon,
     CheckCircleIcon,
     ArrowPathIcon,
+    ClockIcon,
 } from '@heroicons/react/24/outline';
 
 export default function VendorDeduplication({ canonicalGroups, allCanonicalVendors, stats }) {
@@ -28,11 +29,26 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
     const [similarityThreshold, setSimilarityThreshold] = useState(0.5);
     const [resultLimit, setResultLimit] = useState(20);
 
+    // Background analysis state
+    const [analysisId, setAnalysisId] = useState(null);
+    const [analysisStatus, setAnalysisStatus] = useState(null); // pending, processing, completed, failed
+    const [analysisProgress, setAnalysisProgress] = useState(null);
+    const pollIntervalRef = useRef(null);
+
     // Toast notifications
     const toast = useToast();
 
     // Ref to store the element that triggered the modal for focus return
     const triggerRef = useRef(null);
+
+    // Cleanup polling on unmount
+    useEffect(() => {
+        return () => {
+            if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+            }
+        };
+    }, []);
 
     const toggleGroup = (vendorId) => {
         setExpandedGroups((prev) => {
@@ -129,10 +145,10 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
         }
     };
 
-    const loadPotentialDuplicates = async () => {
-        setLoadingPotential(true);
+    // Poll for analysis completion
+    const pollAnalysisStatus = useCallback(async (id) => {
         try {
-            const response = await fetch(`/api/vendors/potential-duplicates?threshold=${similarityThreshold}&limit=${resultLimit}`, {
+            const response = await fetch(`/api/vendors/duplicate-analysis/${id}`, {
                 credentials: 'same-origin',
                 headers: {
                     'Accept': 'application/json',
@@ -142,20 +158,98 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
 
             if (response.ok) {
                 const data = await response.json();
-                setPotentialDuplicates(data.data || []);
-                setShowPotentialDuplicates(true);
-                if (data.data?.length === 0) {
-                    toast.success('No potential duplicates found');
-                } else {
-                    toast.info(`Found ${data.data?.length || 0} potential duplicate pairs`);
+                const analysis = data.data;
+                setAnalysisStatus(analysis.status);
+                setAnalysisProgress(analysis);
+
+                if (analysis.status === 'completed') {
+                    // Stop polling
+                    if (pollIntervalRef.current) {
+                        clearInterval(pollIntervalRef.current);
+                        pollIntervalRef.current = null;
+                    }
+                    setLoadingPotential(false);
+                    setPotentialDuplicates(analysis.results || []);
+                    setShowPotentialDuplicates(true);
+
+                    if (analysis.duplicates_found === 0) {
+                        toast.success('No potential duplicates found');
+                    } else {
+                        toast.success(`Found ${analysis.duplicates_found} potential duplicate pairs`);
+                    }
+                } else if (analysis.status === 'failed') {
+                    // Stop polling
+                    if (pollIntervalRef.current) {
+                        clearInterval(pollIntervalRef.current);
+                        pollIntervalRef.current = null;
+                    }
+                    setLoadingPotential(false);
+                    toast.error(analysis.error_message || 'Analysis failed');
                 }
-            } else {
-                toast.error('Failed to load potential duplicates');
             }
         } catch (error) {
-            console.error('Error loading potential duplicates:', error);
-            toast.error('An error occurred while loading potential duplicates');
-        } finally {
+            console.error('Error polling analysis status:', error);
+        }
+    }, [toast]);
+
+    const loadPotentialDuplicates = async () => {
+        // Clear any existing polling
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+        }
+
+        setLoadingPotential(true);
+        setAnalysisStatus('pending');
+        setAnalysisProgress(null);
+
+        try {
+            // Start a background analysis
+            const response = await fetch('/api/vendors/duplicate-analysis', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                },
+                body: JSON.stringify({
+                    threshold: similarityThreshold,
+                    limit: resultLimit,
+                }),
+            });
+
+            if (response.ok || response.status === 202) {
+                const data = await response.json();
+                const id = data.data.id;
+                setAnalysisId(id);
+                setAnalysisStatus(data.data.status);
+                toast.info('Analysis started - this may take a moment');
+
+                // Start polling
+                pollIntervalRef.current = setInterval(() => {
+                    pollAnalysisStatus(id);
+                }, 2000); // Poll every 2 seconds
+            } else if (response.status === 409) {
+                // Analysis already in progress
+                const data = await response.json();
+                setAnalysisId(data.data.id);
+                setAnalysisStatus(data.data.status);
+                toast.warning('An analysis is already in progress');
+
+                // Start polling the existing analysis
+                pollIntervalRef.current = setInterval(() => {
+                    pollAnalysisStatus(data.data.id);
+                }, 2000);
+            } else {
+                const data = await response.json();
+                toast.error(data.message || 'Failed to start analysis');
+                setLoadingPotential(false);
+            }
+        } catch (error) {
+            console.error('Error starting duplicate analysis:', error);
+            toast.error('An error occurred while starting the analysis');
             setLoadingPotential(false);
         }
     };
@@ -205,6 +299,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                     value={similarityThreshold}
                                     onChange={(e) => setSimilarityThreshold(parseFloat(e.target.value))}
                                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    disabled={loadingPotential}
                                 />
                                 <div className="flex justify-between text-xs text-gray-500 mt-1">
                                     <span>More results</span>
@@ -220,6 +315,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                     value={resultLimit}
                                     onChange={(e) => setResultLimit(parseInt(e.target.value))}
                                     className="input"
+                                    disabled={loadingPotential}
                                 >
                                     <option value="10">10</option>
                                     <option value="20">20</option>
@@ -238,9 +334,29 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                 ) : (
                                     <MagnifyingGlassIcon className="w-4 h-4 mr-2" />
                                 )}
-                                Find Duplicates
+                                {loadingPotential ? 'Analyzing...' : 'Find Duplicates'}
                             </button>
                         </div>
+
+                        {/* Analysis Progress */}
+                        {loadingPotential && analysisStatus && (
+                            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                    <ClockIcon className="w-5 h-5 text-blue-600 animate-pulse" />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-blue-900">
+                                            {analysisStatus === 'pending' && 'Starting analysis...'}
+                                            {analysisStatus === 'processing' && 'Comparing vendors for potential duplicates...'}
+                                        </p>
+                                        {analysisProgress?.total_vendors && (
+                                            <p className="text-xs text-blue-700 mt-1">
+                                                Analyzing {analysisProgress.total_vendors} vendors
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

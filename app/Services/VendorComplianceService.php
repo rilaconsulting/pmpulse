@@ -201,6 +201,8 @@ class VendorComplianceService
      * Categorize a collection of vendors by their insurance compliance status.
      *
      * @return array{expired: array, expiring_soon: array, expiring_quarter: array, missing_info: array, compliant: array}
+     *
+     * @deprecated Use fetchComplianceCategoriesFromDatabase() for better performance
      */
     public function categorizeVendorsByCompliance(Collection $vendors): array
     {
@@ -248,6 +250,266 @@ class VendorComplianceService
             'expiring_quarter' => $expiringQuarter,
             'missing_info' => $missingInfo,
             'compliant' => $compliant,
+        ];
+    }
+
+    /**
+     * Fetch compliance categories directly from database using optimized queries.
+     * Much more efficient than loading all vendors into memory.
+     *
+     * @return array{expired: array, expiring_soon: array, expiring_quarter: array, missing_info: array, compliant: array}
+     */
+    public function fetchComplianceCategoriesFromDatabase(): array
+    {
+        $today = now()->startOfDay();
+        $thirtyDays = $today->copy()->addDays(30);
+        $ninetyDays = $today->copy()->addDays(90);
+
+        // Base query for canonical, active, usable vendors
+        $baseQuery = fn () => Vendor::query()
+            ->canonical()
+            ->active()
+            ->usable()
+            ->orderBy('company_name');
+
+        // Fetch expired vendors
+        $expiredVendors = $baseQuery()
+            ->withExpiredInsurance()
+            ->get();
+
+        $expired = $expiredVendors->map(function ($vendor) use ($today) {
+            return [
+                'vendor' => $vendor,
+                'issues' => $this->getExpiredIssues($vendor, $today),
+            ];
+        })->all();
+
+        // Fetch expiring soon vendors (within 30 days, not already expired)
+        $expiringSoonVendors = $baseQuery()
+            ->withExpiringSoonInsurance(30)
+            ->whereNotIn('id', $expiredVendors->pluck('id'))
+            ->get();
+
+        $expiringSoon = $expiringSoonVendors->map(function ($vendor) use ($today, $thirtyDays) {
+            return [
+                'vendor' => $vendor,
+                'issues' => $this->getExpiringSoonIssues($vendor, $today, $thirtyDays),
+            ];
+        })->all();
+
+        // Fetch expiring quarter vendors (31-90 days)
+        $expiringQuarterVendors = $baseQuery()
+            ->withExpiringQuarterInsurance()
+            ->get();
+
+        $expiringQuarter = $expiringQuarterVendors->map(function ($vendor) use ($thirtyDays, $ninetyDays) {
+            return [
+                'vendor' => $vendor,
+                'issues' => $this->getExpiringQuarterIssues($vendor, $thirtyDays, $ninetyDays),
+            ];
+        })->all();
+
+        // Fetch vendors with missing info
+        $missingInfoVendors = $baseQuery()
+            ->withMissingInsurance()
+            ->get();
+
+        $missingInfo = $missingInfoVendors->map(function ($vendor) {
+            return [
+                'vendor' => $vendor,
+                'issues' => $this->getMissingIssues($vendor),
+            ];
+        })->all();
+
+        // Fetch fully compliant vendors
+        $compliant = $baseQuery()
+            ->fullyCompliant()
+            ->get()
+            ->all();
+
+        return [
+            'expired' => $expired,
+            'expiring_soon' => $expiringSoon,
+            'expiring_quarter' => $expiringQuarter,
+            'missing_info' => $missingInfo,
+            'compliant' => $compliant,
+        ];
+    }
+
+    /**
+     * Get expired insurance issues for a vendor.
+     */
+    private function getExpiredIssues(Vendor $vendor, Carbon $today): array
+    {
+        $issues = [];
+
+        foreach (self::INSURANCE_TYPES as $field => $label) {
+            $date = $vendor->$field;
+
+            if ($date && $date < $today) {
+                $issues[] = [
+                    'type' => $label,
+                    'field' => $field,
+                    'date' => $date->toDateString(),
+                    'days_past' => $today->diffInDays($date),
+                ];
+            }
+        }
+
+        return $issues;
+    }
+
+    /**
+     * Get expiring soon insurance issues for a vendor (within 30 days).
+     */
+    private function getExpiringSoonIssues(Vendor $vendor, Carbon $today, Carbon $thirtyDays): array
+    {
+        $issues = [];
+
+        foreach (self::INSURANCE_TYPES as $field => $label) {
+            $date = $vendor->$field;
+
+            if ($date && $date >= $today && $date <= $thirtyDays) {
+                $issues[] = [
+                    'type' => $label,
+                    'field' => $field,
+                    'date' => $date->toDateString(),
+                    'days_until' => $today->diffInDays($date),
+                ];
+            }
+        }
+
+        return $issues;
+    }
+
+    /**
+     * Get expiring quarter insurance issues for a vendor (31-90 days).
+     */
+    private function getExpiringQuarterIssues(Vendor $vendor, Carbon $thirtyDays, Carbon $ninetyDays): array
+    {
+        $issues = [];
+        $today = now()->startOfDay();
+
+        foreach (self::INSURANCE_TYPES as $field => $label) {
+            $date = $vendor->$field;
+
+            if ($date && $date > $thirtyDays && $date <= $ninetyDays) {
+                $issues[] = [
+                    'type' => $label,
+                    'field' => $field,
+                    'date' => $date->toDateString(),
+                    'days_until' => $today->diffInDays($date),
+                ];
+            }
+        }
+
+        return $issues;
+    }
+
+    /**
+     * Get missing insurance info for a vendor.
+     */
+    private function getMissingIssues(Vendor $vendor): array
+    {
+        $issues = [];
+
+        foreach (self::INSURANCE_TYPES as $field => $label) {
+            if (! $vendor->$field) {
+                $issues[] = [
+                    'type' => $label,
+                    'field' => $field,
+                ];
+            }
+        }
+
+        return $issues;
+    }
+
+    /**
+     * Get workers comp issues directly from database.
+     *
+     * @return array{expired: array, expiring_soon: array, missing: array, current: array}
+     */
+    public function fetchWorkersCompIssuesFromDatabase(): array
+    {
+        $today = now()->startOfDay();
+        $thirtyDays = $today->copy()->addDays(30);
+
+        $baseQuery = fn () => Vendor::query()
+            ->canonical()
+            ->active()
+            ->usable()
+            ->orderBy('company_name');
+
+        // Expired workers comp
+        $expired = $baseQuery()
+            ->whereNotNull('workers_comp_expires')
+            ->where('workers_comp_expires', '<', $today)
+            ->get()
+            ->map(fn ($vendor) => [
+                'vendor' => $vendor,
+                'date' => $vendor->workers_comp_expires->toDateString(),
+                'days_past' => $today->diffInDays($vendor->workers_comp_expires),
+            ])
+            ->all();
+
+        // Expiring soon (within 30 days)
+        $expiringSoon = $baseQuery()
+            ->whereNotNull('workers_comp_expires')
+            ->whereBetween('workers_comp_expires', [$today, $thirtyDays])
+            ->get()
+            ->map(fn ($vendor) => [
+                'vendor' => $vendor,
+                'date' => $vendor->workers_comp_expires->toDateString(),
+                'days_until' => $today->diffInDays($vendor->workers_comp_expires),
+            ])
+            ->all();
+
+        // Missing workers comp
+        $missing = $baseQuery()
+            ->whereNull('workers_comp_expires')
+            ->get()
+            ->all();
+
+        // Current (more than 30 days out)
+        $current = $baseQuery()
+            ->whereNotNull('workers_comp_expires')
+            ->where('workers_comp_expires', '>', $thirtyDays)
+            ->get()
+            ->map(fn ($vendor) => [
+                'vendor' => $vendor,
+                'date' => $vendor->workers_comp_expires->toDateString(),
+                'days_until' => $today->diffInDays($vendor->workers_comp_expires),
+            ])
+            ->all();
+
+        return [
+            'expired' => $expired,
+            'expiring_soon' => $expiringSoon,
+            'missing' => $missing,
+            'current' => $current,
+        ];
+    }
+
+    /**
+     * Get compliance summary statistics using optimized count queries.
+     *
+     * @return array{total: int, compliant: int, expired: int, expiring_soon: int, expiring_quarter: int, missing_info: int}
+     */
+    public function getComplianceStats(): array
+    {
+        $baseQuery = fn () => Vendor::query()
+            ->canonical()
+            ->active()
+            ->usable();
+
+        return [
+            'total' => $baseQuery()->count(),
+            'expired' => $baseQuery()->withExpiredInsurance()->count(),
+            'expiring_soon' => $baseQuery()->withExpiringSoonInsurance(30)->count(),
+            'expiring_quarter' => $baseQuery()->withExpiringQuarterInsurance()->count(),
+            'missing_info' => $baseQuery()->withMissingInsurance()->count(),
+            'compliant' => $baseQuery()->fullyCompliant()->count(),
         ];
     }
 }

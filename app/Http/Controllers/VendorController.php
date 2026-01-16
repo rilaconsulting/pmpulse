@@ -84,16 +84,20 @@ class VendorController extends Controller
             ->sort()
             ->values();
 
-        // Calculate metrics for each vendor (last 12 months)
+        // Calculate metrics for all vendors in bulk (last 12 months)
+        // This reduces 45+ queries (3 per vendor) down to 2 queries total
         $period = ['type' => 'last_12_months', 'date' => now()];
-        $vendors->getCollection()->transform(function ($vendor) use ($period) {
-            $vendor->metrics = [
-                'work_order_count' => $this->analyticsService->getWorkOrderCount($vendor, $period),
-                'total_spend' => $this->analyticsService->getTotalSpend($vendor, $period),
-                'avg_cost_per_wo' => $this->analyticsService->getAverageCostPerWO($vendor, $period),
+        $vendorIds = $vendors->getCollection()->pluck('id')->all();
+        $bulkMetrics = $this->analyticsService->getBulkMetricsForVendors($vendorIds, $period);
+
+        $vendors->getCollection()->transform(function ($vendor) use ($bulkMetrics) {
+            $vendor->metrics = $bulkMetrics[$vendor->id] ?? [
+                'work_order_count' => 0,
+                'total_spend' => 0.0,
+                'avg_cost_per_wo' => null,
             ];
 
-            // Insurance status for display
+            // Insurance status for display (no DB query, just date comparisons)
             $vendor->insurance_status = $this->complianceService->getInsuranceStatus($vendor);
 
             return $vendor;
@@ -206,16 +210,8 @@ class VendorController extends Controller
      */
     public function compliance(): Response
     {
-        // Get all active canonical vendors
-        $allVendors = Vendor::query()
-            ->canonical()
-            ->active()
-            ->usable()
-            ->orderBy('company_name')
-            ->get();
-
-        // Categorize vendors by insurance status using the compliance service
-        $categories = $this->complianceService->categorizeVendorsByCompliance($allVendors);
+        // Fetch categories directly from database (optimized)
+        $categories = $this->complianceService->fetchComplianceCategoriesFromDatabase();
 
         // Get vendors marked as "do not use"
         $doNotUse = Vendor::query()
@@ -224,12 +220,14 @@ class VendorController extends Controller
             ->orderBy('company_name')
             ->get();
 
-        // Workers comp specific tracking
-        $workersCompIssues = $this->complianceService->getWorkersCompIssues($allVendors);
+        // Workers comp specific tracking (optimized)
+        $workersCompIssues = $this->complianceService->fetchWorkersCompIssuesFromDatabase();
 
         // Summary stats
         $stats = [
-            'total_vendors' => $allVendors->count(),
+            'total_vendors' => count($categories['expired']) + count($categories['expiring_soon'])
+                + count($categories['expiring_quarter']) + count($categories['missing_info'])
+                + count($categories['compliant']),
             'compliant' => count($categories['compliant']),
             'expired' => count($categories['expired']),
             'expiring_soon' => count($categories['expiring_soon']),
@@ -337,5 +335,4 @@ class VendorController extends Controller
             'stats' => $stats,
         ]);
     }
-
 }
