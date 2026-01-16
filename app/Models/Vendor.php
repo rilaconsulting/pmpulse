@@ -105,6 +105,177 @@ class Vendor extends Model
     }
 
     /**
+     * Scope to get vendors with any expired insurance.
+     */
+    public function scopeWithExpiredInsurance(Builder $query): Builder
+    {
+        $today = now()->startOfDay();
+
+        return $query->where(function ($q) use ($today) {
+            $q->where('workers_comp_expires', '<', $today)
+                ->orWhere('liability_ins_expires', '<', $today)
+                ->orWhere('auto_ins_expires', '<', $today);
+        });
+    }
+
+    /**
+     * Scope to get vendors with insurance expiring soon (within N days).
+     */
+    public function scopeWithExpiringSoonInsurance(Builder $query, int $days = 30): Builder
+    {
+        $today = now()->startOfDay();
+        $endDate = $today->copy()->addDays($days);
+
+        return $query->where(function ($q) use ($today, $endDate) {
+            $q->whereBetween('workers_comp_expires', [$today, $endDate])
+                ->orWhereBetween('liability_ins_expires', [$today, $endDate])
+                ->orWhereBetween('auto_ins_expires', [$today, $endDate]);
+        });
+    }
+
+    /**
+     * Scope to get vendors with all current insurance (none expired).
+     */
+    public function scopeWithCurrentInsurance(Builder $query): Builder
+    {
+        $today = now()->startOfDay();
+
+        return $query->where(function ($q) use ($today) {
+            $q->where(function ($sub) use ($today) {
+                $sub->whereNull('workers_comp_expires')
+                    ->orWhere('workers_comp_expires', '>=', $today);
+            })->where(function ($sub) use ($today) {
+                $sub->whereNull('liability_ins_expires')
+                    ->orWhere('liability_ins_expires', '>=', $today);
+            })->where(function ($sub) use ($today) {
+                $sub->whereNull('auto_ins_expires')
+                    ->orWhere('auto_ins_expires', '>=', $today);
+            });
+        });
+    }
+
+    /**
+     * Scope to filter vendors by insurance status.
+     *
+     * @param  string  $status  One of: 'expired', 'expiring_soon', 'current'
+     * @param  int  $days  Number of days for 'expiring_soon' (default 30)
+     */
+    public function scopeWithInsuranceStatus(Builder $query, string $status, int $days = 30): Builder
+    {
+        return match ($status) {
+            'expired' => $query->withExpiredInsurance(),
+            'expiring_soon' => $query->withExpiringSoonInsurance($days),
+            'current' => $query->withCurrentInsurance(),
+            default => $query,
+        };
+    }
+
+    /**
+     * Scope to get vendors with insurance expiring in quarter (31-90 days).
+     * Excludes vendors with expired or expiring soon insurance.
+     */
+    public function scopeWithExpiringQuarterInsurance(Builder $query): Builder
+    {
+        $today = now()->startOfDay();
+        $thirtyDays = $today->copy()->addDays(30);
+        $ninetyDays = $today->copy()->addDays(90);
+
+        return $query
+            // None expired
+            ->where(function ($q) use ($today) {
+                $q->where(function ($sub) use ($today) {
+                    $sub->whereNull('workers_comp_expires')
+                        ->orWhere('workers_comp_expires', '>=', $today);
+                })->where(function ($sub) use ($today) {
+                    $sub->whereNull('liability_ins_expires')
+                        ->orWhere('liability_ins_expires', '>=', $today);
+                })->where(function ($sub) use ($today) {
+                    $sub->whereNull('auto_ins_expires')
+                        ->orWhere('auto_ins_expires', '>=', $today);
+                });
+            })
+            // None expiring within 30 days
+            ->where(function ($q) use ($thirtyDays) {
+                $q->where(function ($sub) use ($thirtyDays) {
+                    $sub->whereNull('workers_comp_expires')
+                        ->orWhere('workers_comp_expires', '>', $thirtyDays);
+                })->where(function ($sub) use ($thirtyDays) {
+                    $sub->whereNull('liability_ins_expires')
+                        ->orWhere('liability_ins_expires', '>', $thirtyDays);
+                })->where(function ($sub) use ($thirtyDays) {
+                    $sub->whereNull('auto_ins_expires')
+                        ->orWhere('auto_ins_expires', '>', $thirtyDays);
+                });
+            })
+            // At least one expiring in 31-90 days
+            ->where(function ($q) use ($thirtyDays, $ninetyDays) {
+                $q->whereBetween('workers_comp_expires', [$thirtyDays->copy()->addDay(), $ninetyDays])
+                    ->orWhereBetween('liability_ins_expires', [$thirtyDays->copy()->addDay(), $ninetyDays])
+                    ->orWhereBetween('auto_ins_expires', [$thirtyDays->copy()->addDay(), $ninetyDays]);
+            });
+    }
+
+    /**
+     * Scope to get vendors with missing insurance information.
+     * Excludes vendors with expired, expiring soon, or expiring quarter insurance.
+     */
+    public function scopeWithMissingInsurance(Builder $query): Builder
+    {
+        $today = now()->startOfDay();
+        $ninetyDays = $today->copy()->addDays(90);
+
+        return $query
+            // None expired (all either null or >= today)
+            ->where(function ($q) use ($today) {
+                $q->where(function ($sub) use ($today) {
+                    $sub->whereNull('workers_comp_expires')
+                        ->orWhere('workers_comp_expires', '>=', $today);
+                })->where(function ($sub) use ($today) {
+                    $sub->whereNull('liability_ins_expires')
+                        ->orWhere('liability_ins_expires', '>=', $today);
+                })->where(function ($sub) use ($today) {
+                    $sub->whereNull('auto_ins_expires')
+                        ->orWhere('auto_ins_expires', '>=', $today);
+                });
+            })
+            // None expiring in the next 90 days (all either null or > 90 days)
+            ->where(function ($q) use ($ninetyDays) {
+                $q->where(function ($sub) use ($ninetyDays) {
+                    $sub->whereNull('workers_comp_expires')
+                        ->orWhere('workers_comp_expires', '>', $ninetyDays);
+                })->where(function ($sub) use ($ninetyDays) {
+                    $sub->whereNull('liability_ins_expires')
+                        ->orWhere('liability_ins_expires', '>', $ninetyDays);
+                })->where(function ($sub) use ($ninetyDays) {
+                    $sub->whereNull('auto_ins_expires')
+                        ->orWhere('auto_ins_expires', '>', $ninetyDays);
+                });
+            })
+            // At least one field is null
+            ->where(function ($q) {
+                $q->whereNull('workers_comp_expires')
+                    ->orWhereNull('liability_ins_expires')
+                    ->orWhereNull('auto_ins_expires');
+            });
+    }
+
+    /**
+     * Scope to get fully compliant vendors (all insurance current, none expiring in 90 days).
+     */
+    public function scopeFullyCompliant(Builder $query): Builder
+    {
+        $ninetyDays = now()->startOfDay()->addDays(90);
+
+        return $query
+            ->whereNotNull('workers_comp_expires')
+            ->whereNotNull('liability_ins_expires')
+            ->whereNotNull('auto_ins_expires')
+            ->where('workers_comp_expires', '>', $ninetyDays)
+            ->where('liability_ins_expires', '>', $ninetyDays)
+            ->where('auto_ins_expires', '>', $ninetyDays);
+    }
+
+    /**
      * Get vendor trades as an array.
      */
     public function getTradesArrayAttribute(): array

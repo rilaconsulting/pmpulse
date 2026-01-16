@@ -146,10 +146,12 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->create([
             'company_name' => 'Company A',
             'contact_name' => 'John Smith',
+            'email' => 'alpha@example.com',
         ]);
         Vendor::factory()->create([
             'company_name' => 'Company B',
             'contact_name' => 'Jane Doe',
+            'email' => 'beta@example.com',
         ]);
 
         $response = $this->actingAs($this->user)->get('/vendors?search=John');
@@ -830,7 +832,7 @@ class VendorControllerTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->where('filters.search', 'test')
             ->where('filters.trade', 'Plumbing')
-            ->where('filters.is_active', '1')
+            ->where('filters.is_active', true) // Converted to boolean by form request
         );
     }
 
@@ -865,5 +867,133 @@ class VendorControllerTest extends TestCase
             ->has('doNotUse', 1)
             ->has('expired', 0)
         );
+    }
+
+    // ==================== Validation Tests ====================
+
+    public function test_vendor_index_rejects_invalid_insurance_status(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $response = $this->actingAs($this->user)->get('/vendors?insurance_status=invalid_status');
+
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors('insurance_status');
+    }
+
+    public function test_vendor_index_rejects_invalid_canonical_filter(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $response = $this->actingAs($this->user)->get('/vendors?canonical_filter=invalid_filter');
+
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors('canonical_filter');
+    }
+
+    public function test_vendor_index_rejects_invalid_sort_field(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $response = $this->actingAs($this->user)->get('/vendors?sort=invalid_field');
+
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors('sort');
+    }
+
+    public function test_vendor_index_rejects_invalid_sort_direction(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $response = $this->actingAs($this->user)->get('/vendors?direction=invalid');
+
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors('direction');
+    }
+
+    public function test_vendor_index_rejects_too_long_search_query(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $longSearch = str_repeat('a', 256);
+        $response = $this->actingAs($this->user)->get('/vendors?search='.$longSearch);
+
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors('search');
+    }
+
+    public function test_vendor_index_rejects_invalid_page_number(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $response = $this->actingAs($this->user)->get('/vendors?page=0');
+
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors('page');
+    }
+
+    public function test_vendor_index_accepts_valid_insurance_statuses(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $validStatuses = ['expired', 'expiring_soon', 'current'];
+
+        foreach ($validStatuses as $status) {
+            $response = $this->actingAs($this->user)->get('/vendors?insurance_status='.$status);
+
+            $response->assertStatus(200);
+        }
+    }
+
+    public function test_vendor_index_accepts_valid_canonical_filters(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $validFilters = ['canonical_only', 'all', 'duplicates_only'];
+
+        foreach ($validFilters as $filter) {
+            $response = $this->actingAs($this->user)->get('/vendors?canonical_filter='.$filter);
+
+            $response->assertStatus(200);
+        }
+    }
+
+    public function test_vendor_index_accepts_valid_sort_fields(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $validSorts = ['company_name', 'vendor_type', 'is_active', 'work_orders_count'];
+
+        foreach ($validSorts as $sort) {
+            $response = $this->actingAs($this->user)->get('/vendors?sort='.$sort);
+
+            $response->assertStatus(200);
+        }
+    }
+
+    public function test_vendor_index_accepts_valid_sort_directions(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $validDirections = ['asc', 'desc'];
+
+        foreach ($validDirections as $direction) {
+            $response = $this->actingAs($this->user)->get('/vendors?direction='.$direction);
+
+            $response->assertStatus(200);
+        }
+    }
+
+    public function test_vendor_index_accepts_boolean_is_active_values(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $validValues = ['0', '1', 'true', 'false'];
+
+        foreach ($validValues as $value) {
+            $response = $this->actingAs($this->user)->get('/vendors?is_active='.$value);
+
+            $response->assertStatus(200);
+        }
     }
 }

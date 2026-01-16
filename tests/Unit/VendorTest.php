@@ -463,6 +463,225 @@ class VendorTest extends TestCase
         $this->assertTrue($vendor->hasExpiredLicense());
     }
 
+    // ==================== Insurance Scope Tests ====================
+
+    public function test_scope_with_expired_insurance_filters_expired_workers_comp(): void
+    {
+        $expiredVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::yesterday(),
+            'liability_ins_expires' => Carbon::now()->addMonth(),
+            'auto_ins_expires' => Carbon::now()->addMonth(),
+        ]);
+        $validVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addMonth(),
+            'liability_ins_expires' => Carbon::now()->addMonth(),
+            'auto_ins_expires' => Carbon::now()->addMonth(),
+        ]);
+
+        $results = Vendor::withExpiredInsurance()->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals($expiredVendor->id, $results->first()->id);
+    }
+
+    public function test_scope_with_expired_insurance_filters_expired_liability(): void
+    {
+        $expiredVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addMonth(),
+            'liability_ins_expires' => Carbon::yesterday(),
+            'auto_ins_expires' => Carbon::now()->addMonth(),
+        ]);
+        $validVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addMonth(),
+            'liability_ins_expires' => Carbon::now()->addMonth(),
+            'auto_ins_expires' => Carbon::now()->addMonth(),
+        ]);
+
+        $results = Vendor::withExpiredInsurance()->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals($expiredVendor->id, $results->first()->id);
+    }
+
+    public function test_scope_with_expired_insurance_filters_expired_auto(): void
+    {
+        $expiredVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addMonth(),
+            'liability_ins_expires' => Carbon::now()->addMonth(),
+            'auto_ins_expires' => Carbon::yesterday(),
+        ]);
+        $validVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addMonth(),
+            'liability_ins_expires' => Carbon::now()->addMonth(),
+            'auto_ins_expires' => Carbon::now()->addMonth(),
+        ]);
+
+        $results = Vendor::withExpiredInsurance()->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals($expiredVendor->id, $results->first()->id);
+    }
+
+    public function test_scope_with_expiring_soon_insurance_filters_within_30_days(): void
+    {
+        $expiringSoonVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addDays(15),
+            'liability_ins_expires' => Carbon::now()->addMonths(6),
+            'auto_ins_expires' => Carbon::now()->addMonths(6),
+        ]);
+        $validVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addMonths(6),
+            'liability_ins_expires' => Carbon::now()->addMonths(6),
+            'auto_ins_expires' => Carbon::now()->addMonths(6),
+        ]);
+
+        $results = Vendor::withExpiringSoonInsurance()->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals($expiringSoonVendor->id, $results->first()->id);
+    }
+
+    public function test_scope_with_expiring_soon_insurance_respects_custom_days(): void
+    {
+        $expiringSoonVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addDays(45),
+            'liability_ins_expires' => Carbon::now()->addMonths(6),
+            'auto_ins_expires' => Carbon::now()->addMonths(6),
+        ]);
+        $validVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addMonths(6),
+            'liability_ins_expires' => Carbon::now()->addMonths(6),
+            'auto_ins_expires' => Carbon::now()->addMonths(6),
+        ]);
+
+        // Default 30 days should NOT include the vendor
+        $results30 = Vendor::withExpiringSoonInsurance(30)->get();
+        $this->assertCount(0, $results30);
+
+        // 60 days should include the vendor
+        $results60 = Vendor::withExpiringSoonInsurance(60)->get();
+        $this->assertCount(1, $results60);
+        $this->assertEquals($expiringSoonVendor->id, $results60->first()->id);
+    }
+
+    public function test_scope_with_expiring_soon_excludes_expired(): void
+    {
+        $expiredVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::yesterday(),
+            'liability_ins_expires' => Carbon::now()->addMonths(6),
+            'auto_ins_expires' => Carbon::now()->addMonths(6),
+        ]);
+
+        $results = Vendor::withExpiringSoonInsurance()->get();
+
+        $this->assertCount(0, $results);
+    }
+
+    public function test_scope_with_current_insurance_filters_all_valid(): void
+    {
+        $currentVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addMonth(),
+            'liability_ins_expires' => Carbon::now()->addMonth(),
+            'auto_ins_expires' => Carbon::now()->addMonth(),
+        ]);
+        $expiredVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::yesterday(),
+            'liability_ins_expires' => Carbon::now()->addMonth(),
+            'auto_ins_expires' => Carbon::now()->addMonth(),
+        ]);
+
+        $results = Vendor::withCurrentInsurance()->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals($currentVendor->id, $results->first()->id);
+    }
+
+    public function test_scope_with_current_insurance_allows_null_dates(): void
+    {
+        $vendorWithNulls = Vendor::factory()->create([
+            'workers_comp_expires' => null,
+            'liability_ins_expires' => null,
+            'auto_ins_expires' => null,
+        ]);
+        $expiredVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::yesterday(),
+            'liability_ins_expires' => null,
+            'auto_ins_expires' => null,
+        ]);
+
+        $results = Vendor::withCurrentInsurance()->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals($vendorWithNulls->id, $results->first()->id);
+    }
+
+    public function test_scope_with_insurance_status_expired(): void
+    {
+        $expiredVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::yesterday(),
+            'liability_ins_expires' => Carbon::now()->addMonth(),
+            'auto_ins_expires' => Carbon::now()->addMonth(),
+        ]);
+        $validVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addMonth(),
+            'liability_ins_expires' => Carbon::now()->addMonth(),
+            'auto_ins_expires' => Carbon::now()->addMonth(),
+        ]);
+
+        $results = Vendor::withInsuranceStatus('expired')->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals($expiredVendor->id, $results->first()->id);
+    }
+
+    public function test_scope_with_insurance_status_expiring_soon(): void
+    {
+        $expiringSoonVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addDays(15),
+            'liability_ins_expires' => Carbon::now()->addMonths(6),
+            'auto_ins_expires' => Carbon::now()->addMonths(6),
+        ]);
+        $validVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addMonths(6),
+            'liability_ins_expires' => Carbon::now()->addMonths(6),
+            'auto_ins_expires' => Carbon::now()->addMonths(6),
+        ]);
+
+        $results = Vendor::withInsuranceStatus('expiring_soon')->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals($expiringSoonVendor->id, $results->first()->id);
+    }
+
+    public function test_scope_with_insurance_status_current(): void
+    {
+        $currentVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::now()->addMonth(),
+            'liability_ins_expires' => Carbon::now()->addMonth(),
+            'auto_ins_expires' => Carbon::now()->addMonth(),
+        ]);
+        $expiredVendor = Vendor::factory()->create([
+            'workers_comp_expires' => Carbon::yesterday(),
+            'liability_ins_expires' => Carbon::now()->addMonth(),
+            'auto_ins_expires' => Carbon::now()->addMonth(),
+        ]);
+
+        $results = Vendor::withInsuranceStatus('current')->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals($currentVendor->id, $results->first()->id);
+    }
+
+    public function test_scope_with_insurance_status_invalid_returns_all(): void
+    {
+        $vendor1 = Vendor::factory()->create();
+        $vendor2 = Vendor::factory()->create();
+
+        $results = Vendor::withInsuranceStatus('invalid_status')->get();
+
+        $this->assertCount(2, $results);
+    }
+
     // ==================== Combined Scope Tests ====================
 
     public function test_combined_scopes_work_together(): void
