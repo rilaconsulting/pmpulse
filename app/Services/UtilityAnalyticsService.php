@@ -415,6 +415,7 @@ class UtilityAnalyticsService
             return collect();
         }
 
+        // Use toBase() to get plain objects and avoid Eloquent accessor conflicts
         return UtilityExpense::query()
             ->select([
                 'utility_expenses.property_id',
@@ -427,6 +428,7 @@ class UtilityAnalyticsService
             ->whereIn('utility_accounts.utility_type', $utilityTypes)
             ->whereBetween('expense_date', [$startDate, $endDate])
             ->groupBy('utility_expenses.property_id', 'utility_accounts.utility_type', DB::raw("DATE_TRUNC('month', expense_date)"))
+            ->toBase()
             ->get();
     }
 
@@ -457,6 +459,7 @@ class UtilityAnalyticsService
             return collect();
         }
 
+        // Use toBase() to get plain objects and avoid Eloquent accessor conflicts
         return UtilityExpense::query()
             ->select([
                 DB::raw("DATE_TRUNC('month', expense_date) as month"),
@@ -469,6 +472,7 @@ class UtilityAnalyticsService
             ->whereBetween('expense_date', [$startDate, $endDate])
             ->groupBy(DB::raw("DATE_TRUNC('month', expense_date)"), 'utility_accounts.utility_type')
             ->orderBy('month')
+            ->toBase()
             ->get();
     }
 
@@ -512,6 +516,7 @@ class UtilityAnalyticsService
         $prev12MonthStart = $now->copy()->subMonths(12)->startOfMonth();
 
         // Single query to get all expense data grouped by property and month
+        // Use toBase() to get plain objects and avoid Eloquent accessor conflicts
         $expenseData = UtilityExpense::query()
             ->select([
                 'utility_expenses.property_id',
@@ -523,6 +528,7 @@ class UtilityAnalyticsService
             ->where('utility_accounts.utility_type', $utilityType)
             ->whereBetween('expense_date', [$prev12MonthStart, $currentMonthEnd])
             ->groupBy('utility_expenses.property_id', DB::raw("DATE_TRUNC('month', expense_date)"))
+            ->toBase()
             ->get()
             ->groupBy('property_id');
 
@@ -649,6 +655,7 @@ class UtilityAnalyticsService
         $propertyIds = $properties->pluck('id')->toArray();
 
         // Single query to get totals by property and utility type
+        // Use toBase() to get plain objects and avoid Eloquent accessor conflicts
         $expenseData = UtilityExpense::query()
             ->select([
                 'utility_expenses.property_id',
@@ -660,6 +667,7 @@ class UtilityAnalyticsService
             ->whereIn('utility_accounts.utility_type', $utilityTypes)
             ->whereBetween('expense_date', [$startDate, $endDate])
             ->groupBy('utility_expenses.property_id', 'utility_accounts.utility_type')
+            ->toBase()
             ->get()
             ->groupBy('utility_type');
 
