@@ -25,7 +25,10 @@ class VendorController extends Controller
         $canonicalFilter = $request->get('canonical_filter', 'canonical_only');
 
         $query = Vendor::query()
-            ->with(['duplicateVendors:id,canonical_vendor_id,company_name,contact_name,phone,email']) // Eager load for getAllGroupVendorIds()
+            ->with([
+                'duplicateVendors:id,canonical_vendor_id,company_name,contact_name,phone,email', // For canonical vendors
+                'canonicalVendor:id,company_name', // For duplicate vendors when showing all
+            ])
             ->withCount(['workOrders', 'duplicateVendors']);
 
         // Apply canonical filtering

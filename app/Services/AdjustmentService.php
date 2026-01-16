@@ -189,11 +189,28 @@ class AdjustmentService
     }
 
     /**
-     * End a permanent adjustment by setting its effective_to date to today.
+     * End a permanent adjustment by setting its effective_to date.
+     *
+     * @param  PropertyAdjustment  $adjustment  The adjustment to end
+     * @param  Carbon|null  $endDate  The end date (defaults to today)
+     * @return PropertyAdjustment The updated adjustment
+     *
+     * @throws \InvalidArgumentException If endDate is before the adjustment's effective_from date
      */
     public function endAdjustment(PropertyAdjustment $adjustment, ?Carbon $endDate = null): PropertyAdjustment
     {
         $endDate = $endDate ?? Carbon::today();
+
+        // Validate that end date is not before the start date
+        if ($endDate->lt($adjustment->effective_from)) {
+            throw new \InvalidArgumentException(
+                sprintf(
+                    'End date (%s) cannot be before the adjustment start date (%s).',
+                    $endDate->toDateString(),
+                    $adjustment->effective_from->toDateString()
+                )
+            );
+        }
 
         $adjustment->update([
             'effective_to' => $endDate,
