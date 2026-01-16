@@ -45,7 +45,7 @@ export default function Changelog({ releases, error }) {
                                 </div>
                                 <div className="card-body">
                                     <div
-                                        className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-h3:text-base prose-h3:font-semibold prose-h3:mt-4 prose-h3:mb-2 prose-h3:text-gray-800 first:prose-h3:mt-0 prose-ul:my-2 prose-ul:text-gray-600 prose-li:my-0.5 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline"
+                                        className="prose-changelog"
                                         dangerouslySetInnerHTML={{ __html: release.content }}
                                     />
                                 </div>

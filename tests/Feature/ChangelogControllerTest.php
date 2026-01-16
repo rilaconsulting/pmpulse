@@ -12,6 +12,14 @@ class ChangelogControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    private User $user;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->user = User::factory()->create();
+    }
+
     public function test_changelog_page_requires_authentication(): void
     {
         $response = $this->get('/changelog');
@@ -21,9 +29,7 @@ class ChangelogControllerTest extends TestCase
 
     public function test_changelog_page_displays_for_authenticated_users(): void
     {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/changelog');
+        $response = $this->actingAs($this->user)->get('/changelog');
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
@@ -35,9 +41,7 @@ class ChangelogControllerTest extends TestCase
 
     public function test_changelog_page_contains_releases(): void
     {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/changelog');
+        $response = $this->actingAs($this->user)->get('/changelog');
 
         $response->assertOk();
 
@@ -53,9 +57,7 @@ class ChangelogControllerTest extends TestCase
 
     public function test_changelog_excludes_unreleased_section(): void
     {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/changelog');
+        $response = $this->actingAs($this->user)->get('/changelog');
 
         $response->assertOk();
 
@@ -71,9 +73,7 @@ class ChangelogControllerTest extends TestCase
 
     public function test_changelog_formats_dates_nicely(): void
     {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/changelog');
+        $response = $this->actingAs($this->user)->get('/changelog');
 
         $response->assertOk();
 
