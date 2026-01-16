@@ -6,6 +6,7 @@ import {
     Cog6ToothIcon,
     ArrowRightOnRectangleIcon,
     WrenchScrewdriverIcon,
+    DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import PropertySearch from './PropertySearch';
 
@@ -55,8 +56,18 @@ export default function Layout({ children }) {
                 </nav>
 
                 {/* User section */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-                    <div className="flex items-center justify-between">
+                <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200">
+                    {/* What's New link */}
+                    <Link
+                        href="/changelog"
+                        className={`flex items-center px-7 py-3 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors ${
+                            currentPath === '/changelog' ? 'bg-gray-50 text-gray-700' : ''
+                        }`}
+                    >
+                        <DocumentTextIcon className="w-4 h-4 mr-2" />
+                        What's New
+                    </Link>
+                    <div className="p-4 pt-0 flex items-center justify-between">
                         <Link
                             href="/profile"
                             className="flex items-center hover:bg-gray-50 rounded-lg p-1 -m-1 transition-colors"

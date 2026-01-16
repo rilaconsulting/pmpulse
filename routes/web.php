@@ -5,6 +5,7 @@ use App\Http\Controllers\AdjustmentReportController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleSsoController;
+use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PropertyController;
@@ -138,4 +139,8 @@ Route::middleware('auth')->group(function () {
         ->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])
         ->name('profile.password');
+
+    // Changelog
+    Route::get('/changelog', [ChangelogController::class, 'index'])
+        ->name('changelog');
 });

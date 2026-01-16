@@ -88,6 +88,10 @@ class WorkOrder extends Model
      */
     public function getDaysOpenAttribute(): int
     {
+        if ($this->opened_at === null) {
+            return 0;
+        }
+
         $endDate = $this->closed_at ?? now();
 
         return (int) $this->opened_at->diffInDays($endDate);
