@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Improved test coverage with 200+ new tests across controllers, services, and models
+- Test infrastructure now uses PostgreSQL for consistency with production environment
+
 ### Fixed
 - Password change now properly invalidates other sessions before updating credentials
 - Property adjustment end date validation now prevents setting end date before start date
