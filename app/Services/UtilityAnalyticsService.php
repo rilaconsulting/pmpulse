@@ -409,7 +409,7 @@ class UtilityAnalyticsService
      * @param  Carbon  $endDate  End date for the date range
      * @return Collection Grouped by property_id, then utility_type, containing monthly totals
      */
-    public function getBulkExpenseData(array $propertyIds, array $utilityTypes, Carbon $startDate, Carbon $endDate): Collection
+    private function getBulkExpenseData(array $propertyIds, array $utilityTypes, Carbon $startDate, Carbon $endDate): Collection
     {
         if (empty($propertyIds) || empty($utilityTypes)) {
             return collect();
@@ -459,21 +459,48 @@ class UtilityAnalyticsService
             return collect();
         }
 
+        // Get utility-specific exclusions for all utility types
+        $exclusionsByType = [];
+        foreach ($utilityTypes as $type) {
+            $exclusionsByType[$type] = PropertyUtilityExclusion::getExcludedPropertyIds($type);
+        }
+
         // Use toBase() to get plain objects and avoid Eloquent accessor conflicts
-        return UtilityExpense::query()
+        $results = UtilityExpense::query()
             ->select([
                 DB::raw("DATE_TRUNC('month', expense_date) as month"),
                 'utility_accounts.utility_type',
+                'utility_expenses.property_id',
                 DB::raw('SUM(amount) as total'),
             ])
             ->join('utility_accounts', 'utility_expenses.utility_account_id', '=', 'utility_accounts.id')
             ->whereIn('utility_expenses.property_id', $propertyIds)
             ->whereIn('utility_accounts.utility_type', $utilityTypes)
             ->whereBetween('expense_date', [$startDate, $endDate])
-            ->groupBy(DB::raw("DATE_TRUNC('month', expense_date)"), 'utility_accounts.utility_type')
+            ->groupBy(DB::raw("DATE_TRUNC('month', expense_date)"), 'utility_accounts.utility_type', 'utility_expenses.property_id')
             ->orderBy('month')
             ->toBase()
             ->get();
+
+        // Filter out excluded properties per utility type and re-aggregate
+        $filtered = $results->reject(function ($item) use ($exclusionsByType) {
+            $excludedIds = $exclusionsByType[$item->utility_type] ?? [];
+
+            return in_array($item->property_id, $excludedIds);
+        });
+
+        // Re-aggregate by month and utility_type after filtering
+        return $filtered->groupBy(fn ($item) => $item->month.'|'.$item->utility_type)
+            ->map(function ($group) {
+                $first = $group->first();
+
+                return (object) [
+                    'month' => $first->month,
+                    'utility_type' => $first->utility_type,
+                    'total' => $group->sum('total'),
+                ];
+            })
+            ->values();
     }
 
     /**
@@ -490,9 +517,15 @@ class UtilityAnalyticsService
     {
         $now = $referenceDate ?? now();
 
-        // Get active properties for utility reports
+        // Get properties excluded for this specific utility type
+        $utilityExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds($utilityType);
+
+        // Get active properties for utility reports, excluding utility-specific exclusions
         $properties = Property::active()
             ->forUtilityReports()
+            ->when(! empty($utilityExcludedIds), function ($query) use ($utilityExcludedIds) {
+                $query->whereNotIn('id', $utilityExcludedIds);
+            })
             ->orderBy('name')
             ->get();
 
@@ -615,12 +648,15 @@ class UtilityAnalyticsService
      */
     private function sumExpensesInPeriod(Collection $expenses, Carbon $startDate, Carbon $endDate): float
     {
+        // Pre-compute boundaries outside the filter to avoid redundant calculations
+        $startMonth = $startDate->copy()->startOfMonth();
+        $endMonth = $endDate->copy()->startOfMonth();
+
         return (float) $expenses
-            ->filter(function ($expense) use ($startDate, $endDate) {
+            ->filter(function ($expense) use ($startMonth, $endMonth) {
                 $month = Carbon::parse($expense->month);
 
-                return $month->gte($startDate->copy()->startOfMonth())
-                    && $month->lte($endDate->copy()->startOfMonth());
+                return $month->gte($startMonth) && $month->lte($endMonth);
             })
             ->sum('total');
     }
@@ -654,6 +690,12 @@ class UtilityAnalyticsService
 
         $propertyIds = $properties->pluck('id')->toArray();
 
+        // Get utility-specific exclusions for all utility types upfront
+        $exclusionsByType = [];
+        foreach ($utilityTypes as $type) {
+            $exclusionsByType[$type] = PropertyUtilityExclusion::getExcludedPropertyIds($type);
+        }
+
         // Single query to get totals by property and utility type
         // Use toBase() to get plain objects and avoid Eloquent accessor conflicts
         $expenseData = UtilityExpense::query()
@@ -676,7 +718,10 @@ class UtilityAnalyticsService
 
         $summary = [];
         foreach ($utilityTypes as $type) {
-            $typeExpenses = $expenseData->get($type, collect());
+            $excludedIds = $exclusionsByType[$type] ?? [];
+            // Filter out excluded properties for this utility type
+            $typeExpenses = $expenseData->get($type, collect())
+                ->reject(fn ($expense) => in_array($expense->property_id, $excludedIds));
             $totalCost = (float) $typeExpenses->sum('total');
             $propertyCount = $typeExpenses->count();
 

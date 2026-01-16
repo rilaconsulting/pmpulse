@@ -43,16 +43,21 @@ class UtilityDashboardController extends Controller
         $utilityTypeOptions = UtilityAccount::getUtilityTypeOptions();
         $utilityTypes = array_keys($utilityTypeOptions);
 
-        // Calculate summary for each utility type
+        // Calculate summary for each utility type using bulk query
+        $utilitySummaryRaw = $this->analyticsService->getPortfolioSummaryBulk($utilityTypes, $period);
         $utilitySummary = [];
         foreach ($utilityTypes as $type) {
-            $portfolioData = $this->analyticsService->getPortfolioAverage($type, $period);
+            $summaryData = $utilitySummaryRaw[$type] ?? [
+                'total_cost' => 0,
+                'average_per_unit' => 0,
+                'property_count' => 0,
+            ];
             $utilitySummary[$type] = [
                 'type' => $type,
                 'label' => $utilityTypeOptions[$type],
-                'total_cost' => $portfolioData['total_cost'],
-                'average_per_unit' => $portfolioData['average'],
-                'property_count' => $portfolioData['property_count'],
+                'total_cost' => $summaryData['total_cost'],
+                'average_per_unit' => $summaryData['average_per_unit'],
+                'property_count' => $summaryData['property_count'],
             ];
         }
 

@@ -24,6 +24,13 @@ class BenchmarkUtilities extends Command
         $warmup = (int) $this->option('warmup');
         $detailed = $this->option('detailed');
 
+        // Validate iterations to prevent division by zero
+        if ($iterations < 1) {
+            $this->error('Iterations must be at least 1.');
+
+            return Command::FAILURE;
+        }
+
         $this->info('Utility Dashboard Performance Benchmark');
         $this->info('=======================================');
         $this->newLine();
