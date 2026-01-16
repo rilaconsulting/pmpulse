@@ -157,71 +157,27 @@ class VendorController extends Controller
         $spendTrend = $this->analyticsService->getVendorTrend($canonicalVendor, 12, 'month');
 
         // Get spend by property
-        $spendByProperty = $this->getSpendByProperty($canonicalVendor, $period);
+        $spendByProperty = $this->analyticsService->getSpendByProperty($canonicalVendor);
 
         // Get insurance status
         $insuranceStatus = $this->complianceService->getInsuranceStatus($vendor);
 
-        // Build work orders query with filtering and sorting
-        $vendorIds = $canonicalVendor->getAllGroupVendorIds();
-        $workOrdersQuery = \App\Models\WorkOrder::query()
-            ->whereIn('vendor_id', $vendorIds)
-            ->with('property:id,name');
-
-        // Filter by status
-        if ($status = $request->get('wo_status')) {
-            $workOrdersQuery->where('status', $status);
-        }
-
-        // Filter by property
-        if ($propertyId = $request->get('wo_property')) {
-            $workOrdersQuery->where('property_id', $propertyId);
-        }
-
-        // Sorting
+        // Get work orders with filtering and sorting
         $sortField = $request->get('wo_sort', 'opened_at');
         $sortDirection = $request->get('wo_direction', 'desc');
-        $allowedSorts = ['opened_at', 'closed_at', 'amount', 'status'];
 
-        if (in_array($sortField, $allowedSorts)) {
-            $workOrdersQuery->orderBy($sortField, $sortDirection === 'asc' ? 'asc' : 'desc');
-        } else {
-            $workOrdersQuery->orderBy('opened_at', 'desc');
-        }
-
-        $workOrders = $workOrdersQuery->paginate(10, ['*'], 'wo_page')->withQueryString();
+        $workOrders = $this->analyticsService->getVendorWorkOrders($canonicalVendor, [
+            'status' => $request->get('wo_status'),
+            'property_id' => $request->get('wo_property'),
+            'sort' => $sortField,
+            'direction' => $sortDirection,
+        ]);
 
         // Get unique properties for filter dropdown
-        $workOrderProperties = \App\Models\WorkOrder::query()
-            ->whereIn('vendor_id', $vendorIds)
-            ->whereNotNull('property_id')
-            ->with('property:id,name')
-            ->distinct('property_id')
-            ->get()
-            ->pluck('property')
-            ->filter()
-            ->unique('id')
-            ->values();
+        $workOrderProperties = $this->analyticsService->getVendorWorkOrderProperties($canonicalVendor);
 
-        // Get work order status counts using a single aggregated query
-        $statsRow = \App\Models\WorkOrder::query()
-            ->whereIn('vendor_id', $vendorIds)
-            ->selectRaw("
-                COUNT(*) as total,
-                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-                SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open,
-                SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
-                COALESCE(SUM(amount), 0) as total_spend
-            ")
-            ->first();
-
-        $workOrderStats = [
-            'total' => (int) ($statsRow->total ?? 0),
-            'completed' => (int) ($statsRow->completed ?? 0),
-            'open' => (int) ($statsRow->open ?? 0),
-            'in_progress' => (int) ($statsRow->in_progress ?? 0),
-            'total_spend' => (float) ($statsRow->total_spend ?? 0),
-        ];
+        // Get work order statistics
+        $workOrderStats = $this->analyticsService->getVendorWorkOrderStats($canonicalVendor);
 
         return Inertia::render('Vendors/Show', [
             'vendor' => $vendor,
@@ -307,67 +263,18 @@ class VendorController extends Controller
         $requestedTrade = $request->get('trade', $allTrades[0] ?? null);
         $selectedTrade = in_array($requestedTrade, $allTrades, true) ? $requestedTrade : ($allTrades[0] ?? null);
 
-        // Get vendors in the selected trade
+        // Get vendors in the selected trade with metrics
         $vendors = [];
         $comparison = [];
 
         if ($selectedTrade) {
-            $vendorQuery = Vendor::query()
-                ->canonical()
-                ->active()
-                ->where('vendor_trades', 'ILIKE', "%{$selectedTrade}%")
-                ->orderBy('company_name');
-
-            $vendorsInTrade = $vendorQuery->get();
-
             $period = ['type' => 'last_12_months', 'date' => now()];
-
-            // Calculate metrics for each vendor
-            foreach ($vendorsInTrade as $vendor) {
-                $metrics = $this->analyticsService->getVendorSummary($vendor, $period);
-                $insuranceStatus = $this->complianceService->getInsuranceStatus($vendor);
-
-                $vendors[] = [
-                    'id' => $vendor->id,
-                    'company_name' => $vendor->company_name,
-                    'contact_name' => $vendor->contact_name,
-                    'phone' => $vendor->phone,
-                    'email' => $vendor->email,
-                    'is_active' => $vendor->is_active,
-                    'work_order_count' => $metrics['work_order_count'] ?? 0,
-                    'total_spend' => $metrics['total_spend'] ?? 0,
-                    'avg_cost_per_wo' => $metrics['avg_cost_per_wo'] ?? null,
-                    'avg_completion_time' => $metrics['avg_completion_time'] ?? null,
-                    'insurance_status' => $insuranceStatus,
-                ];
-            }
-
-            // Find best and worst values
-            if (count($vendors) > 1) {
-                $metrics = ['work_order_count', 'total_spend', 'avg_cost_per_wo', 'avg_completion_time'];
-
-                foreach ($metrics as $metric) {
-                    $values = array_filter(array_column($vendors, $metric), fn ($v) => $v !== null);
-
-                    if (empty($values)) {
-                        continue;
-                    }
-
-                    // For most metrics, higher is better for work orders, lower is better for cost/time
-                    $best = ($metric === 'work_order_count' || $metric === 'total_spend')
-                        ? max($values)
-                        : min($values);
-                    $worst = ($metric === 'work_order_count' || $metric === 'total_spend')
-                        ? min($values)
-                        : max($values);
-
-                    $comparison[$metric] = [
-                        'best' => $best,
-                        'worst' => $worst,
-                        'avg' => count($values) > 0 ? array_sum($values) / count($values) : null,
-                    ];
-                }
-            }
+            $vendors = $this->analyticsService->getVendorsForComparison(
+                $selectedTrade,
+                $period,
+                $this->complianceService
+            );
+            $comparison = $this->analyticsService->calculateComparisonStats($vendors);
         }
 
         return Inertia::render('Vendors/Compare', [
@@ -431,34 +338,4 @@ class VendorController extends Controller
         ]);
     }
 
-    /**
-     * Get spend breakdown by property for a vendor.
-     */
-    private function getSpendByProperty(Vendor $vendor, array $period): array
-    {
-        $vendorIds = $vendor->getAllGroupVendorIds();
-
-        // Get work orders grouped by property
-        $workOrders = \App\Models\WorkOrder::query()
-            ->whereIn('vendor_id', $vendorIds)
-            ->whereNotNull('property_id')
-            ->whereNotNull('amount')
-            ->where('amount', '>', 0)
-            ->with('property:id,name')
-            ->get();
-
-        // Group by property and sum amounts
-        $byProperty = $workOrders->groupBy('property_id')->map(function ($wos, $propertyId) {
-            $property = $wos->first()?->property;
-
-            return [
-                'property_id' => $propertyId,
-                'property_name' => $property?->name ?? 'Unknown',
-                'total_spend' => $wos->sum('amount'),
-                'work_order_count' => $wos->count(),
-            ];
-        })->values()->sortByDesc('total_spend')->take(10)->values()->toArray();
-
-        return $byProperty;
-    }
 }

@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Vendor;
 use App\Models\WorkOrder;
+use App\Services\VendorComplianceService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -1369,6 +1370,221 @@ class VendorAnalyticsService
         }
 
         return round($values[$middle], 1);
+    }
+
+    // ============================================================
+    // Vendor Work Order Methods (PMP-159)
+    // ============================================================
+
+    /**
+     * Get spend breakdown by property for a vendor.
+     *
+     * @param  Vendor  $vendor  The vendor to analyze
+     * @param  int  $limit  Maximum properties to return
+     * @return array Property spend data sorted by total spend
+     */
+    public function getSpendByProperty(Vendor $vendor, int $limit = 10): array
+    {
+        $vendorIds = $vendor->getAllGroupVendorIds();
+
+        $spendData = WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->whereNotNull('property_id')
+            ->whereNotNull('amount')
+            ->where('amount', '>', 0)
+            ->with('property:id,name')
+            ->get()
+            ->groupBy('property_id')
+            ->map(function ($wos, $propertyId) {
+                $property = $wos->first()?->property;
+
+                return [
+                    'property_id' => $propertyId,
+                    'property_name' => $property?->name ?? 'Unknown',
+                    'total_spend' => $wos->sum('amount'),
+                    'work_order_count' => $wos->count(),
+                ];
+            })
+            ->values()
+            ->sortByDesc('total_spend')
+            ->take($limit)
+            ->values()
+            ->toArray();
+
+        return $spendData;
+    }
+
+    /**
+     * Get paginated work orders for a vendor with filters.
+     *
+     * @param  Vendor  $vendor  The vendor to get work orders for
+     * @param  array  $filters  Filters and sorting options
+     * @param  int  $perPage  Number of items per page
+     * @param  string  $pageName  Page query parameter name
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
+    public function getVendorWorkOrders(
+        Vendor $vendor,
+        array $filters = [],
+        int $perPage = 10,
+        string $pageName = 'wo_page'
+    ): \Illuminate\Contracts\Pagination\LengthAwarePaginator {
+        $vendorIds = $vendor->getAllGroupVendorIds();
+
+        $query = WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->with('property:id,name');
+
+        // Filter by status
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        // Filter by property
+        if (! empty($filters['property_id'])) {
+            $query->where('property_id', $filters['property_id']);
+        }
+
+        // Sorting
+        $sortField = $filters['sort'] ?? 'opened_at';
+        $sortDirection = $filters['direction'] ?? 'desc';
+        $allowedSorts = ['opened_at', 'closed_at', 'amount', 'status'];
+
+        if (in_array($sortField, $allowedSorts, true)) {
+            $query->orderBy($sortField, $sortDirection === 'asc' ? 'asc' : 'desc');
+        } else {
+            $query->orderBy('opened_at', 'desc');
+        }
+
+        return $query->paginate($perPage, ['*'], $pageName)->withQueryString();
+    }
+
+    /**
+     * Get work order statistics for a vendor.
+     *
+     * @param  Vendor  $vendor  The vendor to analyze
+     * @return array Work order stats (total, completed, open, in_progress, total_spend)
+     */
+    public function getVendorWorkOrderStats(Vendor $vendor): array
+    {
+        $vendorIds = $vendor->getAllGroupVendorIds();
+
+        $statsRow = WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open,
+                SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+                COALESCE(SUM(amount), 0) as total_spend
+            ")
+            ->first();
+
+        return [
+            'total' => (int) ($statsRow->total ?? 0),
+            'completed' => (int) ($statsRow->completed ?? 0),
+            'open' => (int) ($statsRow->open ?? 0),
+            'in_progress' => (int) ($statsRow->in_progress ?? 0),
+            'total_spend' => (float) ($statsRow->total_spend ?? 0),
+        ];
+    }
+
+    /**
+     * Get unique properties that have work orders for a vendor.
+     *
+     * @param  Vendor  $vendor  The vendor
+     * @return \Illuminate\Support\Collection Collection of properties
+     */
+    public function getVendorWorkOrderProperties(Vendor $vendor): \Illuminate\Support\Collection
+    {
+        $vendorIds = $vendor->getAllGroupVendorIds();
+
+        return WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->whereNotNull('property_id')
+            ->with('property:id,name')
+            ->distinct('property_id')
+            ->get()
+            ->pluck('property')
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Get vendors for comparison by trade with metrics.
+     *
+     * @param  string  $trade  The trade to filter by
+     * @param  array  $period  Period config
+     * @param  VendorComplianceService|null  $complianceService  Compliance service for insurance status
+     * @return array Vendors with metrics and comparison data
+     */
+    public function getVendorsForComparison(string $trade, array $period, ?VendorComplianceService $complianceService = null): array
+    {
+        $vendorsInTrade = Vendor::query()
+            ->canonical()
+            ->active()
+            ->where('vendor_trades', 'ILIKE', "%{$trade}%")
+            ->orderBy('company_name')
+            ->get();
+
+        $vendors = [];
+        foreach ($vendorsInTrade as $vendor) {
+            $metrics = $this->getVendorSummary($vendor, $period);
+            $insuranceStatus = $complianceService?->getInsuranceStatus($vendor) ?? [];
+
+            $vendors[] = [
+                'id' => $vendor->id,
+                'company_name' => $vendor->company_name,
+                'contact_name' => $vendor->contact_name,
+                'phone' => $vendor->phone,
+                'email' => $vendor->email,
+                'is_active' => $vendor->is_active,
+                'work_order_count' => $metrics['work_order_count'] ?? 0,
+                'total_spend' => $metrics['total_spend'] ?? 0,
+                'avg_cost_per_wo' => $metrics['avg_cost_per_wo'] ?? null,
+                'avg_completion_time' => $metrics['avg_completion_time'] ?? null,
+                'insurance_status' => $insuranceStatus,
+            ];
+        }
+
+        return $vendors;
+    }
+
+    /**
+     * Calculate comparison statistics (best, worst, avg) for vendor metrics.
+     *
+     * @param  array  $vendors  Array of vendor data with metrics
+     * @return array Comparison statistics
+     */
+    public function calculateComparisonStats(array $vendors): array
+    {
+        if (count($vendors) < 2) {
+            return [];
+        }
+
+        $comparison = [];
+        $metrics = ['work_order_count', 'total_spend', 'avg_cost_per_wo', 'avg_completion_time'];
+
+        foreach ($metrics as $metric) {
+            $values = array_filter(array_column($vendors, $metric), fn ($v) => $v !== null);
+
+            if (empty($values)) {
+                continue;
+            }
+
+            // For work orders and spend, higher is "better" (more usage)
+            // For cost and time, lower is better
+            $higherIsBetter = in_array($metric, ['work_order_count', 'total_spend'], true);
+
+            $comparison[$metric] = [
+                'best' => $higherIsBetter ? max($values) : min($values),
+                'worst' => $higherIsBetter ? min($values) : max($values),
+                'avg' => count($values) > 0 ? array_sum($values) / count($values) : null,
+            ];
+        }
+
+        return $comparison;
     }
 
     // ============================================================
