@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Models\Vendor;
 use App\Models\VendorDuplicateAnalysis;
 use App\Services\VendorDeduplicationService;
 use Illuminate\Bus\Queueable;
@@ -39,7 +40,7 @@ class FindPotentialDuplicateVendorsJob implements ShouldQueue
 
         try {
             // Count total vendors to track comparisons
-            $totalVendors = \App\Models\Vendor::canonical()->count();
+            $totalVendors = Vendor::canonical()->count();
             $comparisons = ($totalVendors * ($totalVendors - 1)) / 2;
 
             // Find potential duplicates

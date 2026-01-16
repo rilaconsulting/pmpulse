@@ -383,7 +383,7 @@ class VendorDeduplicationServiceTest extends TestCase
     public function test_find_potential_duplicates_queries_canonical_vendors(): void
     {
         $canonical1 = Vendor::factory()->create(['company_name' => 'Acme Plumbing']);
-        $canonical2 = Vendor::factory()->create(['company_name' => 'Acme Plumbing LLC']);
+        Vendor::factory()->create(['company_name' => 'Acme Plumbing LLC']);
         $duplicate = Vendor::factory()->duplicateOf($canonical1)->create([
             'company_name' => 'Acme Plumbing',
         ]);

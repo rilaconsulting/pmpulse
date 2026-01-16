@@ -26,11 +26,10 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
     const [showPotentialDuplicates, setShowPotentialDuplicates] = useState(false);
     const [potentialDuplicates, setPotentialDuplicates] = useState([]);
     const [loadingPotential, setLoadingPotential] = useState(false);
-    const [similarityThreshold, setSimilarityThreshold] = useState(0.5);
+    const [similarityThreshold, setSimilarityThreshold] = useState(0.6);
     const [resultLimit, setResultLimit] = useState(20);
 
     // Background analysis state
-    const [analysisId, setAnalysisId] = useState(null);
     const [analysisStatus, setAnalysisStatus] = useState(null); // pending, processing, completed, failed
     const [analysisProgress, setAnalysisProgress] = useState(null);
     const pollIntervalRef = useRef(null);
@@ -222,25 +221,24 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
 
             if (response.ok || response.status === 202) {
                 const data = await response.json();
-                const id = data.data.id;
-                setAnalysisId(id);
+                const analysisId = data.data.id;
                 setAnalysisStatus(data.data.status);
                 toast.info('Analysis started - this may take a moment');
 
                 // Start polling
                 pollIntervalRef.current = setInterval(() => {
-                    pollAnalysisStatus(id);
+                    pollAnalysisStatus(analysisId);
                 }, 2000); // Poll every 2 seconds
             } else if (response.status === 409) {
                 // Analysis already in progress
                 const data = await response.json();
-                setAnalysisId(data.data.id);
+                const analysisId = data.data.id;
                 setAnalysisStatus(data.data.status);
                 toast.warning('An analysis is already in progress');
 
                 // Start polling the existing analysis
                 pollIntervalRef.current = setInterval(() => {
-                    pollAnalysisStatus(data.data.id);
+                    pollAnalysisStatus(analysisId);
                 }, 2000);
             } else {
                 const data = await response.json();
@@ -293,8 +291,8 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                 <input
                                     type="range"
                                     id="similarity-threshold"
-                                    min="0.3"
-                                    max="0.9"
+                                    min="0.1"
+                                    max="1.0"
                                     step="0.05"
                                     value={similarityThreshold}
                                     onChange={(e) => setSimilarityThreshold(parseFloat(e.target.value))}

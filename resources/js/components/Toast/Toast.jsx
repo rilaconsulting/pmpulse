@@ -44,7 +44,6 @@ export default function Toast({ toast, onDismiss }) {
             <div
                 className={`pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg border shadow-lg ${STYLES[toast.type] || STYLES.info}`}
                 role="alert"
-                aria-live="polite"
             >
                 <div className="p-4">
                     <div className="flex items-start">

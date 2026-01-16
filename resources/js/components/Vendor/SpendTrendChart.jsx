@@ -48,7 +48,7 @@ export default function SpendTrendChart({ spendTrend, vendorName }) {
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
-            const safeName = vendorName.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').toLowerCase();
+            const safeName = (vendorName || 'vendor').replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').toLowerCase();
             link.setAttribute('href', url);
             link.setAttribute('download', `vendor-spend-${safeName}.csv`);
             document.body.appendChild(link);
@@ -101,7 +101,7 @@ export default function SpendTrendChart({ spendTrend, vendorName }) {
                                 />
                                 <Tooltip
                                     formatter={(value, name) => {
-                                        if (name === 'spend') return [formatCurrency(value), 'Spend'];
+                                        if (name === 'Spend') return [formatCurrency(value), 'Spend'];
                                         return [value, 'Work Orders'];
                                     }}
                                 />

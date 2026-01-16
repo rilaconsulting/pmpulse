@@ -1878,6 +1878,7 @@ class VendorAnalyticsService
                 vendor_id,
                 COUNT(*) as work_order_count,
                 COALESCE(SUM(amount), 0) as total_spend,
+                COUNT(CASE WHEN amount > 0 THEN 1 END) as wo_with_amount_count,
                 CASE
                     WHEN COUNT(CASE WHEN amount > 0 THEN 1 END) > 0
                     THEN AVG(CASE WHEN amount > 0 THEN amount END)
@@ -1914,11 +1915,7 @@ class VendorAnalyticsService
                     if (! isset($results[$canonicalId]['_avg_data'])) {
                         $results[$canonicalId]['_avg_data'] = ['sum' => 0, 'count' => 0];
                     }
-                    $woWithAmount = (int) WorkOrder::query()
-                        ->where('vendor_id', $vendorId)
-                        ->whereBetween('opened_at', [$startDate, $endDate])
-                        ->where('amount', '>', 0)
-                        ->count();
+                    $woWithAmount = (int) $data->wo_with_amount_count;
                     if ($woWithAmount > 0) {
                         $results[$canonicalId]['_avg_data']['sum'] += (float) $data->avg_cost_per_wo * $woWithAmount;
                         $results[$canonicalId]['_avg_data']['count'] += $woWithAmount;

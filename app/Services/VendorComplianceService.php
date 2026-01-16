@@ -54,21 +54,21 @@ class VendorComplianceService
                     'type' => $label,
                     'field' => $field,
                     'date' => $date->toDateString(),
-                    'days_past' => $today->diffInDays($date),
+                    'days_past' => $today->diffInDays($date, true),
                 ];
             } elseif ($date <= $thirtyDays) {
                 $issues['expiring_soon'][] = [
                     'type' => $label,
                     'field' => $field,
                     'date' => $date->toDateString(),
-                    'days_until' => $today->diffInDays($date),
+                    'days_until' => $today->diffInDays($date, true),
                 ];
             } elseif ($date <= $ninetyDays) {
                 $issues['expiring_quarter'][] = [
                     'type' => $label,
                     'field' => $field,
                     'date' => $date->toDateString(),
-                    'days_until' => $today->diffInDays($date),
+                    'days_until' => $today->diffInDays($date, true),
                 ];
             }
         }
@@ -105,19 +105,19 @@ class VendorComplianceService
                 $issues['expired'][] = [
                     'vendor' => $vendor,
                     'date' => $date->toDateString(),
-                    'days_past' => $today->diffInDays($date),
+                    'days_past' => $today->diffInDays($date, true),
                 ];
             } elseif ($date <= $thirtyDays) {
                 $issues['expiring_soon'][] = [
                     'vendor' => $vendor,
                     'date' => $date->toDateString(),
-                    'days_until' => $today->diffInDays($date),
+                    'days_until' => $today->diffInDays($date, true),
                 ];
             } else {
                 $issues['current'][] = [
                     'vendor' => $vendor,
                     'date' => $date->toDateString(),
-                    'days_until' => $today->diffInDays($date),
+                    'days_until' => $today->diffInDays($date, true),
                 ];
             }
         }
@@ -351,7 +351,7 @@ class VendorComplianceService
                     'type' => $label,
                     'field' => $field,
                     'date' => $date->toDateString(),
-                    'days_past' => $today->diffInDays($date),
+                    'days_past' => $today->diffInDays($date, true),
                 ];
             }
         }
@@ -374,7 +374,7 @@ class VendorComplianceService
                     'type' => $label,
                     'field' => $field,
                     'date' => $date->toDateString(),
-                    'days_until' => $today->diffInDays($date),
+                    'days_until' => $today->diffInDays($date, true),
                 ];
             }
         }
@@ -398,7 +398,7 @@ class VendorComplianceService
                     'type' => $label,
                     'field' => $field,
                     'date' => $date->toDateString(),
-                    'days_until' => $today->diffInDays($date),
+                    'days_until' => $today->diffInDays($date, true),
                 ];
             }
         }
@@ -449,7 +449,7 @@ class VendorComplianceService
             ->map(fn ($vendor) => [
                 'vendor' => $vendor,
                 'date' => $vendor->workers_comp_expires->toDateString(),
-                'days_past' => $today->diffInDays($vendor->workers_comp_expires),
+                'days_past' => $today->diffInDays($vendor->workers_comp_expires, true),
             ])
             ->all();
 
@@ -461,7 +461,7 @@ class VendorComplianceService
             ->map(fn ($vendor) => [
                 'vendor' => $vendor,
                 'date' => $vendor->workers_comp_expires->toDateString(),
-                'days_until' => $today->diffInDays($vendor->workers_comp_expires),
+                'days_until' => $today->diffInDays($vendor->workers_comp_expires, true),
             ])
             ->all();
 
@@ -479,7 +479,7 @@ class VendorComplianceService
             ->map(fn ($vendor) => [
                 'vendor' => $vendor,
                 'date' => $vendor->workers_comp_expires->toDateString(),
-                'days_until' => $today->diffInDays($vendor->workers_comp_expires),
+                'days_until' => $today->diffInDays($vendor->workers_comp_expires, true),
             ])
             ->all();
 

@@ -65,6 +65,9 @@ class VendorDeduplicationService
         $potentialDuplicates = [];
         $processedPairs = [];
 
+        // Re-index to ensure sequential integer keys
+        $vendors = $vendors->values();
+
         foreach ($vendors as $i => $vendor1) {
             foreach ($vendors->slice($i + 1) as $vendor2) {
                 $pairKey = $this->getPairKey($vendor1->id, $vendor2->id);

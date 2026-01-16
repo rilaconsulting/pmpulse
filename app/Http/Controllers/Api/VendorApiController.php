@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MarkVendorCanonicalRequest;
 use App\Http\Requests\MarkVendorDuplicateRequest;
+use App\Http\Requests\StartDuplicateAnalysisRequest;
 use App\Jobs\FindPotentialDuplicateVendorsJob;
 use App\Models\Vendor;
 use App\Models\VendorDuplicateAnalysis;
@@ -146,14 +147,9 @@ class VendorApiController extends Controller
      * POST /api/vendors/duplicate-analysis
      * Body: { "threshold": 0.6, "limit": 50 }
      */
-    public function startDuplicateAnalysis(Request $request): JsonResponse
+    public function startDuplicateAnalysis(StartDuplicateAnalysisRequest $request): JsonResponse
     {
-        $this->authorize('admin');
-
-        $validated = $request->validate([
-            'threshold' => ['sometimes', 'numeric', 'min:0.1', 'max:1.0'],
-            'limit' => ['sometimes', 'integer', 'min:1', 'max:500'],
-        ]);
+        $validated = $request->validated();
 
         // Check if there's already an analysis in progress
         $pendingAnalysis = VendorDuplicateAnalysis::query()
@@ -169,7 +165,7 @@ class VendorApiController extends Controller
 
         // Create a new analysis record
         $analysis = VendorDuplicateAnalysis::create([
-            'requested_by' => auth()->id(),
+            'requested_by' => $request->user()->id,
             'status' => 'pending',
             'threshold' => $validated['threshold'] ?? 0.6,
             'limit' => $validated['limit'] ?? 50,
