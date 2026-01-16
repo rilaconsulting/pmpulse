@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Models\Unit;
 use App\Models\Vendor;
 use App\Models\WorkOrder;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -85,12 +86,7 @@ class WorkOrderFactory extends Factory
     public function completed(?int $daysToComplete = null): static
     {
         return $this->state(function (array $attributes) use ($daysToComplete) {
-            $openedAt = $attributes['opened_at'] ?? now();
-            if (is_string($openedAt)) {
-                $openedAt = \Carbon\Carbon::parse($openedAt);
-            } elseif ($openedAt instanceof \DateTime) {
-                $openedAt = \Carbon\Carbon::instance($openedAt);
-            }
+            $openedAt = $this->getCarbonDate($attributes['opened_at'] ?? now());
 
             $closedAt = $daysToComplete !== null
                 ? $openedAt->copy()->addDays($daysToComplete)
@@ -109,18 +105,26 @@ class WorkOrderFactory extends Factory
     public function cancelled(): static
     {
         return $this->state(function (array $attributes) {
-            $openedAt = $attributes['opened_at'] ?? now();
-            if (is_string($openedAt)) {
-                $openedAt = \Carbon\Carbon::parse($openedAt);
-            } elseif ($openedAt instanceof \DateTime) {
-                $openedAt = \Carbon\Carbon::instance($openedAt);
-            }
+            $openedAt = $this->getCarbonDate($attributes['opened_at'] ?? now());
 
             return [
                 'status' => 'cancelled',
                 'closed_at' => $openedAt->copy()->addDays($this->faker->numberBetween(1, 7)),
             ];
         });
+    }
+
+    /**
+     * Convert a date value to a Carbon instance.
+     */
+    private function getCarbonDate(mixed $date): Carbon
+    {
+        return match (true) {
+            $date instanceof Carbon => $date,
+            $date instanceof \DateTime => Carbon::instance($date),
+            is_string($date) => Carbon::parse($date),
+            default => Carbon::now(),
+        };
     }
 
     /**
