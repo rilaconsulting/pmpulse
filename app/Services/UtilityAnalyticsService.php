@@ -21,6 +21,12 @@ use Illuminate\Support\Facades\DB;
  */
 class UtilityAnalyticsService
 {
+    /**
+     * Request-scoped cache for expensive calculations.
+     * Cleared automatically at end of request since service is not a singleton.
+     */
+    private array $cache = [];
+
     public function __construct(
         private readonly AdjustmentService $adjustmentService
     ) {}
@@ -155,6 +161,8 @@ class UtilityAnalyticsService
     /**
      * Compute portfolio data for utility metrics (shared by getPortfolioAverage and getAnomalies).
      *
+     * Results are cached within the request lifecycle to avoid redundant computations.
+     *
      * @param  string  $utilityType  The utility type
      * @param  array  $period  Period config
      * @param  string  $metric  The metric ('per_unit' or 'per_sqft')
@@ -162,6 +170,15 @@ class UtilityAnalyticsService
      */
     private function computePortfolioData(string $utilityType, array $period, string $metric): array
     {
+        // Generate cache key based on parameters
+        $dateStr = ($period['date'] ?? now())->format('Y-m-d');
+        $cacheKey = "portfolio:{$utilityType}:{$period['type']}:{$dateStr}:{$metric}";
+
+        // Return cached result if available
+        if (isset($this->cache[$cacheKey])) {
+            return $this->cache[$cacheKey];
+        }
+
         // Get properties excluded for this specific utility type
         $utilityExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds($utilityType);
 
@@ -212,7 +229,7 @@ class UtilityAnalyticsService
         $count = count($values);
         $average = $count > 0 ? array_sum($values) / $count : 0;
 
-        return [
+        $result = [
             'average' => $average,
             'median' => $this->calculateMedian($values),
             'std_dev' => $this->calculateStdDev($values, $average),
@@ -223,6 +240,11 @@ class UtilityAnalyticsService
             'max' => $count > 0 ? max($values) : 0,
             'property_values' => $propertyValues,
         ];
+
+        // Cache the result
+        $this->cache[$cacheKey] = $result;
+
+        return $result;
     }
 
     /**
