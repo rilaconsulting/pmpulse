@@ -199,10 +199,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEW_VERSION: ${{ steps.version.outputs.new_version }}
+          RELEASE_NOTES: ${{ steps.notes.outputs.notes }}
         run: |
+          echo "$RELEASE_NOTES" > /tmp/release_notes.md
           gh release create "v${NEW_VERSION}" \
             --title "v${NEW_VERSION}" \
-            --notes "${{ steps.notes.outputs.notes }}"
+            --notes-file /tmp/release_notes.md
 
       - name: Summary
         env:
