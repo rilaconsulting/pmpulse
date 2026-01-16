@@ -9,6 +9,8 @@ use App\Models\PropertyUtilityExclusion;
 use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Utility Analytics Service
@@ -371,6 +373,302 @@ class UtilityAnalyticsService
             ->ofType($utilityType)
             ->inDateRange($startDate, $endDate)
             ->sum('amount');
+    }
+
+    /**
+     * Get bulk expense data for multiple properties and utility types in a single query.
+     *
+     * This method fetches all expense data grouped by property, utility type, and month,
+     * replacing the N+1 pattern of calling getTotalCost() in a loop.
+     *
+     * @param  array  $propertyIds  Array of property UUIDs
+     * @param  array  $utilityTypes  Array of utility types (e.g., ['water', 'electric'])
+     * @param  Carbon  $startDate  Start date for the date range
+     * @param  Carbon  $endDate  End date for the date range
+     * @return Collection Grouped by property_id, then utility_type, containing monthly totals
+     */
+    public function getBulkExpenseData(array $propertyIds, array $utilityTypes, Carbon $startDate, Carbon $endDate): Collection
+    {
+        if (empty($propertyIds) || empty($utilityTypes)) {
+            return collect();
+        }
+
+        return UtilityExpense::query()
+            ->select([
+                'utility_expenses.property_id',
+                'utility_accounts.utility_type',
+                DB::raw("DATE_TRUNC('month', expense_date) as month"),
+                DB::raw('SUM(amount) as total'),
+            ])
+            ->join('utility_accounts', 'utility_expenses.utility_account_id', '=', 'utility_accounts.id')
+            ->whereIn('utility_expenses.property_id', $propertyIds)
+            ->whereIn('utility_accounts.utility_type', $utilityTypes)
+            ->whereBetween('expense_date', [$startDate, $endDate])
+            ->groupBy('utility_expenses.property_id', 'utility_accounts.utility_type', DB::raw("DATE_TRUNC('month', expense_date)"))
+            ->get();
+    }
+
+    /**
+     * Get portfolio trend data using a single aggregated query.
+     *
+     * Returns monthly totals for each utility type across all properties,
+     * replacing the nested loop pattern in getPortfolioTrend().
+     *
+     * @param  array  $utilityTypes  Array of utility types
+     * @param  int  $months  Number of months to include
+     * @param  Carbon|null  $referenceDate  Reference date (defaults to now)
+     * @return Collection Monthly totals grouped by month and utility type
+     */
+    public function getPortfolioTrendData(array $utilityTypes, int $months = 12, ?Carbon $referenceDate = null): Collection
+    {
+        $date = $referenceDate ?? now();
+        $endDate = $date->copy()->endOfMonth();
+        $startDate = $date->copy()->subMonths($months - 1)->startOfMonth();
+
+        // Get properties that should be included in portfolio calculations
+        $propertyIds = Property::active()
+            ->forUtilityReports()
+            ->pluck('id')
+            ->toArray();
+
+        if (empty($propertyIds)) {
+            return collect();
+        }
+
+        return UtilityExpense::query()
+            ->select([
+                DB::raw("DATE_TRUNC('month', expense_date) as month"),
+                'utility_accounts.utility_type',
+                DB::raw('SUM(amount) as total'),
+            ])
+            ->join('utility_accounts', 'utility_expenses.utility_account_id', '=', 'utility_accounts.id')
+            ->whereIn('utility_expenses.property_id', $propertyIds)
+            ->whereIn('utility_accounts.utility_type', $utilityTypes)
+            ->whereBetween('expense_date', [$startDate, $endDate])
+            ->groupBy(DB::raw("DATE_TRUNC('month', expense_date)"), 'utility_accounts.utility_type')
+            ->orderBy('month')
+            ->get();
+    }
+
+    /**
+     * Get property comparison data using bulk queries.
+     *
+     * Fetches all expense data for properties across multiple time periods
+     * in a minimal number of queries, replacing the per-property loop pattern.
+     *
+     * @param  string  $utilityType  The utility type to compare
+     * @param  Carbon|null  $referenceDate  Reference date (defaults to now)
+     * @return array Comparison data with properties, totals, and averages
+     */
+    public function getPropertyComparisonDataBulk(string $utilityType, ?Carbon $referenceDate = null): array
+    {
+        $now = $referenceDate ?? now();
+
+        // Get active properties for utility reports
+        $properties = Property::active()
+            ->forUtilityReports()
+            ->orderBy('name')
+            ->get();
+
+        if ($properties->isEmpty()) {
+            return [
+                'properties' => [],
+                'totals' => ['current_month' => 0, 'prev_month' => 0, 'prev_3_months' => 0, 'prev_12_months' => 0],
+                'averages' => ['current_month' => 0, 'prev_month' => 0, 'prev_3_months' => 0, 'prev_12_months' => 0],
+                'property_count' => 0,
+            ];
+        }
+
+        $propertyIds = $properties->pluck('id')->toArray();
+
+        // Define date ranges
+        $currentMonthStart = $now->copy()->startOfMonth();
+        $currentMonthEnd = $now->copy()->endOfMonth();
+        $prevMonthStart = $now->copy()->subMonth()->startOfMonth();
+        $prevMonthEnd = $now->copy()->subMonth()->endOfMonth();
+        $prev3MonthStart = $now->copy()->subMonths(3)->startOfMonth();
+        $prev12MonthStart = $now->copy()->subMonths(12)->startOfMonth();
+
+        // Single query to get all expense data grouped by property and month
+        $expenseData = UtilityExpense::query()
+            ->select([
+                'utility_expenses.property_id',
+                DB::raw("DATE_TRUNC('month', expense_date) as month"),
+                DB::raw('SUM(amount) as total'),
+            ])
+            ->join('utility_accounts', 'utility_expenses.utility_account_id', '=', 'utility_accounts.id')
+            ->whereIn('utility_expenses.property_id', $propertyIds)
+            ->where('utility_accounts.utility_type', $utilityType)
+            ->whereBetween('expense_date', [$prev12MonthStart, $currentMonthEnd])
+            ->groupBy('utility_expenses.property_id', DB::raw("DATE_TRUNC('month', expense_date)"))
+            ->get()
+            ->groupBy('property_id');
+
+        $data = [];
+        $totals = [
+            'current_month' => 0,
+            'prev_month' => 0,
+            'prev_3_months' => 0,
+            'prev_12_months' => 0,
+        ];
+
+        foreach ($properties as $property) {
+            $propertyExpenses = $expenseData->get($property->id, collect());
+
+            // Calculate costs for each period from the grouped data
+            $currentMonth = $this->sumExpensesInPeriod($propertyExpenses, $currentMonthStart, $currentMonthEnd);
+            $prevMonth = $this->sumExpensesInPeriod($propertyExpenses, $prevMonthStart, $prevMonthEnd);
+            $prev3Total = $this->sumExpensesInPeriod($propertyExpenses, $prev3MonthStart, $prevMonthEnd);
+            $prev12Total = $this->sumExpensesInPeriod($propertyExpenses, $prev12MonthStart, $prevMonthEnd);
+
+            $prev3Monthly = $prev3Total > 0 ? round($prev3Total / 3, 2) : null;
+            $prev12Monthly = $prev12Total > 0 ? round($prev12Total / 12, 2) : null;
+
+            // Calculate $/unit and $/sqft using 12-month average
+            $avgPerUnit = null;
+            $avgPerSqft = null;
+
+            if ($prev12Total > 0) {
+                $monthlyAvg = $prev12Total / 12;
+
+                if ($property->unit_count && $property->unit_count > 0) {
+                    $avgPerUnit = round($monthlyAvg / $property->unit_count, 2);
+                }
+
+                if ($property->total_sqft && $property->total_sqft > 0) {
+                    $avgPerSqft = round($monthlyAvg / $property->total_sqft, 4);
+                }
+            }
+
+            $data[] = [
+                'property_id' => $property->id,
+                'property_name' => $property->name,
+                'unit_count' => $property->unit_count,
+                'total_sqft' => $property->total_sqft,
+                'current_month' => $currentMonth > 0 ? $currentMonth : null,
+                'prev_month' => $prevMonth > 0 ? $prevMonth : null,
+                'prev_3_months' => $prev3Monthly,
+                'prev_12_months' => $prev12Monthly,
+                'avg_per_unit' => $avgPerUnit,
+                'avg_per_sqft' => $avgPerSqft,
+            ];
+
+            // Accumulate totals
+            $totals['current_month'] += $currentMonth;
+            $totals['prev_month'] += $prevMonth;
+            $totals['prev_3_months'] += $prev3Total;
+            $totals['prev_12_months'] += $prev12Total;
+        }
+
+        // Calculate portfolio averages
+        $propertyCount = $properties->count();
+        $portfolioAvg = [
+            'current_month' => $propertyCount > 0 ? round($totals['current_month'] / $propertyCount, 2) : 0,
+            'prev_month' => $propertyCount > 0 ? round($totals['prev_month'] / $propertyCount, 2) : 0,
+            'prev_3_months' => $propertyCount > 0 ? round($totals['prev_3_months'] / 3 / $propertyCount, 2) : 0,
+            'prev_12_months' => $propertyCount > 0 ? round($totals['prev_12_months'] / 12 / $propertyCount, 2) : 0,
+        ];
+
+        return [
+            'properties' => $data,
+            'totals' => $totals,
+            'averages' => $portfolioAvg,
+            'property_count' => $propertyCount,
+        ];
+    }
+
+    /**
+     * Sum expenses from a collection within a date period.
+     *
+     * @param  Collection  $expenses  Collection of expense records with 'month' and 'total' keys
+     * @param  Carbon  $startDate  Start of the period
+     * @param  Carbon  $endDate  End of the period
+     * @return float Total amount
+     */
+    private function sumExpensesInPeriod(Collection $expenses, Carbon $startDate, Carbon $endDate): float
+    {
+        return (float) $expenses
+            ->filter(function ($expense) use ($startDate, $endDate) {
+                $month = Carbon::parse($expense->month);
+
+                return $month->gte($startDate->copy()->startOfMonth())
+                    && $month->lte($endDate->copy()->startOfMonth());
+            })
+            ->sum('total');
+    }
+
+    /**
+     * Get optimized portfolio summary data using bulk queries.
+     *
+     * Computes summary data for all utility types in a single pass,
+     * replacing multiple calls to getPortfolioAverage().
+     *
+     * @param  array  $utilityTypes  Array of utility types
+     * @param  array  $period  Period config
+     * @return array Summary data keyed by utility type
+     */
+    public function getPortfolioSummaryBulk(array $utilityTypes, array $period): array
+    {
+        [$startDate, $endDate] = $this->getPeriodDates($period);
+
+        // Get properties that should be included
+        $properties = Property::active()
+            ->forUtilityReports()
+            ->get();
+
+        if ($properties->isEmpty()) {
+            return array_fill_keys($utilityTypes, [
+                'total_cost' => 0,
+                'average_per_unit' => 0,
+                'property_count' => 0,
+            ]);
+        }
+
+        $propertyIds = $properties->pluck('id')->toArray();
+
+        // Single query to get totals by property and utility type
+        $expenseData = UtilityExpense::query()
+            ->select([
+                'utility_expenses.property_id',
+                'utility_accounts.utility_type',
+                DB::raw('SUM(amount) as total'),
+            ])
+            ->join('utility_accounts', 'utility_expenses.utility_account_id', '=', 'utility_accounts.id')
+            ->whereIn('utility_expenses.property_id', $propertyIds)
+            ->whereIn('utility_accounts.utility_type', $utilityTypes)
+            ->whereBetween('expense_date', [$startDate, $endDate])
+            ->groupBy('utility_expenses.property_id', 'utility_accounts.utility_type')
+            ->get()
+            ->groupBy('utility_type');
+
+        // Build property lookup for unit counts
+        $propertyLookup = $properties->keyBy('id');
+
+        $summary = [];
+        foreach ($utilityTypes as $type) {
+            $typeExpenses = $expenseData->get($type, collect());
+            $totalCost = (float) $typeExpenses->sum('total');
+            $propertyCount = $typeExpenses->count();
+
+            // Calculate average per unit
+            $totalUnits = 0;
+            foreach ($typeExpenses as $expense) {
+                $property = $propertyLookup->get($expense->property_id);
+                if ($property && $property->unit_count > 0) {
+                    $totalUnits += $property->unit_count;
+                }
+            }
+
+            $avgPerUnit = $totalUnits > 0 ? round($totalCost / $totalUnits, 2) : 0;
+
+            $summary[$type] = [
+                'total_cost' => $totalCost,
+                'average_per_unit' => $avgPerUnit,
+                'property_count' => $propertyCount,
+            ];
+        }
+
+        return $summary;
     }
 
     /**
