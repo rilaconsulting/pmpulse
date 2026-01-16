@@ -44,12 +44,12 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
+        // Invalidate all other sessions for security (must be done before password update)
+        Auth::logoutOtherDevices($request->validated('current_password'));
+
         $user->update([
             'password' => Hash::make($request->validated('password')),
         ]);
-
-        // Invalidate all other sessions for security
-        Auth::logoutOtherDevices($request->validated('current_password'));
 
         return back()->with('success', 'Password updated successfully.');
     }

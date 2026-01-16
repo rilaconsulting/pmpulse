@@ -34,7 +34,7 @@ class PropertyFactory extends Factory
             'portfolio' => $this->faker->optional()->company(),
             'portfolio_id' => $this->faker->optional()->numberBetween(1, 100),
             'property_type' => $this->faker->randomElement(['residential', 'commercial', 'mixed']),
-            'year_built' => $this->faker->numberBetween(1960, 2024),
+            'year_built' => $this->faker->numberBetween(1960, (int) date('Y')),
             'total_sqft' => $this->faker->numberBetween(5000, 100000),
             'county' => $this->faker->optional()->city().' County',
             'unit_count' => $this->faker->numberBetween(4, 100),

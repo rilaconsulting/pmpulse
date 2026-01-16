@@ -7,23 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
-### Added
-New features
-
-### Changed
-Changes in existing functionality
-
 ### Fixed
-Bug fixes
-
-### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
--->
+- Password change now properly invalidates other sessions before updating credentials
+- Property adjustment end date validation now prevents setting end date before start date
+- Vendor ranking queries now work correctly with PostgreSQL database
+- Vendor list page now properly loads canonical vendor data when showing all vendors
 
 ---
 

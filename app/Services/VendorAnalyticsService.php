@@ -1237,7 +1237,7 @@ class VendorAnalyticsService
                 AVG(EXTRACT(EPOCH FROM (closed_at - opened_at)) / 86400) as avg_days
             ')
             ->groupBy('vendor_id')
-            ->having('completed_count', '>=', $minWorkOrders)
+            ->havingRaw('COUNT(*) >= ?', [$minWorkOrders])
             ->orderBy('avg_days')
             ->limit($limit * 2) // Get more than needed to filter out duplicates
             ->get();
