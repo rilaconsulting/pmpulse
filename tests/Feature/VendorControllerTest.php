@@ -146,10 +146,12 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->create([
             'company_name' => 'Company A',
             'contact_name' => 'John Smith',
+            'email' => 'alpha@example.com',
         ]);
         Vendor::factory()->create([
             'company_name' => 'Company B',
             'contact_name' => 'Jane Doe',
+            'email' => 'beta@example.com',
         ]);
 
         $response = $this->actingAs($this->user)->get('/vendors?search=John');
