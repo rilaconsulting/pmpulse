@@ -1,6 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import Layout from '../../components/Layout';
+import { useToast } from '../../components/Toast';
 import {
     UsersIcon,
     LinkIcon,
@@ -11,6 +13,7 @@ import {
     ExclamationTriangleIcon,
     CheckCircleIcon,
     ArrowPathIcon,
+    ClockIcon,
 } from '@heroicons/react/24/outline';
 
 export default function VendorDeduplication({ canonicalGroups, allCanonicalVendors, stats }) {
@@ -23,6 +26,28 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
     const [showPotentialDuplicates, setShowPotentialDuplicates] = useState(false);
     const [potentialDuplicates, setPotentialDuplicates] = useState([]);
     const [loadingPotential, setLoadingPotential] = useState(false);
+    const [similarityThreshold, setSimilarityThreshold] = useState(0.6);
+    const [resultLimit, setResultLimit] = useState(20);
+
+    // Background analysis state
+    const [analysisStatus, setAnalysisStatus] = useState(null); // pending, processing, completed, failed
+    const [analysisProgress, setAnalysisProgress] = useState(null);
+    const pollIntervalRef = useRef(null);
+
+    // Toast notifications
+    const toast = useToast();
+
+    // Ref to store the element that triggered the modal for focus return
+    const triggerRef = useRef(null);
+
+    // Cleanup polling on unmount
+    useEffect(() => {
+        return () => {
+            if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+            }
+        };
+    }, []);
 
     const toggleGroup = (vendorId) => {
         setExpandedGroups((prev) => {
@@ -36,19 +61,24 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
         });
     };
 
-    const openLinkModal = (vendor) => {
+    const openLinkModal = useCallback((vendor, triggerElement = null) => {
+        triggerRef.current = triggerElement || document.activeElement;
         setSelectedVendor(vendor);
         setSelectedCanonical('');
         setSearchCanonical('');
         setShowLinkModal(true);
-    };
+    }, []);
 
-    const closeLinkModal = () => {
+    const closeLinkModal = useCallback(() => {
         setShowLinkModal(false);
         setSelectedVendor(null);
         setSelectedCanonical('');
         setSearchCanonical('');
-    };
+        // Return focus to trigger element
+        if (triggerRef.current && typeof triggerRef.current.focus === 'function') {
+            setTimeout(() => triggerRef.current?.focus(), 0);
+        }
+    }, []);
 
     const handleLink = async () => {
         if (!selectedVendor || !selectedCanonical) return;
@@ -69,14 +99,15 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
 
             if (response.ok) {
                 closeLinkModal();
+                toast.success('Vendor linked successfully');
                 router.reload();
             } else {
                 const data = await response.json();
-                alert(data.message || 'Failed to link vendor');
+                toast.error(data.message || 'Failed to link vendor');
             }
         } catch (error) {
             console.error('Error linking vendor:', error);
-            alert('An error occurred while linking the vendor');
+            toast.error('An error occurred while linking the vendor');
         } finally {
             setIsProcessing(false);
         }
@@ -99,23 +130,24 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
             });
 
             if (response.ok) {
+                toast.success('Vendor unlinked successfully');
                 router.reload();
             } else {
                 const data = await response.json();
-                alert(data.message || 'Failed to unlink vendor');
+                toast.error(data.message || 'Failed to unlink vendor');
             }
         } catch (error) {
             console.error('Error unlinking vendor:', error);
-            alert('An error occurred while unlinking the vendor');
+            toast.error('An error occurred while unlinking the vendor');
         } finally {
             setIsProcessing(false);
         }
     };
 
-    const loadPotentialDuplicates = async () => {
-        setLoadingPotential(true);
+    // Poll for analysis completion
+    const pollAnalysisStatus = useCallback(async (id) => {
         try {
-            const response = await fetch('/api/vendors/potential-duplicates?threshold=0.5&limit=20', {
+            const response = await fetch(`/api/vendors/duplicate-analysis/${id}`, {
                 credentials: 'same-origin',
                 headers: {
                     'Accept': 'application/json',
@@ -125,15 +157,97 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
 
             if (response.ok) {
                 const data = await response.json();
-                setPotentialDuplicates(data.data || []);
-                setShowPotentialDuplicates(true);
-            } else {
-                alert('Failed to load potential duplicates');
+                const analysis = data.data;
+                setAnalysisStatus(analysis.status);
+                setAnalysisProgress(analysis);
+
+                if (analysis.status === 'completed') {
+                    // Stop polling
+                    if (pollIntervalRef.current) {
+                        clearInterval(pollIntervalRef.current);
+                        pollIntervalRef.current = null;
+                    }
+                    setLoadingPotential(false);
+                    setPotentialDuplicates(analysis.results || []);
+                    setShowPotentialDuplicates(true);
+
+                    if (analysis.duplicates_found === 0) {
+                        toast.success('No potential duplicates found');
+                    } else {
+                        toast.success(`Found ${analysis.duplicates_found} potential duplicate pairs`);
+                    }
+                } else if (analysis.status === 'failed') {
+                    // Stop polling
+                    if (pollIntervalRef.current) {
+                        clearInterval(pollIntervalRef.current);
+                        pollIntervalRef.current = null;
+                    }
+                    setLoadingPotential(false);
+                    toast.error(analysis.error_message || 'Analysis failed');
+                }
             }
         } catch (error) {
-            console.error('Error loading potential duplicates:', error);
-            alert('An error occurred while loading potential duplicates');
-        } finally {
+            console.error('Error polling analysis status:', error);
+        }
+    }, [toast]);
+
+    const loadPotentialDuplicates = async () => {
+        // Clear any existing polling
+        if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+        }
+
+        setLoadingPotential(true);
+        setAnalysisStatus('pending');
+        setAnalysisProgress(null);
+
+        try {
+            // Start a background analysis
+            const response = await fetch('/api/vendors/duplicate-analysis', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                },
+                body: JSON.stringify({
+                    threshold: similarityThreshold,
+                    limit: resultLimit,
+                }),
+            });
+
+            if (response.ok || response.status === 202) {
+                const data = await response.json();
+                const analysisId = data.data.id;
+                setAnalysisStatus(data.data.status);
+                toast.info('Analysis started - this may take a moment');
+
+                // Start polling
+                pollIntervalRef.current = setInterval(() => {
+                    pollAnalysisStatus(analysisId);
+                }, 2000); // Poll every 2 seconds
+            } else if (response.status === 409) {
+                // Analysis already in progress
+                const data = await response.json();
+                const analysisId = data.data.id;
+                setAnalysisStatus(data.data.status);
+                toast.warning('An analysis is already in progress');
+
+                // Start polling the existing analysis
+                pollIntervalRef.current = setInterval(() => {
+                    pollAnalysisStatus(analysisId);
+                }, 2000);
+            } else {
+                const data = await response.json();
+                toast.error(data.message || 'Failed to start analysis');
+                setLoadingPotential(false);
+            }
+        } catch (error) {
+            console.error('Error starting duplicate analysis:', error);
+            toast.error('An error occurred while starting the analysis');
             setLoadingPotential(false);
         }
     };
@@ -161,23 +275,86 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                             Manage duplicate vendor records and canonical groupings
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={loadPotentialDuplicates}
-                            disabled={loadingPotential}
-                            className="btn-secondary flex items-center"
-                        >
-                            {loadingPotential ? (
-                                <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                                <MagnifyingGlassIcon className="w-4 h-4 mr-2" />
-                            )}
-                            Find Potential Duplicates
-                        </button>
-                        <Link href="/vendors" className="btn-secondary">
-                            Back to Vendors
-                        </Link>
+                    <Link href="/vendors" className="btn-secondary">
+                        Back to Vendors
+                    </Link>
+                </div>
+
+                {/* Potential Duplicates Settings */}
+                <div className="card">
+                    <div className="card-body">
+                        <div className="flex flex-wrap items-end gap-4">
+                            <div className="flex-1 min-w-[200px]">
+                                <label htmlFor="similarity-threshold" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Similarity Threshold: {Math.round(similarityThreshold * 100)}%
+                                </label>
+                                <input
+                                    type="range"
+                                    id="similarity-threshold"
+                                    min="0.1"
+                                    max="1.0"
+                                    step="0.05"
+                                    value={similarityThreshold}
+                                    onChange={(e) => setSimilarityThreshold(parseFloat(e.target.value))}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                    disabled={loadingPotential}
+                                />
+                                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                    <span>More results</span>
+                                    <span>Higher accuracy</span>
+                                </div>
+                            </div>
+                            <div className="w-32">
+                                <label htmlFor="result-limit" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Max Results
+                                </label>
+                                <select
+                                    id="result-limit"
+                                    value={resultLimit}
+                                    onChange={(e) => setResultLimit(parseInt(e.target.value))}
+                                    className="input"
+                                    disabled={loadingPotential}
+                                >
+                                    <option value="10">10</option>
+                                    <option value="20">20</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={loadPotentialDuplicates}
+                                disabled={loadingPotential}
+                                className="btn-primary flex items-center"
+                            >
+                                {loadingPotential ? (
+                                    <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <MagnifyingGlassIcon className="w-4 h-4 mr-2" />
+                                )}
+                                {loadingPotential ? 'Analyzing...' : 'Find Duplicates'}
+                            </button>
+                        </div>
+
+                        {/* Analysis Progress */}
+                        {loadingPotential && analysisStatus && (
+                            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                    <ClockIcon className="w-5 h-5 text-blue-600 animate-pulse" />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-blue-900">
+                                            {analysisStatus === 'pending' && 'Starting analysis...'}
+                                            {analysisStatus === 'processing' && 'Comparing vendors for potential duplicates...'}
+                                        </p>
+                                        {analysisProgress?.total_vendors && (
+                                            <p className="text-xs text-blue-700 mt-1">
+                                                Analyzing {analysisProgress.total_vendors} vendors
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -273,7 +450,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                                 <div className="flex gap-2">
                                                     <button
                                                         type="button"
-                                                        onClick={() => openLinkModal(pair.vendor2)}
+                                                        onClick={(e) => openLinkModal(pair.vendor2, e.currentTarget)}
                                                         className="text-sm text-blue-600 hover:text-blue-700"
                                                         title={`Mark ${pair.vendor2.company_name} as duplicate of ${pair.vendor1.company_name}`}
                                                     >
@@ -281,7 +458,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => openLinkModal(pair.vendor1)}
+                                                        onClick={(e) => openLinkModal(pair.vendor1, e.currentTarget)}
                                                         className="text-sm text-blue-600 hover:text-blue-700"
                                                         title={`Mark ${pair.vendor1.company_name} as duplicate of ${pair.vendor2.company_name}`}
                                                     >
@@ -403,16 +580,25 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                 </div>
             </div>
 
-            {/* Link Modal */}
-            {showLinkModal && (
-                <div className="fixed inset-0 z-50 overflow-y-auto">
+            {/* Link Modal - Accessible dialog using headlessui */}
+            <Dialog open={showLinkModal} onClose={closeLinkModal} className="relative z-50">
+                {/* Backdrop */}
+                <DialogBackdrop
+                    transition
+                    className="fixed inset-0 bg-black/50 transition-opacity data-[closed]:opacity-0 data-[enter]:duration-200 data-[leave]:duration-150"
+                />
+
+                {/* Modal container */}
+                <div className="fixed inset-0 overflow-y-auto">
                     <div className="flex min-h-full items-center justify-center p-4">
-                        <div className="fixed inset-0 bg-black/50" onClick={closeLinkModal} />
-                        <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+                        <DialogPanel
+                            transition
+                            className="relative bg-white rounded-lg shadow-xl max-w-lg w-full transform transition-all data-[closed]:scale-95 data-[closed]:opacity-0 data-[enter]:duration-200 data-[leave]:duration-150"
+                        >
                             <div className="p-6">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                <DialogTitle className="text-lg font-semibold text-gray-900 mb-4">
                                     Link Vendor as Duplicate
-                                </h3>
+                                </DialogTitle>
                                 <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                                     <p className="text-sm text-gray-500 mb-1">Vendor to link:</p>
                                     <p className="font-medium text-gray-900">{selectedVendor?.company_name}</p>
@@ -431,8 +617,13 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                         placeholder="Search vendors..."
                                         value={searchCanonical}
                                         onChange={(e) => setSearchCanonical(e.target.value)}
+                                        autoFocus
                                     />
-                                    <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                                    <div
+                                        className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg"
+                                        role="radiogroup"
+                                        aria-label="Select canonical vendor"
+                                    >
                                         {filteredCanonicalVendors.length === 0 ? (
                                             <p className="p-3 text-sm text-gray-500">No vendors found</p>
                                         ) : (
@@ -452,13 +643,17 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                                             checked={selectedCanonical === vendor.id}
                                                             onChange={() => setSelectedCanonical(vendor.id)}
                                                             className="mr-3"
+                                                            aria-describedby={`vendor-${vendor.id}-contact`}
                                                         />
                                                         <div>
                                                             <p className="font-medium text-gray-900">
                                                                 {vendor.company_name}
                                                             </p>
                                                             {vendor.contact_name && (
-                                                                <p className="text-sm text-gray-500">
+                                                                <p
+                                                                    id={`vendor-${vendor.id}-contact`}
+                                                                    className="text-sm text-gray-500"
+                                                                >
                                                                     {vendor.contact_name}
                                                                 </p>
                                                             )}
@@ -487,10 +682,10 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        </DialogPanel>
                     </div>
                 </div>
-            )}
+            </Dialog>
         </Layout>
     );
 }

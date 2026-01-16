@@ -7,23 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
 ### Added
-New features
+- Configurable similarity threshold and result limit controls in vendor deduplication
+- Background job processing for vendor duplicate analysis with progress indicator
 
 ### Changed
-Changes in existing functionality
-
-### Fixed
-Bug fixes
-
-### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
--->
+- Replaced browser alerts with toast notifications for better user feedback in vendor deduplication
+- Improved accessibility for sortable table headers with screen reader announcements
+- Improved accessibility for deduplication modal with keyboard navigation and focus trapping
+- Optimized vendor compliance page to load categories directly from database
+- Optimized vendor list page queries (45+ queries reduced to 2)
+- Optimized vendor analytics queries for trends and period comparisons
 
 ---
 

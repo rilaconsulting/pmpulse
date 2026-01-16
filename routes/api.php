@@ -50,8 +50,19 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Vendor deduplication API (uses web session auth for same-origin requests)
 Route::middleware(['web', 'auth'])->group(function () {
+    // Synchronous duplicate check (for smaller datasets)
     Route::get('/vendors/potential-duplicates', [VendorApiController::class, 'potentialDuplicates'])
         ->name('api.vendors.potential-duplicates');
+
+    // Asynchronous duplicate analysis (background job for larger datasets)
+    Route::post('/vendors/duplicate-analysis', [VendorApiController::class, 'startDuplicateAnalysis'])
+        ->name('api.vendors.duplicate-analysis.start');
+    Route::get('/vendors/duplicate-analysis/latest', [VendorApiController::class, 'getLatestDuplicateAnalysis'])
+        ->name('api.vendors.duplicate-analysis.latest');
+    Route::get('/vendors/duplicate-analysis/{analysis}', [VendorApiController::class, 'getDuplicateAnalysis'])
+        ->name('api.vendors.duplicate-analysis.show');
+
+    // Vendor linking/unlinking
     Route::post('/vendors/{vendor}/mark-duplicate', [VendorApiController::class, 'markDuplicate'])
         ->name('api.vendors.mark-duplicate');
     Route::post('/vendors/{vendor}/mark-canonical', [VendorApiController::class, 'markCanonical'])

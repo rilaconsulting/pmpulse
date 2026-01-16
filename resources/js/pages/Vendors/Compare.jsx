@@ -1,31 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
 import Layout from '../../components/Layout';
+import { InsuranceStatusBadge, formatCurrency, formatDays } from '../../components/Vendor';
 import {
     ArrowLeftIcon,
     WrenchScrewdriverIcon,
-    CheckCircleIcon,
-    XCircleIcon,
-    ClockIcon,
     ExclamationTriangleIcon,
     ScaleIcon,
 } from '@heroicons/react/24/outline';
 
 export default function VendorCompare({ vendors, comparison, trades, selectedTrade }) {
-    const formatCurrency = (amount) => {
-        if (amount === null || amount === undefined) return '-';
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
-
-    const formatDays = (days) => {
-        if (days === null || days === undefined) return '-';
-        return `${Math.round(days)} days`;
-    };
-
     const handleTradeChange = (trade) => {
         router.get('/vendors/compare', { trade }, {
             preserveState: true,
@@ -50,27 +33,6 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
             return 'bg-red-100 text-red-800';
         }
         return '';
-    };
-
-    const InsuranceStatusBadge = ({ status }) => {
-        const overall = status?.overall || 'missing';
-
-        const styles = {
-            current: { bg: 'bg-green-100', text: 'text-green-800', icon: CheckCircleIcon, label: 'Current' },
-            expiring_soon: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: ClockIcon, label: 'Expiring' },
-            expired: { bg: 'bg-red-100', text: 'text-red-800', icon: XCircleIcon, label: 'Expired' },
-            missing: { bg: 'bg-gray-100', text: 'text-gray-600', icon: ExclamationTriangleIcon, label: 'Missing' },
-        };
-
-        const style = styles[overall] || styles.missing;
-        const Icon = style.icon;
-
-        return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
-                <Icon className="w-3.5 h-3.5 mr-1" />
-                {style.label}
-            </span>
-        );
     };
 
     return (

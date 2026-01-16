@@ -164,6 +164,7 @@ class VendorAnalyticsService
 
     /**
      * Get top vendors by a specific metric.
+     * Optimized to use bulk queries instead of per-vendor queries.
      *
      * @param  string  $metric  The metric to rank by ('work_order_count', 'total_spend', 'avg_cost', 'avg_completion_time')
      * @param  int  $limit  Maximum number of vendors to return
@@ -175,29 +176,91 @@ class VendorAnalyticsService
     {
         [$startDate, $endDate] = $this->getPeriodDates($period);
 
-        // Get all canonical vendors with work orders in the period
-        $vendorIds = WorkOrder::query()
+        // Get all vendor IDs with work orders in the period
+        $vendorIdsWithWO = WorkOrder::query()
             ->whereBetween('opened_at', [$startDate, $endDate])
             ->whereNotNull('vendor_id')
             ->distinct()
-            ->pluck('vendor_id');
+            ->pluck('vendor_id')
+            ->all();
 
-        // Get canonical vendors (or all if no canonical relationship)
+        // Map to canonical vendors
+        $vendorToCanonical = [];
+        $duplicateVendors = Vendor::query()
+            ->whereIn('id', $vendorIdsWithWO)
+            ->whereNotNull('canonical_vendor_id')
+            ->get(['id', 'canonical_vendor_id']);
+
+        foreach ($duplicateVendors as $dup) {
+            $vendorToCanonical[$dup->id] = $dup->canonical_vendor_id;
+        }
+
+        // Get unique canonical vendor IDs
+        $canonicalIds = collect($vendorIdsWithWO)
+            ->map(fn ($id) => $vendorToCanonical[$id] ?? $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        // Get canonical vendors that are active and usable
         $vendors = Vendor::query()
-            ->whereIn('id', $vendorIds)
+            ->whereIn('id', $canonicalIds)
             ->canonical()
             ->active()
             ->usable()
-            ->get();
+            ->get()
+            ->keyBy('id');
+
+        $validVendorIds = $vendors->pluck('id')->all();
+
+        if (empty($validVendorIds)) {
+            return [];
+        }
+
+        // Get bulk metrics
+        $bulkMetrics = $this->getBulkMetricsForVendors($validVendorIds, $period);
+
+        // For completion time, get additional data
+        $completionTimes = [];
+        if ($metric === 'avg_completion_time') {
+            $allVendorIds = $this->expandVendorIdsWithDuplicates($validVendorIds);
+            $vendorToCanonicalMapping = $this->getVendorToCanonicalMapping($validVendorIds);
+
+            $completionData = WorkOrder::query()
+                ->whereIn('vendor_id', $allVendorIds)
+                ->whereBetween('opened_at', [$startDate, $endDate])
+                ->whereNotNull('closed_at')
+                ->whereIn('status', ['completed', 'cancelled'])
+                ->selectRaw('
+                    vendor_id,
+                    AVG(EXTRACT(EPOCH FROM (closed_at - opened_at)) / 86400) as avg_days,
+                    COUNT(*) as count
+                ')
+                ->groupBy('vendor_id')
+                ->get();
+
+            foreach ($completionData as $row) {
+                $canonicalId = $vendorToCanonicalMapping[$row->vendor_id] ?? $row->vendor_id;
+                if (! isset($completionTimes[$canonicalId])) {
+                    $completionTimes[$canonicalId] = ['total_days' => 0, 'count' => 0];
+                }
+                $completionTimes[$canonicalId]['total_days'] += (float) $row->avg_days * (int) $row->count;
+                $completionTimes[$canonicalId]['count'] += (int) $row->count;
+            }
+        }
 
         $results = [];
+        foreach ($validVendorIds as $vendorId) {
+            $vendor = $vendors->get($vendorId);
+            $metrics = $bulkMetrics[$vendorId] ?? ['work_order_count' => 0, 'total_spend' => 0, 'avg_cost_per_wo' => null];
 
-        foreach ($vendors as $vendor) {
             $value = match ($metric) {
-                'work_order_count' => $this->getWorkOrderCount($vendor, $period),
-                'total_spend' => $this->getTotalSpend($vendor, $period),
-                'avg_cost' => $this->getAverageCostPerWO($vendor, $period),
-                'avg_completion_time' => $this->getAverageCompletionTime($vendor, $period),
+                'work_order_count' => $metrics['work_order_count'],
+                'total_spend' => $metrics['total_spend'],
+                'avg_cost' => $metrics['avg_cost_per_wo'],
+                'avg_completion_time' => isset($completionTimes[$vendorId]) && $completionTimes[$vendorId]['count'] > 0
+                    ? round($completionTimes[$vendorId]['total_days'] / $completionTimes[$vendorId]['count'], 1)
+                    : null,
                 default => throw new \InvalidArgumentException("Invalid metric: {$metric}"),
             };
 
@@ -302,6 +365,7 @@ class VendorAnalyticsService
 
     /**
      * Get period-over-period comparison for a vendor.
+     * Optimized to use a single query instead of 32 separate queries.
      *
      * Compares current period vs previous period of the same type.
      *
@@ -312,22 +376,66 @@ class VendorAnalyticsService
     public function getPeriodComparison(Vendor $vendor, ?Carbon $referenceDate = null): array
     {
         $date = $referenceDate ?? now();
+        $vendorIds = $vendor->getAllGroupVendorIds();
 
-        // Last 30 days vs previous 30 days
-        $current30 = $this->getMetricsForPeriod($vendor, ['type' => 'last_30_days', 'date' => $date]);
-        $previous30 = $this->getMetricsForPeriod($vendor, ['type' => 'last_30_days', 'date' => $date->copy()->subDays(30)]);
+        // Calculate all date ranges
+        $ranges = [
+            'current_30' => [$date->copy()->subDays(30), $date->copy()],
+            'previous_30' => [$date->copy()->subDays(60), $date->copy()->subDays(30)],
+            'current_90' => [$date->copy()->subDays(90), $date->copy()],
+            'previous_90' => [$date->copy()->subDays(180), $date->copy()->subDays(90)],
+            'current_12m' => [$date->copy()->subMonths(11)->startOfMonth(), $date->copy()->endOfMonth()],
+            'previous_12m' => [$date->copy()->subMonths(23)->startOfMonth(), $date->copy()->subYear()->endOfMonth()],
+            'current_ytd' => [$date->copy()->startOfYear(), $date->copy()],
+            'previous_ytd' => [$date->copy()->subYear()->startOfYear(), $date->copy()->subYear()],
+        ];
 
-        // Last 90 days vs previous 90 days
-        $current90 = $this->getMetricsForPeriod($vendor, ['type' => 'last_90_days', 'date' => $date]);
-        $previous90 = $this->getMetricsForPeriod($vendor, ['type' => 'last_90_days', 'date' => $date->copy()->subDays(90)]);
+        // Find the overall date range to query
+        $minDate = min(array_map(fn ($r) => $r[0], $ranges));
+        $maxDate = max(array_map(fn ($r) => $r[1], $ranges));
 
-        // Last 12 months vs previous 12 months
-        $current12m = $this->getMetricsForPeriod($vendor, ['type' => 'last_12_months', 'date' => $date]);
-        $previous12m = $this->getMetricsForPeriod($vendor, ['type' => 'last_12_months', 'date' => $date->copy()->subYear()]);
+        // Single query to get all work orders in the entire range
+        $workOrders = WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->whereBetween('opened_at', [$minDate, $maxDate])
+            ->select(['opened_at', 'closed_at', 'amount', 'status'])
+            ->get();
 
-        // Year to date vs previous year same period
-        $currentYtd = $this->getMetricsForPeriod($vendor, ['type' => 'ytd', 'date' => $date]);
-        $previousYtd = $this->getMetricsForPeriod($vendor, ['type' => 'ytd', 'date' => $date->copy()->subYear()]);
+        // Helper function to calculate metrics for a date range
+        $calculateMetrics = function ($startDate, $endDate) use ($workOrders) {
+            $filtered = $workOrders->filter(function ($wo) use ($startDate, $endDate) {
+                return $wo->opened_at >= $startDate && $wo->opened_at <= $endDate;
+            });
+
+            $count = $filtered->count();
+            $totalSpend = $filtered->sum('amount');
+            $withAmount = $filtered->where('amount', '>', 0);
+            $avgCost = $withAmount->count() > 0 ? $withAmount->avg('amount') : null;
+
+            $completed = $filtered->filter(function ($wo) {
+                return $wo->closed_at !== null && in_array($wo->status, ['completed', 'cancelled']);
+            });
+            $avgCompletion = $completed->count() > 0
+                ? $completed->avg(fn ($wo) => $wo->opened_at->diffInDays($wo->closed_at))
+                : null;
+
+            return [
+                'work_order_count' => $count,
+                'total_spend' => round((float) $totalSpend, 2),
+                'avg_cost_per_wo' => $avgCost !== null ? round($avgCost, 2) : null,
+                'avg_completion_time' => $avgCompletion !== null ? round($avgCompletion, 1) : null,
+            ];
+        };
+
+        // Calculate metrics for each period
+        $current30 = $calculateMetrics($ranges['current_30'][0], $ranges['current_30'][1]);
+        $previous30 = $calculateMetrics($ranges['previous_30'][0], $ranges['previous_30'][1]);
+        $current90 = $calculateMetrics($ranges['current_90'][0], $ranges['current_90'][1]);
+        $previous90 = $calculateMetrics($ranges['previous_90'][0], $ranges['previous_90'][1]);
+        $current12m = $calculateMetrics($ranges['current_12m'][0], $ranges['current_12m'][1]);
+        $previous12m = $calculateMetrics($ranges['previous_12m'][0], $ranges['previous_12m'][1]);
+        $currentYtd = $calculateMetrics($ranges['current_ytd'][0], $ranges['current_ytd'][1]);
+        $previousYtd = $calculateMetrics($ranges['previous_ytd'][0], $ranges['previous_ytd'][1]);
 
         return [
             'last_30_days' => [
@@ -401,6 +509,7 @@ class VendorAnalyticsService
 
     /**
      * Get vendor performance trend over multiple periods.
+     * Optimized to use a single query with GROUP BY instead of N queries.
      *
      * @param  Vendor  $vendor  The vendor to analyze
      * @param  int  $periods  Number of periods to include
@@ -409,26 +518,77 @@ class VendorAnalyticsService
      */
     public function getVendorTrend(Vendor $vendor, int $periods = 12, string $periodType = 'month'): array
     {
-        $data = [];
         $date = now();
+        $vendorIds = $vendor->getAllGroupVendorIds();
 
+        // Calculate the overall date range
+        $startDate = match ($periodType) {
+            'month' => $date->copy()->subMonths($periods - 1)->startOfMonth(),
+            'quarter' => $date->copy()->subQuarters($periods - 1)->startOfQuarter(),
+            'year' => $date->copy()->subYears($periods - 1)->startOfYear(),
+            default => throw new \InvalidArgumentException("Invalid period type: {$periodType}"),
+        };
+        $endDate = match ($periodType) {
+            'month' => $date->copy()->endOfMonth(),
+            'quarter' => $date->copy()->endOfQuarter(),
+            'year' => $date->copy()->endOfYear(),
+            default => $date->copy()->endOfMonth(),
+        };
+
+        // PostgreSQL date_trunc function to group by period
+        $truncFunc = match ($periodType) {
+            'month' => "date_trunc('month', opened_at)",
+            'quarter' => "date_trunc('quarter', opened_at)",
+            'year' => "date_trunc('year', opened_at)",
+            default => "date_trunc('month', opened_at)",
+        };
+
+        // Single query to get all metrics grouped by period
+        $periodData = WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->whereBetween('opened_at', [$startDate, $endDate])
+            ->selectRaw("
+                {$truncFunc} as period_start,
+                COUNT(*) as work_order_count,
+                COALESCE(SUM(amount), 0) as total_spend,
+                AVG(CASE WHEN amount > 0 THEN amount END) as avg_cost_per_wo,
+                AVG(CASE WHEN closed_at IS NOT NULL AND status IN ('completed', 'cancelled')
+                    THEN EXTRACT(EPOCH FROM (closed_at - opened_at)) / 86400
+                    END) as avg_completion_time
+            ")
+            ->groupByRaw($truncFunc)
+            ->orderByRaw($truncFunc)
+            ->get()
+            ->keyBy(fn ($row) => Carbon::parse($row->period_start)->format('Y-m-d'));
+
+        // Build result array for each period
+        $data = [];
         for ($i = $periods - 1; $i >= 0; $i--) {
             $periodDate = match ($periodType) {
                 'month' => $date->copy()->subMonths($i),
                 'quarter' => $date->copy()->subQuarters($i),
                 'year' => $date->copy()->subYears($i),
-                default => throw new \InvalidArgumentException("Invalid period type: {$periodType}"),
+                default => $date->copy()->subMonths($i),
             };
 
-            $period = ['type' => $periodType, 'date' => $periodDate];
+            $periodKey = match ($periodType) {
+                'month' => $periodDate->copy()->startOfMonth()->format('Y-m-d'),
+                'quarter' => $periodDate->copy()->startOfQuarter()->format('Y-m-d'),
+                'year' => $periodDate->copy()->startOfYear()->format('Y-m-d'),
+                default => $periodDate->copy()->startOfMonth()->format('Y-m-d'),
+            };
+
+            $row = $periodData->get($periodKey);
 
             $data[] = [
                 'period' => $this->formatPeriodLabel($periodDate, $periodType),
                 'date' => $periodDate->toDateString(),
-                'work_order_count' => $this->getWorkOrderCount($vendor, $period),
-                'total_spend' => $this->getTotalSpend($vendor, $period),
-                'avg_cost_per_wo' => $this->getAverageCostPerWO($vendor, $period),
-                'avg_completion_time' => $this->getAverageCompletionTime($vendor, $period),
+                'work_order_count' => $row ? (int) $row->work_order_count : 0,
+                'total_spend' => $row ? round((float) $row->total_spend, 2) : 0,
+                'avg_cost_per_wo' => $row && $row->avg_cost_per_wo !== null
+                    ? round((float) $row->avg_cost_per_wo, 2) : null,
+                'avg_completion_time' => $row && $row->avg_completion_time !== null
+                    ? round((float) $row->avg_completion_time, 1) : null,
             ];
         }
 
@@ -624,6 +784,7 @@ class VendorAnalyticsService
 
     /**
      * Calculate trade-level average metrics.
+     * Optimized to use bulk queries instead of per-vendor queries.
      *
      * @param  string  $trade  The trade to analyze
      * @param  array  $period  Period config
@@ -646,6 +807,42 @@ class VendorAnalyticsService
             ];
         }
 
+        // Get bulk metrics for all vendors in trade using the optimized method
+        $vendorIds = $vendors->pluck('id')->all();
+        $bulkMetrics = $this->getBulkMetricsForVendors($vendorIds, $period);
+
+        // Also get completion time data in bulk
+        [$startDate, $endDate] = $this->getPeriodDates($period);
+
+        // Expand to include duplicate vendor IDs
+        $allVendorIds = $this->expandVendorIdsWithDuplicates($vendorIds);
+        $vendorToCanonical = $this->getVendorToCanonicalMapping($vendorIds);
+
+        $completionData = WorkOrder::query()
+            ->whereIn('vendor_id', $allVendorIds)
+            ->whereBetween('opened_at', [$startDate, $endDate])
+            ->whereNotNull('closed_at')
+            ->whereIn('status', ['completed', 'cancelled'])
+            ->selectRaw('
+                vendor_id,
+                AVG(EXTRACT(EPOCH FROM (closed_at - opened_at)) / 86400) as avg_days,
+                COUNT(*) as count
+            ')
+            ->groupBy('vendor_id')
+            ->get();
+
+        // Aggregate completion times by canonical vendor
+        $completionByVendor = [];
+        foreach ($completionData as $row) {
+            $canonicalId = $vendorToCanonical[$row->vendor_id] ?? $row->vendor_id;
+            if (! isset($completionByVendor[$canonicalId])) {
+                $completionByVendor[$canonicalId] = ['total_days' => 0, 'count' => 0];
+            }
+            $completionByVendor[$canonicalId]['total_days'] += (float) $row->avg_days * (int) $row->count;
+            $completionByVendor[$canonicalId]['count'] += (int) $row->count;
+        }
+
+        // Calculate averages
         $workOrderCounts = [];
         $totalSpends = [];
         $avgCosts = [];
@@ -653,22 +850,20 @@ class VendorAnalyticsService
         $totalWorkOrders = 0;
         $totalSpend = 0.0;
 
-        foreach ($vendors as $vendor) {
-            $woCount = $this->getWorkOrderCount($vendor, $period);
-            $spend = $this->getTotalSpend($vendor, $period);
-            $avgCost = $this->getAverageCostPerWO($vendor, $period);
-            $completionTime = $this->getAverageCompletionTime($vendor, $period);
+        foreach ($vendorIds as $vendorId) {
+            $metrics = $bulkMetrics[$vendorId] ?? ['work_order_count' => 0, 'total_spend' => 0, 'avg_cost_per_wo' => null];
 
-            $workOrderCounts[] = $woCount;
-            $totalSpends[] = $spend;
-            $totalWorkOrders += $woCount;
-            $totalSpend += $spend;
+            $workOrderCounts[] = $metrics['work_order_count'];
+            $totalSpends[] = $metrics['total_spend'];
+            $totalWorkOrders += $metrics['work_order_count'];
+            $totalSpend += $metrics['total_spend'];
 
-            if ($avgCost !== null) {
-                $avgCosts[] = $avgCost;
+            if ($metrics['avg_cost_per_wo'] !== null) {
+                $avgCosts[] = $metrics['avg_cost_per_wo'];
             }
-            if ($completionTime !== null) {
-                $completionTimes[] = $completionTime;
+
+            if (isset($completionByVendor[$vendorId]) && $completionByVendor[$vendorId]['count'] > 0) {
+                $completionTimes[] = $completionByVendor[$vendorId]['total_days'] / $completionByVendor[$vendorId]['count'];
             }
         }
 
@@ -767,6 +962,7 @@ class VendorAnalyticsService
 
     /**
      * Rank vendors within a trade by a specific metric.
+     * Optimized to use bulk queries.
      *
      * @param  string  $trade  The trade to rank within
      * @param  string  $metric  Metric to rank by
@@ -782,13 +978,50 @@ class VendorAnalyticsService
             return [];
         }
 
+        $vendorIds = $vendors->pluck('id')->all();
+        $bulkMetrics = $this->getBulkMetricsForVendors($vendorIds, $period);
+
+        // For completion time, we need additional query
+        $completionTimes = [];
+        if ($metric === 'avg_completion_time') {
+            [$startDate, $endDate] = $this->getPeriodDates($period);
+            $allVendorIds = $this->expandVendorIdsWithDuplicates($vendorIds);
+            $vendorToCanonical = $this->getVendorToCanonicalMapping($vendorIds);
+
+            $completionData = WorkOrder::query()
+                ->whereIn('vendor_id', $allVendorIds)
+                ->whereBetween('opened_at', [$startDate, $endDate])
+                ->whereNotNull('closed_at')
+                ->whereIn('status', ['completed', 'cancelled'])
+                ->selectRaw('
+                    vendor_id,
+                    AVG(EXTRACT(EPOCH FROM (closed_at - opened_at)) / 86400) as avg_days,
+                    COUNT(*) as count
+                ')
+                ->groupBy('vendor_id')
+                ->get();
+
+            foreach ($completionData as $row) {
+                $canonicalId = $vendorToCanonical[$row->vendor_id] ?? $row->vendor_id;
+                if (! isset($completionTimes[$canonicalId])) {
+                    $completionTimes[$canonicalId] = ['total_days' => 0, 'count' => 0];
+                }
+                $completionTimes[$canonicalId]['total_days'] += (float) $row->avg_days * (int) $row->count;
+                $completionTimes[$canonicalId]['count'] += (int) $row->count;
+            }
+        }
+
         $ranked = [];
         foreach ($vendors as $vendor) {
+            $metrics = $bulkMetrics[$vendor->id] ?? ['work_order_count' => 0, 'total_spend' => 0, 'avg_cost_per_wo' => null];
+
             $value = match ($metric) {
-                'work_order_count' => $this->getWorkOrderCount($vendor, $period),
-                'total_spend' => $this->getTotalSpend($vendor, $period),
-                'avg_cost' => $this->getAverageCostPerWO($vendor, $period),
-                'avg_completion_time' => $this->getAverageCompletionTime($vendor, $period),
+                'work_order_count' => $metrics['work_order_count'],
+                'total_spend' => $metrics['total_spend'],
+                'avg_cost' => $metrics['avg_cost_per_wo'],
+                'avg_completion_time' => isset($completionTimes[$vendor->id]) && $completionTimes[$vendor->id]['count'] > 0
+                    ? round($completionTimes[$vendor->id]['total_days'] / $completionTimes[$vendor->id]['count'], 1)
+                    : null,
                 default => throw new \InvalidArgumentException("Invalid metric: {$metric}"),
             };
 
@@ -1215,6 +1448,7 @@ class VendorAnalyticsService
 
     /**
      * Rank vendors by response time (fastest first).
+     * Optimized to pre-fetch vendors instead of using find() in a loop.
      *
      * @param  array  $period  Period config
      * @param  int  $limit  Maximum vendors to return
@@ -1225,7 +1459,7 @@ class VendorAnalyticsService
     {
         [$startDate, $endDate] = $this->getPeriodDates($period);
 
-        // Get all canonical vendors with completed work orders in the period
+        // Get all vendor stats with completed work orders in the period
         $vendorStats = WorkOrder::query()
             ->whereNotNull('vendor_id')
             ->whereBetween('opened_at', [$startDate, $endDate])
@@ -1239,14 +1473,40 @@ class VendorAnalyticsService
             ->groupBy('vendor_id')
             ->havingRaw('COUNT(*) >= ?', [$minWorkOrders])
             ->orderBy('avg_days')
-            ->limit($limit * 2) // Get more than needed to filter out duplicates
+            ->limit($limit * 3) // Get more than needed to filter out duplicates and inactive
             ->get();
+
+        if ($vendorStats->isEmpty()) {
+            return [];
+        }
+
+        // Pre-fetch all vendors in one query
+        $vendorIds = $vendorStats->pluck('vendor_id')->all();
+        $vendors = Vendor::query()
+            ->whereIn('id', $vendorIds)
+            ->get()
+            ->keyBy('id');
+
+        // Also fetch canonical vendors for any duplicates
+        $canonicalIds = $vendors
+            ->filter(fn ($v) => $v->canonical_vendor_id !== null)
+            ->pluck('canonical_vendor_id')
+            ->unique()
+            ->all();
+
+        if (! empty($canonicalIds)) {
+            $canonicalVendors = Vendor::query()
+                ->whereIn('id', $canonicalIds)
+                ->get()
+                ->keyBy('id');
+            $vendors = $vendors->merge($canonicalVendors);
+        }
 
         $ranked = [];
         $seen = [];
 
         foreach ($vendorStats as $stat) {
-            $vendor = Vendor::find($stat->vendor_id);
+            $vendor = $vendors->get($stat->vendor_id);
             if (! $vendor) {
                 continue;
             }
@@ -1258,9 +1518,9 @@ class VendorAnalyticsService
             }
             $seen[$effectiveId] = true;
 
-            // Skip non-canonical vendors
+            // Get canonical vendor if this is a duplicate
             if (! $vendor->isCanonical()) {
-                $vendor = $vendor->getCanonicalVendor();
+                $vendor = $vendors->get($vendor->canonical_vendor_id) ?? $vendor;
             }
 
             if (! $vendor->is_active || $vendor->do_not_use) {
@@ -1369,6 +1629,397 @@ class VendorAnalyticsService
         }
 
         return round($values[$middle], 1);
+    }
+
+    // ============================================================
+    // Vendor Work Order Methods (PMP-159)
+    // ============================================================
+
+    /**
+     * Get spend breakdown by property for a vendor.
+     *
+     * @param  Vendor  $vendor  The vendor to analyze
+     * @param  int  $limit  Maximum properties to return
+     * @return array Property spend data sorted by total spend
+     */
+    public function getSpendByProperty(Vendor $vendor, int $limit = 10): array
+    {
+        $vendorIds = $vendor->getAllGroupVendorIds();
+
+        $spendData = WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->whereNotNull('property_id')
+            ->whereNotNull('amount')
+            ->where('amount', '>', 0)
+            ->with('property:id,name')
+            ->get()
+            ->groupBy('property_id')
+            ->map(function ($wos, $propertyId) {
+                $property = $wos->first()?->property;
+
+                return [
+                    'property_id' => $propertyId,
+                    'property_name' => $property?->name ?? 'Unknown',
+                    'total_spend' => $wos->sum('amount'),
+                    'work_order_count' => $wos->count(),
+                ];
+            })
+            ->values()
+            ->sortByDesc('total_spend')
+            ->take($limit)
+            ->values()
+            ->toArray();
+
+        return $spendData;
+    }
+
+    /**
+     * Get paginated work orders for a vendor with filters.
+     *
+     * @param  Vendor  $vendor  The vendor to get work orders for
+     * @param  array  $filters  Filters and sorting options
+     * @param  int  $perPage  Number of items per page
+     * @param  string  $pageName  Page query parameter name
+     */
+    public function getVendorWorkOrders(
+        Vendor $vendor,
+        array $filters = [],
+        int $perPage = 10,
+        string $pageName = 'wo_page'
+    ): \Illuminate\Contracts\Pagination\LengthAwarePaginator {
+        $vendorIds = $vendor->getAllGroupVendorIds();
+
+        $query = WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->with('property:id,name');
+
+        // Filter by status
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        // Filter by property
+        if (! empty($filters['property_id'])) {
+            $query->where('property_id', $filters['property_id']);
+        }
+
+        // Sorting
+        $sortField = $filters['sort'] ?? 'opened_at';
+        $sortDirection = $filters['direction'] ?? 'desc';
+        $allowedSorts = ['opened_at', 'closed_at', 'amount', 'status'];
+
+        if (in_array($sortField, $allowedSorts, true)) {
+            $query->orderBy($sortField, $sortDirection === 'asc' ? 'asc' : 'desc');
+        } else {
+            $query->orderBy('opened_at', 'desc');
+        }
+
+        return $query->paginate($perPage, ['*'], $pageName)->withQueryString();
+    }
+
+    /**
+     * Get work order statistics for a vendor.
+     *
+     * @param  Vendor  $vendor  The vendor to analyze
+     * @return array Work order stats (total, completed, open, in_progress, total_spend)
+     */
+    public function getVendorWorkOrderStats(Vendor $vendor): array
+    {
+        $vendorIds = $vendor->getAllGroupVendorIds();
+
+        $statsRow = WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open,
+                SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+                COALESCE(SUM(amount), 0) as total_spend
+            ")
+            ->first();
+
+        return [
+            'total' => (int) ($statsRow->total ?? 0),
+            'completed' => (int) ($statsRow->completed ?? 0),
+            'open' => (int) ($statsRow->open ?? 0),
+            'in_progress' => (int) ($statsRow->in_progress ?? 0),
+            'total_spend' => (float) ($statsRow->total_spend ?? 0),
+        ];
+    }
+
+    /**
+     * Get unique properties that have work orders for a vendor.
+     *
+     * @param  Vendor  $vendor  The vendor
+     * @return \Illuminate\Support\Collection Collection of properties
+     */
+    public function getVendorWorkOrderProperties(Vendor $vendor): \Illuminate\Support\Collection
+    {
+        $vendorIds = $vendor->getAllGroupVendorIds();
+
+        return WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->whereNotNull('property_id')
+            ->with('property:id,name')
+            ->distinct('property_id')
+            ->get()
+            ->pluck('property')
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Get vendors for comparison by trade with metrics.
+     *
+     * @param  string  $trade  The trade to filter by
+     * @param  array  $period  Period config
+     * @param  VendorComplianceService|null  $complianceService  Compliance service for insurance status
+     * @return array Vendors with metrics and comparison data
+     */
+    public function getVendorsForComparison(string $trade, array $period, ?VendorComplianceService $complianceService = null): array
+    {
+        $vendorsInTrade = Vendor::query()
+            ->canonical()
+            ->active()
+            ->where('vendor_trades', 'ILIKE', "%{$trade}%")
+            ->orderBy('company_name')
+            ->get();
+
+        $vendors = [];
+        foreach ($vendorsInTrade as $vendor) {
+            $metrics = $this->getVendorSummary($vendor, $period);
+            $insuranceStatus = $complianceService?->getInsuranceStatus($vendor) ?? [];
+
+            $vendors[] = [
+                'id' => $vendor->id,
+                'company_name' => $vendor->company_name,
+                'contact_name' => $vendor->contact_name,
+                'phone' => $vendor->phone,
+                'email' => $vendor->email,
+                'is_active' => $vendor->is_active,
+                'work_order_count' => $metrics['work_order_count'] ?? 0,
+                'total_spend' => $metrics['total_spend'] ?? 0,
+                'avg_cost_per_wo' => $metrics['avg_cost_per_wo'] ?? null,
+                'avg_completion_time' => $metrics['avg_completion_time'] ?? null,
+                'insurance_status' => $insuranceStatus,
+            ];
+        }
+
+        return $vendors;
+    }
+
+    /**
+     * Calculate comparison statistics (best, worst, avg) for vendor metrics.
+     *
+     * @param  array  $vendors  Array of vendor data with metrics
+     * @return array Comparison statistics
+     */
+    public function calculateComparisonStats(array $vendors): array
+    {
+        if (count($vendors) < 2) {
+            return [];
+        }
+
+        $comparison = [];
+        $metrics = ['work_order_count', 'total_spend', 'avg_cost_per_wo', 'avg_completion_time'];
+
+        foreach ($metrics as $metric) {
+            $values = array_filter(array_column($vendors, $metric), fn ($v) => $v !== null);
+
+            if (empty($values)) {
+                continue;
+            }
+
+            // For work orders and spend, higher is "better" (more usage)
+            // For cost and time, lower is better
+            $higherIsBetter = in_array($metric, ['work_order_count', 'total_spend'], true);
+
+            $comparison[$metric] = [
+                'best' => $higherIsBetter ? max($values) : min($values),
+                'worst' => $higherIsBetter ? min($values) : max($values),
+                'avg' => count($values) > 0 ? array_sum($values) / count($values) : null,
+            ];
+        }
+
+        return $comparison;
+    }
+
+    // ============================================================
+    // Bulk Metrics Methods (PMP-151)
+    // ============================================================
+
+    /**
+     * Get metrics for multiple vendors in bulk using optimized queries.
+     *
+     * This method fetches work order count, total spend, and average cost per work order
+     * for multiple vendors in just 2 database queries instead of 3 queries per vendor.
+     *
+     * @param  array  $vendorIds  Array of vendor IDs (should be canonical vendors)
+     * @param  array  $period  Period config
+     * @return array Associative array keyed by vendor ID with metrics
+     */
+    public function getBulkMetricsForVendors(array $vendorIds, array $period): array
+    {
+        if (empty($vendorIds)) {
+            return [];
+        }
+
+        [$startDate, $endDate] = $this->getPeriodDates($period);
+
+        // Build vendor ID to canonical mapping (for vendors with duplicates)
+        $allVendorIds = $this->expandVendorIdsWithDuplicates($vendorIds);
+
+        // Single query to get all metrics grouped by vendor
+        $metrics = WorkOrder::query()
+            ->whereIn('vendor_id', $allVendorIds)
+            ->whereBetween('opened_at', [$startDate, $endDate])
+            ->selectRaw('
+                vendor_id,
+                COUNT(*) as work_order_count,
+                COALESCE(SUM(amount), 0) as total_spend,
+                COUNT(CASE WHEN amount > 0 THEN 1 END) as wo_with_amount_count,
+                CASE
+                    WHEN COUNT(CASE WHEN amount > 0 THEN 1 END) > 0
+                    THEN AVG(CASE WHEN amount > 0 THEN amount END)
+                    ELSE NULL
+                END as avg_cost_per_wo
+            ')
+            ->groupBy('vendor_id')
+            ->get()
+            ->keyBy('vendor_id');
+
+        // Build results, mapping duplicate vendor IDs back to their canonical
+        $results = [];
+        $vendorToCanonical = $this->getVendorToCanonicalMapping($vendorIds);
+
+        foreach ($vendorIds as $vendorId) {
+            $results[$vendorId] = [
+                'work_order_count' => 0,
+                'total_spend' => 0.0,
+                'avg_cost_per_wo' => null,
+            ];
+        }
+
+        // Aggregate metrics from duplicates back to canonical
+        foreach ($metrics as $vendorId => $data) {
+            $canonicalId = $vendorToCanonical[$vendorId] ?? $vendorId;
+
+            if (isset($results[$canonicalId])) {
+                $results[$canonicalId]['work_order_count'] += (int) $data->work_order_count;
+                $results[$canonicalId]['total_spend'] += (float) $data->total_spend;
+
+                // For avg cost, we need to recalculate from aggregated data
+                if ($data->avg_cost_per_wo !== null) {
+                    // Store raw data for later aggregation
+                    if (! isset($results[$canonicalId]['_avg_data'])) {
+                        $results[$canonicalId]['_avg_data'] = ['sum' => 0, 'count' => 0];
+                    }
+                    $woWithAmount = (int) $data->wo_with_amount_count;
+                    if ($woWithAmount > 0) {
+                        $results[$canonicalId]['_avg_data']['sum'] += (float) $data->avg_cost_per_wo * $woWithAmount;
+                        $results[$canonicalId]['_avg_data']['count'] += $woWithAmount;
+                    }
+                }
+            }
+        }
+
+        // Calculate final averages and clean up temp data
+        foreach ($results as $vendorId => &$data) {
+            if (isset($data['_avg_data']) && $data['_avg_data']['count'] > 0) {
+                $data['avg_cost_per_wo'] = round($data['_avg_data']['sum'] / $data['_avg_data']['count'], 2);
+            }
+            unset($data['_avg_data']);
+            $data['total_spend'] = round($data['total_spend'], 2);
+        }
+
+        return $results;
+    }
+
+    /**
+     * Expand vendor IDs to include their duplicate vendor IDs.
+     *
+     * @param  array  $vendorIds  Array of canonical vendor IDs
+     * @return array Expanded array including duplicate IDs
+     */
+    private function expandVendorIdsWithDuplicates(array $vendorIds): array
+    {
+        $duplicateIds = Vendor::query()
+            ->whereIn('canonical_vendor_id', $vendorIds)
+            ->pluck('id')
+            ->all();
+
+        return array_unique(array_merge($vendorIds, $duplicateIds));
+    }
+
+    /**
+     * Get mapping from all vendor IDs (including duplicates) to their canonical ID.
+     *
+     * @param  array  $canonicalVendorIds  Array of canonical vendor IDs
+     * @return array Mapping of vendor_id => canonical_id
+     */
+    private function getVendorToCanonicalMapping(array $canonicalVendorIds): array
+    {
+        $mapping = array_combine($canonicalVendorIds, $canonicalVendorIds);
+
+        // Add duplicate mappings
+        $duplicates = Vendor::query()
+            ->whereIn('canonical_vendor_id', $canonicalVendorIds)
+            ->get(['id', 'canonical_vendor_id']);
+
+        foreach ($duplicates as $dup) {
+            $mapping[$dup->id] = $dup->canonical_vendor_id;
+        }
+
+        return $mapping;
+    }
+
+    /**
+     * Get metrics for multiple vendors in bulk - simplified version without duplicate handling.
+     * Use this when you know all vendors are canonical and have no duplicates to track.
+     *
+     * @param  array  $vendorIds  Array of vendor IDs
+     * @param  array  $period  Period config
+     * @return array Associative array keyed by vendor ID with metrics
+     */
+    public function getBulkMetricsSimple(array $vendorIds, array $period): array
+    {
+        if (empty($vendorIds)) {
+            return [];
+        }
+
+        [$startDate, $endDate] = $this->getPeriodDates($period);
+
+        $metrics = WorkOrder::query()
+            ->whereIn('vendor_id', $vendorIds)
+            ->whereBetween('opened_at', [$startDate, $endDate])
+            ->selectRaw('
+                vendor_id,
+                COUNT(*) as work_order_count,
+                COALESCE(SUM(amount), 0) as total_spend,
+                CASE
+                    WHEN COUNT(CASE WHEN amount > 0 THEN 1 END) > 0
+                    THEN AVG(CASE WHEN amount > 0 THEN amount END)
+                    ELSE NULL
+                END as avg_cost_per_wo
+            ')
+            ->groupBy('vendor_id')
+            ->get()
+            ->keyBy('vendor_id');
+
+        $results = [];
+        foreach ($vendorIds as $vendorId) {
+            $data = $metrics->get($vendorId);
+            $results[$vendorId] = [
+                'work_order_count' => $data ? (int) $data->work_order_count : 0,
+                'total_spend' => $data ? round((float) $data->total_spend, 2) : 0.0,
+                'avg_cost_per_wo' => $data && $data->avg_cost_per_wo !== null
+                    ? round((float) $data->avg_cost_per_wo, 2)
+                    : null,
+            ];
+        }
+
+        return $results;
     }
 
     // ============================================================

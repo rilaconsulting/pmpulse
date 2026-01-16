@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
 import Layout from '../../components/Layout';
+import { InsuranceStatusBadge, formatCurrency } from '../../components/Vendor';
 import {
     MagnifyingGlassIcon,
     XMarkIcon,
@@ -10,9 +11,6 @@ import {
     ChevronDownIcon,
     WrenchScrewdriverIcon,
     ExclamationTriangleIcon,
-    CheckCircleIcon,
-    ClockIcon,
-    XCircleIcon,
     LinkIcon,
     UsersIcon,
 } from '@heroicons/react/24/outline';
@@ -78,16 +76,6 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
         (filters.is_active !== '' && filters.is_active !== null && filters.is_active !== undefined) ||
         (filters.canonical_filter && filters.canonical_filter !== 'canonical_only');
 
-    const formatCurrency = (amount) => {
-        if (amount === null || amount === undefined) return '-';
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(amount);
-    };
-
     const SortIcon = ({ field }) => {
         if (filters.sort !== field) {
             return <ChevronUpIcon className="w-4 h-4 text-gray-300" />;
@@ -97,9 +85,19 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
             : <ChevronDownIcon className="w-4 h-4 text-blue-600" />;
     };
 
-    const SortableHeader = ({ field, children, className = '' }) => {
+    const SortableHeader = ({ field, children, className = '', label }) => {
         const isSorted = filters.sort === field;
         const sortDirection = isSorted ? (filters.direction === 'asc' ? 'ascending' : 'descending') : 'none';
+        const columnLabel = label || children;
+
+        // Build descriptive aria-label for the button
+        let ariaLabel;
+        if (isSorted) {
+            const nextDirection = filters.direction === 'asc' ? 'descending' : 'ascending';
+            ariaLabel = `${columnLabel}, sorted ${sortDirection}, activate to sort ${nextDirection}`;
+        } else {
+            ariaLabel = `${columnLabel}, not sorted, activate to sort ascending`;
+        }
 
         return (
             <th
@@ -110,32 +108,12 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                     type="button"
                     className="flex items-center gap-1 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                     onClick={() => handleSort(field)}
+                    aria-label={ariaLabel}
                 >
                     {children}
                     <SortIcon field={field} />
                 </button>
             </th>
-        );
-    };
-
-    const InsuranceStatusBadge = ({ status }) => {
-        const overall = status?.overall || 'missing';
-
-        const styles = {
-            current: { bg: 'bg-green-100', text: 'text-green-800', icon: CheckCircleIcon, label: 'Current' },
-            expiring_soon: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: ClockIcon, label: 'Expiring Soon' },
-            expired: { bg: 'bg-red-100', text: 'text-red-800', icon: XCircleIcon, label: 'Expired' },
-            missing: { bg: 'bg-gray-100', text: 'text-gray-600', icon: ExclamationTriangleIcon, label: 'Missing' },
-        };
-
-        const style = styles[overall] || styles.missing;
-        const Icon = style.icon;
-
-        return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
-                <Icon className="w-3.5 h-3.5 mr-1" />
-                {style.label}
-            </span>
         );
     };
 
