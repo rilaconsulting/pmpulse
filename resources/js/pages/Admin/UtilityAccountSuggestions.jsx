@@ -8,15 +8,6 @@ import {
     ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 
-const UtilityTypeColors = {
-    water: 'bg-blue-100 text-blue-800',
-    electric: 'bg-yellow-100 text-yellow-800',
-    gas: 'bg-orange-100 text-orange-800',
-    garbage: 'bg-gray-100 text-gray-800',
-    sewer: 'bg-green-100 text-green-800',
-    other: 'bg-purple-100 text-purple-800',
-};
-
 function SuggestionRow({ glAccount, count, utilityTypes, onMapped }) {
     const [isMapping, setIsMapping] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -78,7 +69,7 @@ function SuggestionRow({ glAccount, count, utilityTypes, onMapped }) {
                     <button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={processing || !data.utility_type}
+                        disabled={processing || !data.utility_type || !data.gl_account_name.trim()}
                         className="inline-flex items-center px-2 py-1 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
                     >
                         <CheckIcon className="w-4 h-4 mr-1" />
