@@ -405,4 +405,113 @@ class PropertyPagesTest extends TestCase
 
         $response->assertStatus(302); // Validation redirect
     }
+
+    public function test_property_detail_shows_market_rent_totals(): void
+    {
+        $property = Property::create([
+            'external_id' => 'prop-1',
+            'name' => 'Test Property',
+            'is_active' => true,
+        ]);
+
+        Unit::create([
+            'external_id' => 'unit-1',
+            'property_id' => $property->id,
+            'unit_number' => '101',
+            'status' => 'occupied',
+            'market_rent' => 1500.00,
+            'is_active' => true,
+        ]);
+
+        Unit::create([
+            'external_id' => 'unit-2',
+            'property_id' => $property->id,
+            'unit_number' => '102',
+            'status' => 'vacant',
+            'market_rent' => 2000.00,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)->get("/properties/{$property->id}");
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->has('stats.total_market_rent')
+            ->has('stats.avg_market_rent')
+            ->where('stats.total_market_rent', fn ($value) => (float) $value === 3500.0)
+            ->where('stats.avg_market_rent', fn ($value) => (float) $value === 1750.0)
+        );
+    }
+
+    public function test_property_detail_handles_null_market_rent(): void
+    {
+        $property = Property::create([
+            'external_id' => 'prop-1',
+            'name' => 'Test Property',
+            'is_active' => true,
+        ]);
+
+        Unit::create([
+            'external_id' => 'unit-1',
+            'property_id' => $property->id,
+            'unit_number' => '101',
+            'status' => 'occupied',
+            'market_rent' => null,
+            'is_active' => true,
+        ]);
+
+        Unit::create([
+            'external_id' => 'unit-2',
+            'property_id' => $property->id,
+            'unit_number' => '102',
+            'status' => 'vacant',
+            'market_rent' => null,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)->get("/properties/{$property->id}");
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->has('stats.total_market_rent')
+            ->has('stats.avg_market_rent')
+            ->where('stats.total_market_rent', fn ($value) => (float) $value === 0.0)
+            ->where('stats.avg_market_rent', fn ($value) => (float) $value === 0.0)
+        );
+    }
+
+    public function test_property_detail_shows_not_ready_units(): void
+    {
+        $property = Property::create([
+            'external_id' => 'prop-1',
+            'name' => 'Test Property',
+            'is_active' => true,
+        ]);
+
+        Unit::create([
+            'external_id' => 'unit-1',
+            'property_id' => $property->id,
+            'unit_number' => '101',
+            'status' => 'occupied',
+            'is_active' => true,
+        ]);
+
+        Unit::create([
+            'external_id' => 'unit-2',
+            'property_id' => $property->id,
+            'unit_number' => '102',
+            'status' => 'not_ready',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->user)->get("/properties/{$property->id}");
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->where('stats.total_units', 2)
+            ->where('stats.occupied_units', 1)
+            ->where('stats.not_ready_units', 1)
+            ->where('stats.vacant_units', 0)
+        );
+    }
 }

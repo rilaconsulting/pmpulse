@@ -158,7 +158,7 @@ class PropertyController extends Controller
             },
         ]);
 
-        // Calculate property stats using database-level aggregation (single query)
+        // Calculate property stats using database-level aggregation for efficiency
         $aggregates = DB::table('units')
             ->where('property_id', $property->id)
             ->selectRaw("
