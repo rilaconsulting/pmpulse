@@ -110,6 +110,8 @@ class UtilityDashboardController extends Controller
      */
     public function show(Request $request, Property $property): Response
     {
+        $this->authorize('view', $property);
+
         $periodType = $request->get('period', 'month');
         if (! in_array($periodType, self::VALID_PERIODS, true)) {
             $periodType = 'month';

@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Layout from '../../components/Layout';
 import AdjustmentList from '../../components/Property/AdjustmentList';
@@ -11,6 +11,8 @@ import {
     HomeModernIcon,
     ChevronUpIcon,
     ChevronDownIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
     CalendarIcon,
     Square3Stack3DIcon,
     CurrencyDollarIcon,
@@ -22,6 +24,8 @@ import {
 
 export default function PropertyShow({
     property,
+    units,
+    unitFilters,
     stats,
     flagTypes,
     appfolioUrl,
@@ -34,10 +38,24 @@ export default function PropertyShow({
     const { auth } = usePage().props;
     const isAdmin = auth?.user?.role?.name === 'admin';
 
-    const [unitFilter, setUnitFilter] = useState('all');
-    const [unitSort, setUnitSort] = useState({ field: 'unit_number', direction: 'asc' });
     const [showAddFlagModal, setShowAddFlagModal] = useState(false);
     const [deletingFlagId, setDeletingFlagId] = useState(null);
+
+    // Helper to update unit filters via Inertia
+    const updateUnitFilters = useCallback((newFilters) => {
+        const merged = { ...unitFilters, ...newFilters };
+        const data = {};
+
+        if (merged.status) data.unit_status = merged.status;
+        if (merged.sort && merged.sort !== 'unit_number') data.unit_sort = merged.sort;
+        if (merged.direction && merged.direction !== 'asc') data.unit_direction = merged.direction;
+
+        router.get(
+            `/properties/${property.id}`,
+            data,
+            { preserveScroll: true, preserveState: true }
+        );
+    }, [property.id, unitFilters]);
 
     // Form for adding flags
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -86,50 +104,27 @@ export default function PropertyShow({
         }
     };
 
-    // Filter units
-    const filteredUnits = property.units?.filter(unit => {
-        if (unitFilter === 'all') return true;
-        return unit.status === unitFilter;
-    }) || [];
-
-    // Sort units
-    const sortedUnits = [...filteredUnits].sort((a, b) => {
-        let aVal = a[unitSort.field];
-        let bVal = b[unitSort.field];
-
-        // Handle null values
-        if (aVal === null) aVal = '';
-        if (bVal === null) bVal = '';
-
-        // Handle numeric sorting
-        if (typeof aVal === 'number' && typeof bVal === 'number') {
-            return unitSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
-        }
-
-        // String comparison
-        const comparison = String(aVal).localeCompare(String(bVal), undefined, { numeric: true });
-        return unitSort.direction === 'asc' ? comparison : -comparison;
-    });
-
     const handleUnitSort = (field) => {
-        setUnitSort(prev => ({
-            field,
-            direction: prev.field === field && prev.direction === 'asc' ? 'desc' : 'asc',
-        }));
+        const newDirection = unitFilters.sort === field && unitFilters.direction === 'asc' ? 'desc' : 'asc';
+        updateUnitFilters({ sort: field, direction: newDirection });
+    };
+
+    const handleUnitStatusFilter = (status) => {
+        updateUnitFilters({ status: status === 'all' ? '' : status });
     };
 
     const SortIcon = ({ field }) => {
-        if (unitSort.field !== field) {
+        if (unitFilters.sort !== field) {
             return <ChevronUpIcon className="w-4 h-4 text-gray-300" />;
         }
-        return unitSort.direction === 'asc'
+        return unitFilters.direction === 'asc'
             ? <ChevronUpIcon className="w-4 h-4 text-blue-600" />
             : <ChevronDownIcon className="w-4 h-4 text-blue-600" />;
     };
 
     const SortableHeader = ({ field, children }) => {
-        const isSorted = unitSort.field === field;
-        const sortDirection = isSorted ? (unitSort.direction === 'asc' ? 'ascending' : 'descending') : 'none';
+        const isSorted = unitFilters.sort === field;
+        const sortDirection = isSorted ? (unitFilters.direction === 'asc' ? 'ascending' : 'descending') : 'none';
 
         return (
             <th
@@ -530,13 +525,13 @@ export default function PropertyShow({
                 <div className="card">
                     <div className="card-header flex items-center justify-between">
                         <h2 className="text-lg font-medium text-gray-900">
-                            Units ({property.units?.length || 0})
+                            Units ({units?.total || 0})
                         </h2>
                         <div className="flex items-center gap-2">
                             <select
                                 className="input text-sm"
-                                value={unitFilter}
-                                onChange={(e) => setUnitFilter(e.target.value)}
+                                value={unitFilters.status || 'all'}
+                                onChange={(e) => handleUnitStatusFilter(e.target.value)}
                             >
                                 <option value="all">All Units</option>
                                 <option value="occupied">Occupied ({stats.occupied_units})</option>
@@ -560,19 +555,19 @@ export default function PropertyShow({
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {sortedUnits.length === 0 ? (
+                                {units?.data?.length === 0 ? (
                                     <tr>
                                         <td colSpan="6" className="px-6 py-12 text-center">
                                             <HomeModernIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                                             <p className="text-gray-500">
-                                                {property.units?.length === 0
+                                                {stats.total_units === 0
                                                     ? 'No units found for this property'
                                                     : 'No units match the selected filter'}
                                             </p>
                                         </td>
                                     </tr>
                                 ) : (
-                                    sortedUnits.map((unit) => (
+                                    units?.data?.map((unit) => (
                                         <tr key={unit.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm font-medium text-gray-900">
@@ -604,6 +599,37 @@ export default function PropertyShow({
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Pagination */}
+                    {units?.last_page > 1 && (
+                        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                            <div className="text-sm text-gray-500">
+                                Showing {units.from} to {units.to} of {units.total} units
+                            </div>
+                            <div className="flex gap-2">
+                                {units.prev_page_url && (
+                                    <Link
+                                        href={units.prev_page_url}
+                                        className="btn-secondary flex items-center text-sm"
+                                        preserveScroll
+                                    >
+                                        <ChevronLeftIcon className="w-4 h-4 mr-1" />
+                                        Previous
+                                    </Link>
+                                )}
+                                {units.next_page_url && (
+                                    <Link
+                                        href={units.next_page_url}
+                                        className="btn-secondary flex items-center text-sm"
+                                        preserveScroll
+                                    >
+                                        Next
+                                        <ChevronRightIcon className="w-4 h-4 ml-1" />
+                                    </Link>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 

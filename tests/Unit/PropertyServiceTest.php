@@ -275,4 +275,69 @@ class PropertyServiceTest extends TestCase
 
         $this->assertCount(5, $result);
     }
+
+    // ==================== getFilteredUnits Tests ====================
+
+    public function test_get_filtered_units_returns_paginated_results(): void
+    {
+        $property = Property::factory()->create();
+        Unit::factory()->count(30)->create(['property_id' => $property->id]);
+
+        $result = $this->service->getFilteredUnits($property, [], 10);
+
+        $this->assertCount(10, $result->items());
+        $this->assertEquals(30, $result->total());
+        $this->assertEquals(3, $result->lastPage());
+    }
+
+    public function test_get_filtered_units_filters_by_status(): void
+    {
+        $property = Property::factory()->create();
+        Unit::factory()->count(5)->create(['property_id' => $property->id, 'status' => 'occupied']);
+        Unit::factory()->count(3)->create(['property_id' => $property->id, 'status' => 'vacant']);
+
+        $result = $this->service->getFilteredUnits($property, ['status' => 'vacant']);
+
+        $this->assertEquals(3, $result->total());
+        $this->assertTrue($result->items()[0]->status === 'vacant');
+    }
+
+    public function test_get_filtered_units_sorts_by_field(): void
+    {
+        $property = Property::factory()->create();
+        Unit::factory()->create(['property_id' => $property->id, 'unit_number' => '101', 'market_rent' => 1000]);
+        Unit::factory()->create(['property_id' => $property->id, 'unit_number' => '102', 'market_rent' => 2000]);
+        Unit::factory()->create(['property_id' => $property->id, 'unit_number' => '103', 'market_rent' => 1500]);
+
+        $result = $this->service->getFilteredUnits($property, ['sort' => 'market_rent', 'direction' => 'desc']);
+
+        $this->assertEquals(2000, $result->items()[0]->market_rent);
+        $this->assertEquals(1500, $result->items()[1]->market_rent);
+        $this->assertEquals(1000, $result->items()[2]->market_rent);
+    }
+
+    public function test_get_filtered_units_defaults_to_unit_number_sort(): void
+    {
+        $property = Property::factory()->create();
+        Unit::factory()->create(['property_id' => $property->id, 'unit_number' => '301']);
+        Unit::factory()->create(['property_id' => $property->id, 'unit_number' => '101']);
+        Unit::factory()->create(['property_id' => $property->id, 'unit_number' => '201']);
+
+        $result = $this->service->getFilteredUnits($property, []);
+
+        $this->assertEquals('101', $result->items()[0]->unit_number);
+        $this->assertEquals('201', $result->items()[1]->unit_number);
+        $this->assertEquals('301', $result->items()[2]->unit_number);
+    }
+
+    public function test_get_filtered_units_ignores_invalid_sort_field(): void
+    {
+        $property = Property::factory()->create();
+        Unit::factory()->count(3)->create(['property_id' => $property->id]);
+
+        // Should not throw, should fall back to unit_number
+        $result = $this->service->getFilteredUnits($property, ['sort' => 'invalid_field']);
+
+        $this->assertEquals(3, $result->total());
+    }
 }

@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\Property;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Property Service
@@ -125,13 +124,12 @@ class PropertyService
      */
     public function getPropertyStats(Property $property): array
     {
-        $aggregates = DB::table('units')
-            ->where('property_id', $property->id)
+        $aggregates = $property->units()
             ->selectRaw("
                 COUNT(*) as total_units,
-                COUNT(CASE WHEN status = 'occupied' THEN 1 END) as occupied_units,
-                COUNT(CASE WHEN status = 'vacant' THEN 1 END) as vacant_units,
-                COUNT(CASE WHEN status = 'not_ready' THEN 1 END) as not_ready_units,
+                COUNT(*) FILTER (WHERE status = 'occupied') as occupied_units,
+                COUNT(*) FILTER (WHERE status = 'vacant') as vacant_units,
+                COUNT(*) FILTER (WHERE status = 'not_ready') as not_ready_units,
                 COALESCE(SUM(market_rent), 0) as total_market_rent,
                 COALESCE(AVG(market_rent), 0) as avg_market_rent
             ")
@@ -148,6 +146,39 @@ class PropertyService
             'total_market_rent' => (float) $aggregates->total_market_rent,
             'avg_market_rent' => (float) $aggregates->avg_market_rent,
         ];
+    }
+
+    /**
+     * Get filtered and paginated units for a property.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return LengthAwarePaginator<\App\Models\Unit>
+     */
+    public function getFilteredUnits(Property $property, array $filters, int $perPage = 25): LengthAwarePaginator
+    {
+        $query = $property->units();
+
+        // Filter by status
+        $status = $filters['status'] ?? '';
+        if ($status && in_array($status, ['occupied', 'vacant', 'not_ready'], true)) {
+            $query->where('status', $status);
+        }
+
+        // Sort
+        $sortField = $filters['sort'] ?? 'unit_number';
+        $sortDirection = $filters['direction'] ?? 'asc';
+
+        $allowedSortFields = ['unit_number', 'status', 'bedrooms', 'sqft', 'market_rent', 'unit_type'];
+        if (! in_array($sortField, $allowedSortFields, true)) {
+            $sortField = 'unit_number';
+        }
+        if (! in_array($sortDirection, ['asc', 'desc'], true)) {
+            $sortDirection = 'asc';
+        }
+
+        $query->orderBy($sortField, $sortDirection);
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**
