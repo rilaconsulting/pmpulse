@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Services\AdjustmentService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -157,17 +158,29 @@ class PropertyController extends Controller
             },
         ]);
 
-        // Calculate property stats
+        // Calculate property stats using database-level aggregation (single query)
+        $aggregates = DB::table('units')
+            ->where('property_id', $property->id)
+            ->selectRaw("
+                COUNT(*) as total_units,
+                COUNT(CASE WHEN status = 'occupied' THEN 1 END) as occupied_units,
+                COUNT(CASE WHEN status = 'vacant' THEN 1 END) as vacant_units,
+                COUNT(CASE WHEN status = 'not_ready' THEN 1 END) as not_ready_units,
+                COALESCE(SUM(market_rent), 0) as total_market_rent,
+                COALESCE(AVG(market_rent), 0) as avg_market_rent
+            ")
+            ->first();
+
         $stats = [
-            'total_units' => $property->units->count(),
-            'occupied_units' => $property->units->where('status', 'occupied')->count(),
-            'vacant_units' => $property->units->where('status', 'vacant')->count(),
-            'not_ready_units' => $property->units->where('status', 'not_ready')->count(),
-            'occupancy_rate' => $property->units->count() > 0
-                ? round(($property->units->where('status', 'occupied')->count() / $property->units->count()) * 100, 1)
+            'total_units' => (int) $aggregates->total_units,
+            'occupied_units' => (int) $aggregates->occupied_units,
+            'vacant_units' => (int) $aggregates->vacant_units,
+            'not_ready_units' => (int) $aggregates->not_ready_units,
+            'occupancy_rate' => $aggregates->total_units > 0
+                ? round(($aggregates->occupied_units / $aggregates->total_units) * 100, 1)
                 : 0,
-            'total_market_rent' => $property->units->sum('market_rent'),
-            'avg_market_rent' => $property->units->avg('market_rent'),
+            'total_market_rent' => (float) $aggregates->total_market_rent,
+            'avg_market_rent' => (float) $aggregates->avg_market_rent,
         ];
 
         // Build AppFolio URL if database is configured and property has external_id
