@@ -70,12 +70,11 @@ class PropertyController extends Controller
     /**
      * Display the specified property.
      */
-    public function show(Property $property, AdjustmentService $adjustmentService): Response
+    public function show(Request $request, Property $property, AdjustmentService $adjustmentService): Response
     {
+        $this->authorize('view', $property);
+
         $property->load([
-            'units' => function ($query) {
-                $query->orderBy('unit_number');
-            },
             'flags' => function ($query) {
                 $query->with('creator:id,name')->orderBy('created_at', 'desc');
             },
@@ -83,6 +82,16 @@ class PropertyController extends Controller
                 $query->with('creator:id,name')->orderBy('created_at', 'desc');
             },
         ]);
+
+        // Get unit filters from request
+        $unitFilters = [
+            'status' => $request->get('unit_status', ''),
+            'sort' => $request->get('unit_sort', 'unit_number'),
+            'direction' => $request->get('unit_direction', 'asc'),
+        ];
+
+        // Get paginated units
+        $units = $this->propertyService->getFilteredUnits($property, $unitFilters);
 
         // Calculate property stats
         $stats = $this->propertyService->getPropertyStats($property);
@@ -104,6 +113,8 @@ class PropertyController extends Controller
 
         return Inertia::render('Properties/Show', [
             'property' => $property,
+            'units' => $units,
+            'unitFilters' => $unitFilters,
             'stats' => $stats,
             'flagTypes' => PropertyFlag::FLAG_TYPES,
             'appfolioUrl' => $appfolioUrl,

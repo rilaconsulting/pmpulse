@@ -82,7 +82,7 @@ class VendorApiController extends Controller
      */
     public function duplicates(Request $request, Vendor $vendor): JsonResponse
     {
-        $this->authorize('admin');
+        $this->authorizeAdmin();
 
         // If this is a duplicate vendor, return empty array
         if ($vendor->isDuplicate()) {
@@ -115,7 +115,7 @@ class VendorApiController extends Controller
      */
     public function potentialDuplicates(Request $request): JsonResponse
     {
-        $this->authorize('admin');
+        $this->authorizeAdmin();
 
         $threshold = $request->float('threshold', 0.6);
         $limit = $request->integer('limit', 50);
@@ -187,7 +187,7 @@ class VendorApiController extends Controller
      */
     public function getDuplicateAnalysis(VendorDuplicateAnalysis $analysis): JsonResponse
     {
-        $this->authorize('admin');
+        $this->authorizeAdmin();
 
         return response()->json([
             'data' => $analysis,
@@ -201,7 +201,7 @@ class VendorApiController extends Controller
      */
     public function getLatestDuplicateAnalysis(): JsonResponse
     {
-        $this->authorize('admin');
+        $this->authorizeAdmin();
 
         $analysis = VendorDuplicateAnalysis::query()
             ->orderBy('created_at', 'desc')
@@ -222,7 +222,7 @@ class VendorApiController extends Controller
     /**
      * Authorize admin access.
      */
-    private function authorize(string $ability): void
+    private function authorizeAdmin(): void
     {
         if (! auth()->user()?->isAdmin()) {
             abort(403, 'This action requires administrator privileges.');

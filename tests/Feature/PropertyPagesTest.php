@@ -202,7 +202,8 @@ class PropertyPagesTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
-            ->has('property.units', 2)
+            ->has('units.data', 2)
+            ->has('unitFilters')
             ->where('stats.total_units', 2)
             ->where('stats.occupied_units', 1)
             ->where('stats.vacant_units', 1)
