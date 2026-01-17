@@ -297,24 +297,66 @@ class IngestionService
     }
 
     /**
-     * Prefetch properties for unit processing.
+     * Cache model IDs by their external IDs for efficient lookups.
+     *
+     * This helper method extracts the common pattern of fetching model IDs
+     * and storing them in a cache property to avoid N+1 queries.
+     *
+     * @param  class-string  $modelClass  The model class to query
+     * @param  array<string>  $externalIds  The external IDs to look up
+     * @param  string  $cacheProperty  The name of the cache property to populate
      */
-    private function prefetchProperties(array $items): void
+    private function cacheIdsByExternalIds(string $modelClass, array $externalIds, string $cacheProperty): void
     {
-        $externalIds = collect($items)
-            ->map(fn ($item) => (string) ($item['property_id'] ?? $item['property']['id'] ?? null))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
         if (empty($externalIds)) {
             return;
         }
 
-        Property::whereIn('external_id', $externalIds)
+        $modelClass::whereIn('external_id', $externalIds)
             ->pluck('id', 'external_id')
-            ->each(fn ($id, $externalId) => $this->propertyCache[$externalId] = $id);
+            ->each(fn ($id, $externalId) => $this->{$cacheProperty}[$externalId] = $id);
+    }
+
+    /**
+     * Extract unique external IDs from items for a given field path.
+     *
+     * @param  array  $items  The items to extract IDs from
+     * @param  string  $primaryField  The primary field name (e.g., 'property_id')
+     * @param  string|null  $nestedPath  Optional nested path (e.g., 'property.id')
+     * @return array<string>
+     */
+    private function extractExternalIds(array $items, string $primaryField, ?string $nestedPath = null): array
+    {
+        return collect($items)
+            ->map(function ($item) use ($primaryField, $nestedPath) {
+                $value = $item[$primaryField] ?? null;
+
+                if ($value === null && $nestedPath !== null) {
+                    $parts = explode('.', $nestedPath);
+                    $value = $item;
+                    foreach ($parts as $part) {
+                        $value = $value[$part] ?? null;
+                        if ($value === null) {
+                            break;
+                        }
+                    }
+                }
+
+                return $value !== null ? (string) $value : null;
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Prefetch properties for unit processing.
+     */
+    private function prefetchProperties(array $items): void
+    {
+        $externalIds = $this->extractExternalIds($items, 'property_id', 'property.id');
+        $this->cacheIdsByExternalIds(Property::class, $externalIds, 'propertyCache');
     }
 
     /**
@@ -322,12 +364,8 @@ class IngestionService
      */
     private function prefetchUnitsAndPeople(array $items): void
     {
-        $unitExternalIds = collect($items)
-            ->map(fn ($item) => (string) ($item['unit_id'] ?? $item['unit']['id'] ?? null))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
+        $unitExternalIds = $this->extractExternalIds($items, 'unit_id', 'unit.id');
+        $this->cacheIdsByExternalIds(Unit::class, $unitExternalIds, 'unitCache');
 
         $personExternalIds = collect($items)
             ->map(fn ($item) => (string) ($item['tenant_id'] ?? $item['person_id'] ?? $item['resident_id'] ?? null))
@@ -335,18 +373,7 @@ class IngestionService
             ->unique()
             ->values()
             ->all();
-
-        if (! empty($unitExternalIds)) {
-            Unit::whereIn('external_id', $unitExternalIds)
-                ->pluck('id', 'external_id')
-                ->each(fn ($id, $externalId) => $this->unitCache[$externalId] = $id);
-        }
-
-        if (! empty($personExternalIds)) {
-            Person::whereIn('external_id', $personExternalIds)
-                ->pluck('id', 'external_id')
-                ->each(fn ($id, $externalId) => $this->personCache[$externalId] = $id);
-        }
+        $this->cacheIdsByExternalIds(Person::class, $personExternalIds, 'personCache');
     }
 
     /**
@@ -354,31 +381,11 @@ class IngestionService
      */
     private function prefetchPropertiesAndUnits(array $items): void
     {
-        $propertyExternalIds = collect($items)
-            ->map(fn ($item) => (string) ($item['property_id'] ?? $item['property']['id'] ?? null))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
+        $propertyExternalIds = $this->extractExternalIds($items, 'property_id', 'property.id');
+        $this->cacheIdsByExternalIds(Property::class, $propertyExternalIds, 'propertyCache');
 
-        $unitExternalIds = collect($items)
-            ->map(fn ($item) => (string) ($item['unit_id'] ?? $item['unit']['id'] ?? null))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        if (! empty($propertyExternalIds)) {
-            Property::whereIn('external_id', $propertyExternalIds)
-                ->pluck('id', 'external_id')
-                ->each(fn ($id, $externalId) => $this->propertyCache[$externalId] = $id);
-        }
-
-        if (! empty($unitExternalIds)) {
-            Unit::whereIn('external_id', $unitExternalIds)
-                ->pluck('id', 'external_id')
-                ->each(fn ($id, $externalId) => $this->unitCache[$externalId] = $id);
-        }
+        $unitExternalIds = $this->extractExternalIds($items, 'unit_id', 'unit.id');
+        $this->cacheIdsByExternalIds(Unit::class, $unitExternalIds, 'unitCache');
     }
 
     /**
@@ -386,44 +393,14 @@ class IngestionService
      */
     private function prefetchWorkOrderRelations(array $items): void
     {
-        $propertyExternalIds = collect($items)
-            ->map(fn ($item) => (string) ($item['property_id'] ?? null))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
+        $propertyExternalIds = $this->extractExternalIds($items, 'property_id');
+        $this->cacheIdsByExternalIds(Property::class, $propertyExternalIds, 'propertyCache');
 
-        $unitExternalIds = collect($items)
-            ->map(fn ($item) => (string) ($item['unit_id'] ?? null))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
+        $unitExternalIds = $this->extractExternalIds($items, 'unit_id');
+        $this->cacheIdsByExternalIds(Unit::class, $unitExternalIds, 'unitCache');
 
-        $vendorExternalIds = collect($items)
-            ->map(fn ($item) => (string) ($item['vendor_id'] ?? null))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        if (! empty($propertyExternalIds)) {
-            Property::whereIn('external_id', $propertyExternalIds)
-                ->pluck('id', 'external_id')
-                ->each(fn ($id, $externalId) => $this->propertyCache[$externalId] = $id);
-        }
-
-        if (! empty($unitExternalIds)) {
-            Unit::whereIn('external_id', $unitExternalIds)
-                ->pluck('id', 'external_id')
-                ->each(fn ($id, $externalId) => $this->unitCache[$externalId] = $id);
-        }
-
-        if (! empty($vendorExternalIds)) {
-            Vendor::whereIn('external_id', $vendorExternalIds)
-                ->pluck('id', 'external_id')
-                ->each(fn ($id, $externalId) => $this->vendorCache[$externalId] = $id);
-        }
+        $vendorExternalIds = $this->extractExternalIds($items, 'vendor_id');
+        $this->cacheIdsByExternalIds(Vendor::class, $vendorExternalIds, 'vendorCache');
     }
 
     /**
