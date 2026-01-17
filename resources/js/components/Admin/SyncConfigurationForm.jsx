@@ -1,5 +1,28 @@
 import { useForm } from '@inertiajs/react';
 
+/**
+ * Sync configuration form for managing AppFolio data synchronization settings.
+ *
+ * @param {Object} props
+ * @param {Object} props.syncConfiguration - Persistent settings stored in database.
+ *   Contains user-configured values like intervals, timezone, and business hours.
+ *   These are saved via the form and loaded from the Setting model.
+ * @param {number} [props.syncConfiguration.business_hours_interval] - Minutes between syncs during business hours
+ * @param {number} [props.syncConfiguration.off_hours_interval] - Minutes between syncs outside business hours
+ * @param {string} [props.syncConfiguration.timezone] - Timezone for business hours calculation
+ * @param {number} [props.syncConfiguration.start_hour] - Business hours start (0-23)
+ * @param {number} [props.syncConfiguration.end_hour] - Business hours end (1-24)
+ * @param {boolean} [props.syncConfiguration.weekdays_only] - Whether to apply business hours only on weekdays
+ * @param {boolean} [props.syncConfiguration.business_hours_enabled] - Whether business hours mode is active
+ * @param {string} [props.syncConfiguration.full_sync_time] - Time for daily full sync (HH:MM format)
+ * @param {Object} [props.syncStatus] - Runtime operational state from BusinessHoursService.
+ *   Computed in real-time based on current time and syncConfiguration settings.
+ *   This is NOT stored in the database - it's calculated on each page load.
+ * @param {string} [props.syncStatus.current_mode] - Current mode: 'business_hours' or 'off_hours'
+ * @param {number} [props.syncStatus.current_interval] - Active sync interval in minutes
+ * @param {string} [props.syncStatus.next_sync] - ISO timestamp of next scheduled sync
+ * @param {Object.<string, string>} props.timezones - Available timezone options (value => label)
+ */
 export default function SyncConfigurationForm({ syncConfiguration, syncStatus, timezones }) {
     const { data, setData, post, processing, errors } = useForm({
         business_hours_enabled: syncConfiguration?.business_hours_enabled ?? true,
