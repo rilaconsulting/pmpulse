@@ -924,9 +924,7 @@ class UtilityAnalyticsService
 
         // Get utility-specific exclusions (excluded from specific utility types only)
         $utilityExclusions = PropertyUtilityExclusion::query()
-            ->with(['property' => function ($query) {
-                $query->where('is_active', true);
-            }, 'creator'])
+            ->with(['property', 'creator'])
             ->whereHas('property', function ($query) {
                 $query->where('is_active', true);
             })

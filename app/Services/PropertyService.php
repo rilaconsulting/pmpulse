@@ -55,7 +55,7 @@ class PropertyService
         }
 
         // Filter by active status
-        if (array_key_exists('is_active', $filters) && $filters['is_active'] !== '' && $filters['is_active'] !== null) {
+        if (isset($filters['is_active']) && $filters['is_active'] !== '') {
             $query->where('is_active', (bool) $filters['is_active']);
         }
 
@@ -64,7 +64,12 @@ class PropertyService
         $sortDirection = $filters['direction'] ?? 'asc';
         $allowedSorts = ['name', 'city', 'unit_count', 'total_sqft', 'property_type', 'is_active'];
 
-        if (in_array($sortField, $allowedSorts)) {
+        // Map unit_count to units_count (withCount creates units_count)
+        if ($sortField === 'unit_count') {
+            $sortField = 'units_count';
+        }
+
+        if (in_array($filters['sort'] ?? 'name', $allowedSorts)) {
             $query->orderBy($sortField, $sortDirection === 'desc' ? 'desc' : 'asc');
         }
 

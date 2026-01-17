@@ -180,7 +180,7 @@ class User extends Authenticatable
      */
     public function scopeFilter(Builder $query, array $filters): Builder
     {
-        // Filter by active status
+        // Filter by active status (keep empty string check for direct scope calls)
         if (array_key_exists('active', $filters) && $filters['active'] !== null && $filters['active'] !== '') {
             $query->where('is_active', (bool) $filters['active']);
         }
