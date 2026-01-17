@@ -25,7 +25,7 @@ class UpdateAdjustmentRequest extends FormRequest
     public function rules(): array
     {
         $adjustment = $this->route('adjustment');
-        $fieldName = $adjustment?->field_name ?? $this->input('field_name');
+        $fieldName = $adjustment->field_name;
         $fieldRules = PropertyAdjustment::getValidationRules($fieldName);
         $effectiveFrom = $adjustment?->effective_from?->toDateString();
 

@@ -103,10 +103,9 @@ class PropertyController extends Controller
             $appfolioUrl = "https://{$appfolioDatabase}.appfolio.com/properties/{$property->external_id}";
         }
 
-        // Separate active and historical adjustments
+        // Separate active and historical adjustments using partition for better performance
         $today = now()->startOfDay();
-        $activeAdjustments = $property->adjustments->filter(fn ($adj) => $adj->isActiveOn($today));
-        $historicalAdjustments = $property->adjustments->filter(fn ($adj) => ! $adj->isActiveOn($today));
+        [$activeAdjustments, $historicalAdjustments] = $property->adjustments->partition(fn ($adj) => $adj->isActiveOn($today));
 
         // Get effective values with metadata for display
         $effectiveValues = $adjustmentService->getEffectiveValuesWithMetadata($property);

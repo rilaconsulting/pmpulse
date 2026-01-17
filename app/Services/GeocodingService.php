@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Setting;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Cache\RateLimiter;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
+use Illuminate\Http\Client\Factory as HttpFactory;
+use Psr\Log\LoggerInterface;
 
 /**
  * Geocoding Service
@@ -18,6 +18,13 @@ use Illuminate\Support\Facades\RateLimiter;
  */
 class GeocodingService
 {
+    public function __construct(
+        private readonly CacheRepository $cache,
+        private readonly HttpFactory $http,
+        private readonly LoggerInterface $log,
+        private readonly RateLimiter $rateLimiter,
+    ) {}
+
     /**
      * Google Geocoding API base URL.
      */
@@ -54,17 +61,17 @@ class GeocodingService
 
         // Check cache first
         $cacheKey = $this->getCacheKey($address);
-        $cached = Cache::get($cacheKey);
+        $cached = $this->cache->get($cacheKey);
 
         if ($cached !== null) {
-            Log::debug('Geocoding cache hit', ['address' => $address]);
+            $this->log->debug('Geocoding cache hit', ['address' => $address]);
 
             return $cached;
         }
 
         // Check rate limit
         if (! $this->checkRateLimit()) {
-            Log::warning('Geocoding rate limit exceeded');
+            $this->log->warning('Geocoding rate limit exceeded');
 
             return null;
         }
@@ -74,7 +81,7 @@ class GeocodingService
 
         if ($result !== null) {
             // Cache the result
-            Cache::put($cacheKey, $result, self::CACHE_TTL);
+            $this->cache->put($cacheKey, $result, self::CACHE_TTL);
         }
 
         return $result;
@@ -103,11 +110,11 @@ class GeocodingService
     {
         $key = self::RATE_LIMIT_KEY;
 
-        if (RateLimiter::tooManyAttempts($key, self::RATE_LIMIT_PER_MINUTE)) {
+        if ($this->rateLimiter->tooManyAttempts($key, self::RATE_LIMIT_PER_MINUTE)) {
             return false;
         }
 
-        RateLimiter::hit($key, 60);
+        $this->rateLimiter->hit($key, 60);
 
         return true;
     }
@@ -120,7 +127,7 @@ class GeocodingService
         $apiKey = $this->getApiKey();
 
         if (empty($apiKey)) {
-            Log::warning('Google Maps API key not configured for geocoding');
+            $this->log->warning('Google Maps API key not configured for geocoding');
 
             return null;
         }
@@ -134,14 +141,14 @@ class GeocodingService
     private function makeGoogleRequest(string $address, string $apiKey): ?array
     {
         try {
-            $response = Http::timeout(10)
+            $response = $this->http->timeout(10)
                 ->get(self::GOOGLE_API_URL, [
                     'address' => $address,
                     'key' => $apiKey,
                 ]);
 
             if (! $response->successful()) {
-                Log::error('Google Geocoding API request failed', [
+                $this->log->error('Google Geocoding API request failed', [
                     'status' => $response->status(),
                     'address' => $address,
                 ]);
@@ -153,7 +160,7 @@ class GeocodingService
 
             return $this->parseGoogleResponse($data, $address);
         } catch (\Exception $e) {
-            Log::error('Google Geocoding API exception', [
+            $this->log->error('Google Geocoding API exception', [
                 'error' => $e->getMessage(),
                 'address' => $address,
             ]);
@@ -178,7 +185,7 @@ class GeocodingService
         $results = $data['results'] ?? [];
 
         if (empty($results)) {
-            Log::warning('Google Geocoding returned no results', ['address' => $address]);
+            $this->log->warning('Google Geocoding returned no results', ['address' => $address]);
 
             return null;
         }
@@ -186,7 +193,7 @@ class GeocodingService
         $location = $results[0]['geometry']['location'] ?? null;
 
         if (! $location || ! isset($location['lat'], $location['lng'])) {
-            Log::warning('Google Geocoding result missing location data', ['address' => $address]);
+            $this->log->warning('Google Geocoding result missing location data', ['address' => $address]);
 
             return null;
         }
@@ -210,7 +217,7 @@ class GeocodingService
             default => "API error: {$status}",
         };
 
-        Log::warning("Geocoding error: {$message}", [
+        $this->log->warning("Geocoding error: {$message}", [
             'status' => $status,
             'address' => $address,
         ]);
@@ -229,7 +236,7 @@ class GeocodingService
      */
     public function clearCache(string $address): void
     {
-        Cache::forget($this->getCacheKey($address));
+        $this->cache->forget($this->getCacheKey($address));
     }
 
     /**
@@ -237,6 +244,6 @@ class GeocodingService
      */
     public function getRemainingAttempts(): int
     {
-        return RateLimiter::remaining(self::RATE_LIMIT_KEY, self::RATE_LIMIT_PER_MINUTE);
+        return $this->rateLimiter->remaining(self::RATE_LIMIT_KEY, self::RATE_LIMIT_PER_MINUTE);
     }
 }

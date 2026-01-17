@@ -63,7 +63,7 @@ class GeocodePropertiesJobTest extends TestCase
         ]);
 
         $job = new GeocodePropertiesJob;
-        $job->handle(new GeocodingService);
+        $job->handle(app(GeocodingService::class));
 
         $property->refresh();
 
@@ -91,7 +91,7 @@ class GeocodePropertiesJobTest extends TestCase
         Http::fake();
 
         $job = new GeocodePropertiesJob;
-        $job->handle(new GeocodingService);
+        $job->handle(app(GeocodingService::class));
 
         // Should not have made any API calls
         Http::assertNothingSent();
@@ -114,7 +114,7 @@ class GeocodePropertiesJobTest extends TestCase
         Http::fake();
 
         $job = new GeocodePropertiesJob;
-        $job->handle(new GeocodingService);
+        $job->handle(app(GeocodingService::class));
 
         // Should not have made any API calls
         Http::assertNothingSent();
@@ -138,7 +138,7 @@ class GeocodePropertiesJobTest extends TestCase
         Http::fake();
 
         $job = new GeocodePropertiesJob;
-        $job->handle(new GeocodingService);
+        $job->handle(app(GeocodingService::class));
 
         Http::assertNothingSent();
     }
@@ -178,7 +178,7 @@ class GeocodePropertiesJobTest extends TestCase
 
         // Limit to 2 properties
         $job = new GeocodePropertiesJob(limit: 2);
-        $job->handle(new GeocodingService);
+        $job->handle(app(GeocodingService::class));
 
         // Should have made only 2 API calls (follow-up job is queued, not executed)
         Http::assertSentCount(2);
@@ -226,7 +226,7 @@ class GeocodePropertiesJobTest extends TestCase
 
         // Use a small limit to trigger follow-up
         $job = new GeocodePropertiesJob(limit: 5);
-        $job->handle(new GeocodingService);
+        $job->handle(app(GeocodingService::class));
 
         // Should dispatch a follow-up job
         Queue::assertPushed(GeocodePropertiesJob::class);
@@ -247,7 +247,7 @@ class GeocodePropertiesJobTest extends TestCase
         Http::fake();
 
         $job = new GeocodePropertiesJob;
-        $job->handle(new GeocodingService);
+        $job->handle(app(GeocodingService::class));
 
         Http::assertNothingSent();
     }
@@ -273,7 +273,7 @@ class GeocodePropertiesJobTest extends TestCase
 
         // Job should complete without throwing
         $job = new GeocodePropertiesJob;
-        $job->handle(new GeocodingService);
+        $job->handle(app(GeocodingService::class));
 
         $property->refresh();
 
