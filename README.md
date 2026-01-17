@@ -156,8 +156,8 @@ pmpulse/
 - `property_rollups` - Property-level daily metrics
 
 **Configuration Tables:**
+- `settings` - Unified key/value store (AppFolio credentials, feature flags, sync settings)
 - `alert_rules` - Notification thresholds
-- `feature_flags` - Feature toggles
 
 ## Configuration
 
@@ -310,13 +310,14 @@ Queues a sync job.
 
 ## AppFolio Integration
 
-The AppFolio client is implemented with placeholder endpoints. When connecting to the actual AppFolio API:
+The AppFolio client syncs the following resources:
+- Properties and Units
+- Vendors with insurance tracking
+- Work Orders with cost tracking
+- Bill Details for utility expense categorization
+- Rent Roll and Delinquencies
 
-1. Update endpoint paths in `app/Services/AppfolioClient.php`
-2. Update field mappings in `app/Services/IngestionService.php`
-3. Adjust authentication method if needed
-
-All TODO comments in these files indicate where changes are needed.
+Configure AppFolio API credentials in Admin → Integrations.
 
 ## Testing
 

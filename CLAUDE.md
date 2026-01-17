@@ -28,10 +28,16 @@ app/
 ├── Models/                    # Eloquent models
 ├── Notifications/             # Email notifications
 └── Services/                  # Business logic
-    ├── AppfolioClient.php     # AppFolio API client with rate limiting
-    ├── IngestionService.php   # Data normalization and upsert logic
-    ├── AnalyticsService.php   # KPI calculations
-    └── NotificationService.php # Alert evaluation and sending
+    ├── AppfolioClient.php         # AppFolio API client with rate limiting
+    ├── IngestionService.php       # Data normalization and upsert logic
+    ├── AnalyticsService.php       # KPI calculations
+    ├── NotificationService.php    # Alert evaluation and sending
+    ├── PropertyService.php        # Property detail page logic
+    ├── GeocodingService.php       # Google Maps geocoding with caching
+    ├── VendorAnalyticsService.php # Vendor performance metrics
+    ├── VendorComplianceService.php # Insurance compliance tracking
+    ├── UtilityAnalyticsService.php # Utility cost analytics
+    └── UtilityExpenseService.php  # Utility expense processing
 
 resources/js/
 ├── components/                # Reusable React components
@@ -46,8 +52,9 @@ resources/js/
 
 ## Key Files to Know
 
-- `app/Services/AppfolioClient.php` - API client with TODO markers for actual AppFolio endpoints
-- `app/Services/IngestionService.php` - Data mapping with TODO markers for field names
+- `app/Services/AppfolioClient.php` - AppFolio API client with rate limiting and pagination
+- `app/Services/IngestionService.php` - Data normalization and upsert logic for all resources
+- `app/Services/GeocodingService.php` - Google Maps geocoding with caching and rate limiting
 - `config/appfolio.php` - AppFolio configuration (rate limits, sync settings)
 - `config/features.php` - Feature flags
 - `routes/console.php` - Scheduled tasks
@@ -140,7 +147,7 @@ The AppFolio Reports API specification is available in `appfolio-reports-openapi
 | `/unit_directory.json` | Unit details (sqft, bedrooms, bathrooms, market rent) |
 | `/vendor_directory.json` | Vendor profiles with insurance expiration dates |
 | `/work_order.json` | Work orders with vendor, costs, status |
-| `/expense_register.json` | Expenses including utilities |
+| `/bill_details.json` | Bill line items with GL accounts for utility tracking |
 | `/rent_roll.json` | Current lease and rent information |
 | `/delinquency.json` | Delinquent accounts |
 
@@ -188,11 +195,16 @@ do {
 
 ## AppFolio Integration Status
 
-The AppFolio client is implemented with **placeholder endpoints**. When actual API documentation is provided:
+The AppFolio client is fully implemented and syncs the following resources:
+- Properties (property_directory)
+- Units (unit_directory)
+- Vendors (vendor_directory)
+- Work Orders (work_order)
+- Bill Details (bill_details) - used for utility expense tracking
+- Rent Roll (rent_roll)
+- Delinquencies (delinquency)
 
-1. Update endpoint paths in `AppfolioClient.php` (marked with TODO)
-2. Update field mappings in `IngestionService.php` (marked with TODO)
-3. Adjust authentication method if needed (currently uses Basic Auth)
+Authentication uses Basic Auth with client ID and secret configured in Settings.
 
 ## Testing Guidelines
 
@@ -275,12 +287,13 @@ if (Setting::isFeatureEnabled('notifications', default: true)) {
 ## Environment Variables
 
 Key variables to configure:
-- `APPFOLIO_CLIENT_ID`, `APPFOLIO_CLIENT_SECRET` - API credentials
+- `APPFOLIO_CLIENT_ID`, `APPFOLIO_CLIENT_SECRET` - API credentials (configured in Admin panel)
 - `APPFOLIO_FULL_SYNC_TIME` - When to run full sync (default: 02:00)
 - `FEATURE_INCREMENTAL_SYNC` - Enable/disable incremental sync
 - `FEATURE_NOTIFICATIONS` - Enable/disable email alerts
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth credentials
 - `GOOGLE_REDIRECT_URI` - Google OAuth callback URL
+- `GOOGLE_MAPS_API_KEY` - Google Maps API key for geocoding (configured in Admin panel)
 
 ## Google SSO Authentication
 
