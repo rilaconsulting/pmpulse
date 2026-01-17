@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Role;
 use App\Models\Setting;
 use App\Models\User;
+use App\Providers\SocialiteServiceProvider;
 use App\Services\GoogleSsoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
@@ -81,7 +82,7 @@ class GoogleSsoTest extends TestCase
         $socialiteUser = $this->mockSocialiteUser('sso@example.com', 'google-123');
 
         Socialite::shouldReceive('driver')
-            ->with('google')
+            ->with(SocialiteServiceProvider::GOOGLE_DRIVER)
             ->andReturn(Mockery::mock([
                 'user' => $socialiteUser,
             ]));
@@ -103,7 +104,7 @@ class GoogleSsoTest extends TestCase
         $socialiteUser = $this->mockSocialiteUser('password@example.com', 'google-456');
 
         Socialite::shouldReceive('driver')
-            ->with('google')
+            ->with(SocialiteServiceProvider::GOOGLE_DRIVER)
             ->andReturn(Mockery::mock([
                 'user' => $socialiteUser,
             ]));
@@ -120,7 +121,7 @@ class GoogleSsoTest extends TestCase
         $socialiteUser = $this->mockSocialiteUser('unknown@example.com', 'google-789');
 
         Socialite::shouldReceive('driver')
-            ->with('google')
+            ->with(SocialiteServiceProvider::GOOGLE_DRIVER)
             ->andReturn(Mockery::mock([
                 'user' => $socialiteUser,
             ]));
@@ -144,7 +145,7 @@ class GoogleSsoTest extends TestCase
         $socialiteUser = $this->mockSocialiteUser('inactive@example.com', 'google-inactive');
 
         Socialite::shouldReceive('driver')
-            ->with('google')
+            ->with(SocialiteServiceProvider::GOOGLE_DRIVER)
             ->andReturn(Mockery::mock([
                 'user' => $socialiteUser,
             ]));
@@ -168,7 +169,7 @@ class GoogleSsoTest extends TestCase
         $socialiteUser = $this->mockSocialiteUser('newlink@example.com', 'google-newlink');
 
         Socialite::shouldReceive('driver')
-            ->with('google')
+            ->with(SocialiteServiceProvider::GOOGLE_DRIVER)
             ->andReturn(Mockery::mock([
                 'user' => $socialiteUser,
             ]));
@@ -193,7 +194,7 @@ class GoogleSsoTest extends TestCase
         $socialiteUser = $this->mockSocialiteUser('mismatch@example.com', 'google-different');
 
         Socialite::shouldReceive('driver')
-            ->with('google')
+            ->with(SocialiteServiceProvider::GOOGLE_DRIVER)
             ->andReturn(Mockery::mock([
                 'user' => $socialiteUser,
             ]));

@@ -25,34 +25,13 @@ class UserController extends Controller
      */
     public function index(ListUsersRequest $request): JsonResponse
     {
-        $query = User::with('role');
-
-        // Filter by active status
-        if ($request->has('active')) {
-            $query->where('is_active', $request->boolean('active'));
-        }
-
-        // Filter by auth provider
-        if ($request->filled('auth_provider')) {
-            $query->where('auth_provider', $request->input('auth_provider'));
-        }
-
-        // Filter by role
-        if ($request->filled('role_id')) {
-            $query->where('role_id', $request->input('role_id'));
-        }
-
-        // Search by name or email
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-        }
+        $filters = $request->validated();
 
         $perPage = $request->integer('per_page', 15);
-        $users = $query->orderBy('name')->paginate($perPage);
+        $users = User::with('role')
+            ->filter($filters)
+            ->orderBy('name')
+            ->paginate($perPage);
 
         return response()->json($users);
     }

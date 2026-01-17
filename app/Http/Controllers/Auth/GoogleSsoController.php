@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Providers\SocialiteServiceProvider;
 use App\Services\AuthenticationService;
 use App\Services\GoogleSsoService;
 use Illuminate\Contracts\Auth\Guard;
@@ -34,7 +35,7 @@ class GoogleSsoController extends Controller
                 ->withErrors(['google' => 'Google SSO is not configured. Please contact your administrator.']);
         }
 
-        return $this->socialite->driver('google')
+        return $this->socialite->driver(SocialiteServiceProvider::GOOGLE_DRIVER)
             ->scopes(['openid', 'email', 'profile'])
             ->redirect();
     }
@@ -45,7 +46,7 @@ class GoogleSsoController extends Controller
     public function callback(Request $request): RedirectResponse
     {
         try {
-            $googleUser = $this->socialite->driver('google')->user();
+            $googleUser = $this->socialite->driver(SocialiteServiceProvider::GOOGLE_DRIVER)->user();
         } catch (InvalidStateException $e) {
             Log::error('Google SSO failed due to invalid state.', ['exception' => $e]);
 
