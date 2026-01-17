@@ -120,6 +120,7 @@ Route::middleware('auth')->group(function () {
 
         // Utility Accounts
         Route::get('/utility-accounts', [UtilityAccountController::class, 'index'])->name('utility-accounts.index');
+        Route::get('/utility-accounts/suggestions', [UtilityAccountController::class, 'suggestions'])->name('utility-accounts.suggestions');
         Route::post('/utility-accounts', [UtilityAccountController::class, 'store'])->name('utility-accounts.store');
         Route::patch('/utility-accounts/{utilityAccount}', [UtilityAccountController::class, 'update'])->name('utility-accounts.update');
         Route::delete('/utility-accounts/{utilityAccount}', [UtilityAccountController::class, 'destroy'])->name('utility-accounts.destroy');
