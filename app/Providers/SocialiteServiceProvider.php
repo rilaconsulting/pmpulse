@@ -11,18 +11,18 @@ use Laravel\Socialite\Facades\Socialite;
 class SocialiteServiceProvider extends ServiceProvider
 {
     /**
+     * The custom driver name for Google SSO with database configuration.
+     * Uses a custom name to avoid overriding the built-in 'google' driver.
+     */
+    public const GOOGLE_DRIVER = 'google-db';
+
+    /**
      * Register services.
      */
     public function register(): void
     {
         //
     }
-
-    /**
-     * The custom driver name for Google SSO with database configuration.
-     * Uses a custom name to avoid overriding the built-in 'google' driver.
-     */
-    public const GOOGLE_DRIVER = 'google-db';
 
     /**
      * Bootstrap services.
