@@ -18,8 +18,11 @@ Generate or update the CHANGELOG.md [Unreleased] section based on changes in thi
    - Write in past tense ("Added property map view" not "Add property map view")
    - Focus on user impact, not technical details
    - Use simple language end-users can understand
-   - Skip internal changes (CI/CD, tests, dependency updates, refactoring without user impact)
    - Each entry should be one clear, concise line
+   - For internal-only changes (refactoring, code cleanup, architecture improvements):
+     - Do NOT skip them entirely - users appreciate knowing work is being done
+     - Write a simple generic entry like "Improved application stability" or "Performance and reliability improvements"
+     - Group multiple internal changes into one summary line
 
 5. Update the [Unreleased] section in CHANGELOG.md:
    - Preserve any existing entries

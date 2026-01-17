@@ -55,33 +55,14 @@ class AdminController extends Controller
      */
     public function users(ListUsersRequest $request): Response
     {
-        $query = User::with('role');
+        $filters = $request->validated();
 
-        // Filter by active status
-        if ($request->has('active') && $request->validated('active') !== null) {
-            $query->where('is_active', $request->validated('active'));
-        }
+        $users = User::with('role')
+            ->filter($filters)
+            ->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
 
-        // Filter by auth provider
-        if ($request->filled('auth_provider')) {
-            $query->where('auth_provider', $request->validated('auth_provider'));
-        }
-
-        // Filter by role
-        if ($request->filled('role_id')) {
-            $query->where('role_id', $request->validated('role_id'));
-        }
-
-        // Search by name or email
-        if ($request->filled('search')) {
-            $search = $request->validated('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-        }
-
-        $users = $query->orderBy('name')->paginate(15)->withQueryString();
         $roles = Role::orderBy('name')->get(['id', 'name', 'description']);
 
         return Inertia::render('Admin/Users', [

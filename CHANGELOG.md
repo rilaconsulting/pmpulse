@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Improved code architecture for better performance and maintainability
+
 <!--
 Add your changes here using these categories:
 
@@ -23,6 +26,10 @@ Bug fixes
 Removed features
 
 Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
+
+Note: If changes are purely internal (refactoring, code cleanup, test improvements),
+write a simple user-friendly summary like "Improved application stability" or
+"Performance and reliability improvements" rather than leaving the section empty.
 -->
 
 ---
