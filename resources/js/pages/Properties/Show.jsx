@@ -43,17 +43,16 @@ export default function PropertyShow({
 
     // Helper to update unit filters via Inertia
     const updateUnitFilters = useCallback((newFilters) => {
-        const params = new URLSearchParams();
         const merged = { ...unitFilters, ...newFilters };
+        const data = {};
 
-        if (merged.status) params.set('unit_status', merged.status);
-        if (merged.sort && merged.sort !== 'unit_number') params.set('unit_sort', merged.sort);
-        if (merged.direction && merged.direction !== 'asc') params.set('unit_direction', merged.direction);
+        if (merged.status) data.unit_status = merged.status;
+        if (merged.sort && merged.sort !== 'unit_number') data.unit_sort = merged.sort;
+        if (merged.direction && merged.direction !== 'asc') data.unit_direction = merged.direction;
 
-        const queryString = params.toString();
         router.get(
-            `/properties/${property.id}${queryString ? '?' + queryString : ''}`,
-            {},
+            `/properties/${property.id}`,
+            data,
             { preserveScroll: true, preserveState: true }
         );
     }, [property.id, unitFilters]);

@@ -152,9 +152,9 @@ class PropertyService
      * Get filtered and paginated units for a property.
      *
      * @param  array<string, mixed>  $filters
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<\App\Models\Unit>
+     * @return LengthAwarePaginator<\App\Models\Unit>
      */
-    public function getFilteredUnits(Property $property, array $filters, int $perPage = 25): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    public function getFilteredUnits(Property $property, array $filters, int $perPage = 25): LengthAwarePaginator
     {
         $query = $property->units();
 
