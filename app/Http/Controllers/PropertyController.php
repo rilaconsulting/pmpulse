@@ -11,99 +11,43 @@ use App\Models\PropertyAdjustment;
 use App\Models\PropertyFlag;
 use App\Models\Setting;
 use App\Services\AdjustmentService;
+use App\Services\PropertyService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PropertyController extends Controller
 {
+    public function __construct(
+        private readonly PropertyService $propertyService
+    ) {}
+
     /**
      * Display a listing of properties.
      */
-    public function index(Request $request, AdjustmentService $adjustmentService): Response
+    public function index(Request $request): Response
     {
-        $query = Property::query()
-            ->with(['adjustments' => function ($query) {
-                $query->activeOn(now()->startOfDay());
-            }])
-            ->withCount(['units', 'units as occupied_units_count' => function ($query) {
-                $query->where('status', 'occupied');
-            }, 'units as vacant_units_count' => function ($query) {
-                $query->where('status', 'vacant');
-            }]);
+        $filters = [
+            'search' => $request->get('search', ''),
+            'portfolio' => $request->get('portfolio', ''),
+            'property_type' => $request->get('property_type', ''),
+            'is_active' => $request->get('is_active', ''),
+            'sort' => $request->get('sort', 'name'),
+            'direction' => $request->get('direction', 'asc'),
+        ];
 
-        // Search by name or address (case-insensitive)
-        if ($search = $request->get('search')) {
-            $query->search($search);
-        }
-
-        // Filter by portfolio
-        if ($portfolio = $request->get('portfolio')) {
-            $query->where('portfolio', $portfolio);
-        }
-
-        // Filter by property type
-        if ($propertyType = $request->get('property_type')) {
-            $query->where('property_type', $propertyType);
-        }
-
-        // Filter by active status
-        if ($request->has('is_active') && $request->get('is_active') !== '') {
-            $query->where('is_active', $request->boolean('is_active'));
-        }
-
-        // Sorting
-        $sortField = $request->get('sort', 'name');
-        $sortDirection = $request->get('direction', 'asc');
-        $allowedSorts = ['name', 'city', 'unit_count', 'total_sqft', 'property_type', 'is_active'];
-
-        if (in_array($sortField, $allowedSorts)) {
-            $query->orderBy($sortField, $sortDirection === 'desc' ? 'desc' : 'asc');
-        }
-
-        $properties = $query->paginate(15)->withQueryString();
-
-        // Get unique portfolios and property types for filters
-        $portfolios = Property::whereNotNull('portfolio')
-            ->distinct()
-            ->pluck('portfolio')
-            ->sort()
-            ->values();
-
-        $propertyTypes = Property::whereNotNull('property_type')
-            ->distinct()
-            ->pluck('property_type')
-            ->sort()
-            ->values();
-
-        // Calculate stats and effective values for each property
-        $properties->getCollection()->transform(function ($property) use ($adjustmentService) {
-            $property->occupancy_rate = $property->units_count > 0
-                ? round(($property->occupied_units_count / $property->units_count) * 100, 1)
-                : null;
-
-            // Add effective values with metadata for adjusted fields
-            $property->effective_values = $adjustmentService->getEffectiveValuesWithMetadata($property);
-
-            return $property;
-        });
+        $properties = $this->propertyService->getFilteredProperties($filters);
+        $portfolios = $this->propertyService->getPortfolios();
+        $propertyTypes = $this->propertyService->getPropertyTypes();
 
         return Inertia::render('Properties/Index', [
             'properties' => $properties,
             'portfolios' => $portfolios,
             'propertyTypes' => $propertyTypes,
-            'filters' => [
-                'search' => $request->get('search', ''),
-                'portfolio' => $request->get('portfolio', ''),
-                'property_type' => $request->get('property_type', ''),
-                'is_active' => $request->get('is_active', ''),
-                'sort' => $sortField,
-                'direction' => $sortDirection,
-            ],
+            'filters' => $filters,
             'googleMapsApiKey' => Setting::get('google', 'maps_api_key'),
         ]);
     }
@@ -118,27 +62,9 @@ class PropertyController extends Controller
         ]);
 
         $search = $validated['q'] ?? '';
+        $results = $this->propertyService->searchProperties($search);
 
-        if (strlen($search) < 2) {
-            return response()->json([]);
-        }
-
-        $properties = Property::query()
-            ->active()
-            ->search($search)
-            ->orderBy('name')
-            ->limit(10)
-            ->get(['id', 'name', 'address_line1', 'city', 'state']);
-
-        return response()->json($properties->map(fn ($p) => [
-            'id' => $p->id,
-            'name' => $p->name,
-            'address' => implode(', ', array_filter([
-                $p->address_line1,
-                $p->city,
-                $p->state,
-            ])),
-        ]));
+        return response()->json($results);
     }
 
     /**
@@ -158,30 +84,8 @@ class PropertyController extends Controller
             },
         ]);
 
-        // Calculate property stats using database-level aggregation for efficiency
-        $aggregates = DB::table('units')
-            ->where('property_id', $property->id)
-            ->selectRaw("
-                COUNT(*) as total_units,
-                COUNT(CASE WHEN status = 'occupied' THEN 1 END) as occupied_units,
-                COUNT(CASE WHEN status = 'vacant' THEN 1 END) as vacant_units,
-                COUNT(CASE WHEN status = 'not_ready' THEN 1 END) as not_ready_units,
-                COALESCE(SUM(market_rent), 0) as total_market_rent,
-                COALESCE(AVG(market_rent), 0) as avg_market_rent
-            ")
-            ->first();
-
-        $stats = [
-            'total_units' => (int) $aggregates->total_units,
-            'occupied_units' => (int) $aggregates->occupied_units,
-            'vacant_units' => (int) $aggregates->vacant_units,
-            'not_ready_units' => (int) $aggregates->not_ready_units,
-            'occupancy_rate' => $aggregates->total_units > 0
-                ? round(($aggregates->occupied_units / $aggregates->total_units) * 100, 1)
-                : 0,
-            'total_market_rent' => (float) $aggregates->total_market_rent,
-            'avg_market_rent' => (float) $aggregates->avg_market_rent,
-        ];
+        // Calculate property stats
+        $stats = $this->propertyService->getPropertyStats($property);
 
         // Build AppFolio URL if database is configured and property has external_id
         $appfolioUrl = null;

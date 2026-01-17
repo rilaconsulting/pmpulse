@@ -275,5 +275,4 @@ class UtilityDashboardController extends Controller
             default => $date->format('F Y'),
         };
     }
-
 }
