@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DestroyAdjustmentRequest;
+use App\Http\Requests\EndAdjustmentRequest;
 use App\Http\Requests\StoreAdjustmentRequest;
 use App\Http\Requests\UpdateAdjustmentRequest;
 use App\Models\Property;
@@ -62,13 +64,8 @@ class AdjustmentController extends Controller
     /**
      * End a permanent adjustment by setting its effective_to to today.
      */
-    public function end(Property $property, PropertyAdjustment $adjustment): RedirectResponse
+    public function end(EndAdjustmentRequest $request, Property $property, PropertyAdjustment $adjustment): RedirectResponse
     {
-        // Only admins can end adjustments
-        if (! request()->user()?->isAdmin()) {
-            abort(403);
-        }
-
         // Ensure the adjustment belongs to the property
         if ($adjustment->property_id !== $property->id) {
             abort(404);
@@ -87,13 +84,8 @@ class AdjustmentController extends Controller
     /**
      * Delete an adjustment.
      */
-    public function destroy(Property $property, PropertyAdjustment $adjustment): RedirectResponse
+    public function destroy(DestroyAdjustmentRequest $request, Property $property, PropertyAdjustment $adjustment): RedirectResponse
     {
-        // Only admins can delete adjustments
-        if (! request()->user()?->isAdmin()) {
-            abort(403);
-        }
-
         // Ensure the adjustment belongs to the property
         if ($adjustment->property_id !== $property->id) {
             abort(404);

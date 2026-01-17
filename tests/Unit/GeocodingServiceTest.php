@@ -28,7 +28,7 @@ class GeocodingServiceTest extends TestCase
         // Configure API key via Settings
         Setting::set('google', 'maps_api_key', 'test-api-key', encrypted: true);
 
-        $this->service = new GeocodingService;
+        $this->service = app(GeocodingService::class);
     }
 
     public function test_geocode_returns_coordinates_for_valid_address(): void
@@ -158,7 +158,7 @@ class GeocodingServiceTest extends TestCase
         Setting::forget('google', 'maps_api_key');
         Cache::flush();
 
-        $service = new GeocodingService;
+        $service = app(GeocodingService::class);
 
         $this->assertFalse($service->isConfigured());
     }
@@ -173,7 +173,7 @@ class GeocodingServiceTest extends TestCase
         Setting::forget('google', 'maps_api_key');
         Cache::flush();
 
-        $service = new GeocodingService;
+        $service = app(GeocodingService::class);
 
         Http::fake();
 
