@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!--
+Add your changes here using these categories:
+
+### Added
+New features
+
+### Changed
+Changes in existing functionality
+
+### Fixed
+Bug fixes
+
+### Removed
+Removed features
+
+Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
+-->
+
+---
+
+## [1.0.5] - 2026-01-17
+
 ### Changed
 - Improved property detail page loading performance
 
