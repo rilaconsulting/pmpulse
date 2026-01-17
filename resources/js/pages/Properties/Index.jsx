@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import Layout from '../../components/Layout';
 import AdjustedValue from '../../components/AdjustedValue';
 import {
@@ -18,9 +18,22 @@ import {
 // Lazy load the map component to avoid SSR issues
 const PropertyMap = lazy(() => import('../../components/PropertyMap'));
 
+const VIEW_MODE_STORAGE_KEY = 'pmpulse-properties-view-mode';
+
 export default function PropertiesIndex({ properties, portfolios, propertyTypes, filters, googleMapsApiKey }) {
     const [search, setSearch] = useState(filters.search || '');
-    const [viewMode, setViewMode] = useState('table'); // 'table' or 'map'
+    const [viewMode, setViewMode] = useState(() => {
+        // Initialize from localStorage, defaulting to 'table'
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem(VIEW_MODE_STORAGE_KEY) || 'table';
+        }
+        return 'table';
+    });
+
+    // Persist view mode preference to localStorage
+    useEffect(() => {
+        localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
+    }, [viewMode]);
 
     const handleFilter = (key, value) => {
         router.get('/properties', {

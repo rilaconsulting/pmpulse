@@ -7,23 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
 ### Added
-New features
+- Utility Account Suggestions page to help map unmapped GL accounts to utility types
+- Property view mode preference now persists across browser sessions
 
 ### Changed
-Changes in existing functionality
-
-### Fixed
-Bug fixes
-
-### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
--->
+- Property map now auto-zooms to show all markers instead of using fixed zoom level
 
 ---
 

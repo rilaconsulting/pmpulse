@@ -1,14 +1,25 @@
-import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { Link } from '@inertiajs/react';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 
 const containerStyle = {
     width: '100%',
     height: '600px',
 };
 
+// Default center (San Francisco) when no properties
+const DEFAULT_CENTER = { lat: 37.7749, lng: -122.4194 };
+const DEFAULT_ZOOM = 12;
+const SINGLE_PROPERTY_ZOOM = 15;
+
 export default function PropertyMap({ properties, apiKey }) {
     const [selectedProperty, setSelectedProperty] = useState(null);
+    const mapRef = useRef(null);
+
+    // Use the hook instead of LoadScript component (prevents multiple script loads)
+    const { isLoaded, loadError } = useJsApiLoader({
+        googleMapsApiKey: apiKey || '',
+    });
 
     // Filter to only properties with coordinates
     const propertiesWithCoords = useMemo(() =>
@@ -16,39 +27,45 @@ export default function PropertyMap({ properties, apiKey }) {
         [properties]
     );
 
-    // Calculate center and zoom
-    const { center, zoom } = useMemo(() => {
+    // Calculate initial center (used before fitBounds adjusts)
+    const initialCenter = useMemo(() => {
         if (propertiesWithCoords.length === 0) {
-            // Default to San Francisco
-            return { center: { lat: 37.7749, lng: -122.4194 }, zoom: 12 };
+            return DEFAULT_CENTER;
+        }
+        // Use first property as initial center
+        return {
+            lat: parseFloat(propertiesWithCoords[0].latitude),
+            lng: parseFloat(propertiesWithCoords[0].longitude),
+        };
+    }, [propertiesWithCoords]);
+
+    // Fit bounds to show all markers when map loads
+    const onMapLoad = useCallback((map) => {
+        mapRef.current = map;
+
+        if (propertiesWithCoords.length === 0) {
+            return;
         }
 
         if (propertiesWithCoords.length === 1) {
-            return {
-                center: {
-                    lat: parseFloat(propertiesWithCoords[0].latitude),
-                    lng: parseFloat(propertiesWithCoords[0].longitude),
-                },
-                zoom: 15,
-            };
+            // Single property: center on it with a reasonable zoom
+            map.setCenter({
+                lat: parseFloat(propertiesWithCoords[0].latitude),
+                lng: parseFloat(propertiesWithCoords[0].longitude),
+            });
+            map.setZoom(SINGLE_PROPERTY_ZOOM);
+            return;
         }
 
-        // Calculate bounds center
-        const lats = propertiesWithCoords.map(p => parseFloat(p.latitude));
-        const lngs = propertiesWithCoords.map(p => parseFloat(p.longitude));
-
-        const minLat = Math.min(...lats);
-        const maxLat = Math.max(...lats);
-        const minLng = Math.min(...lngs);
-        const maxLng = Math.max(...lngs);
-
-        return {
-            center: {
-                lat: (minLat + maxLat) / 2,
-                lng: (minLng + maxLng) / 2,
-            },
-            zoom: 11,
-        };
+        // Multiple properties: use fitBounds to show all markers
+        const bounds = new window.google.maps.LatLngBounds();
+        propertiesWithCoords.forEach(property => {
+            bounds.extend({
+                lat: parseFloat(property.latitude),
+                lng: parseFloat(property.longitude),
+            });
+        });
+        map.fitBounds(bounds);
     }, [propertiesWithCoords]);
 
     const onMarkerClick = useCallback((property) => {
@@ -72,6 +89,28 @@ export default function PropertyMap({ properties, apiKey }) {
         );
     }
 
+    if (loadError) {
+        return (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+                <p className="text-red-800">
+                    Error loading Google Maps.
+                </p>
+                <p className="text-sm text-red-600 mt-2">
+                    Please check your API key configuration.
+                </p>
+            </div>
+        );
+    }
+
+    if (!isLoaded) {
+        return (
+            <div className="bg-gray-100 rounded-lg p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-gray-500">Loading map...</p>
+            </div>
+        );
+    }
+
     if (propertiesWithCoords.length === 0) {
         return (
             <div className="bg-gray-100 rounded-lg p-8 text-center">
@@ -87,17 +126,17 @@ export default function PropertyMap({ properties, apiKey }) {
 
     return (
         <div className="rounded-lg overflow-hidden border border-gray-200">
-            <LoadScript googleMapsApiKey={apiKey}>
-                <GoogleMap
-                    mapContainerStyle={containerStyle}
-                    center={center}
-                    zoom={zoom}
-                    options={{
-                        streetViewControl: false,
-                        mapTypeControl: false,
-                        fullscreenControl: true,
-                    }}
-                >
+            <GoogleMap
+                mapContainerStyle={containerStyle}
+                center={initialCenter}
+                zoom={DEFAULT_ZOOM}
+                onLoad={onMapLoad}
+                options={{
+                    streetViewControl: false,
+                    mapTypeControl: false,
+                    fullscreenControl: true,
+                }}
+            >
                     {propertiesWithCoords.map((property) => (
                         <Marker
                             key={property.id}
@@ -156,8 +195,7 @@ export default function PropertyMap({ properties, apiKey }) {
                             </div>
                         </InfoWindow>
                     )}
-                </GoogleMap>
-            </LoadScript>
+            </GoogleMap>
         </div>
     );
 }

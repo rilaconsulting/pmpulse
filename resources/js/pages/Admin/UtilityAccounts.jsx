@@ -1,4 +1,4 @@
-import { useForm, router } from '@inertiajs/react';
+import { useForm, router, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import AdminLayout from './Index';
 import {
@@ -8,6 +8,7 @@ import {
     XMarkIcon,
     CheckIcon,
     BoltIcon,
+    LightBulbIcon,
 } from '@heroicons/react/24/outline';
 
 const UtilityTypeColors = {
@@ -262,16 +263,25 @@ export default function UtilityAccounts({ accounts, utilityTypes }) {
                             Configure which GL accounts represent utility expenses for tracking and reporting.
                         </p>
                     </div>
-                    {!isAdding && (
-                        <button
-                            type="button"
-                            onClick={() => setIsAdding(true)}
-                            className="btn-primary"
+                    <div className="flex items-center gap-3">
+                        <Link
+                            href="/admin/utility-accounts/suggestions"
+                            className="btn-secondary"
                         >
-                            <PlusIcon className="w-4 h-4 mr-2" />
-                            Add Mapping
-                        </button>
-                    )}
+                            <LightBulbIcon className="w-4 h-4 mr-2" />
+                            View Suggestions
+                        </Link>
+                        {!isAdding && (
+                            <button
+                                type="button"
+                                onClick={() => setIsAdding(true)}
+                                className="btn-primary"
+                            >
+                                <PlusIcon className="w-4 h-4 mr-2" />
+                                Add Mapping
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Account List */}
