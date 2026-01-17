@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Property;
-use App\Models\PropertyFlag;
-use App\Models\PropertyUtilityExclusion;
 use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
 use App\Services\UtilityAnalyticsService;
@@ -91,7 +89,7 @@ class UtilityDashboardController extends Controller
         $propertyComparison = $this->getPropertyComparisonData($selectedUtilityType);
 
         // Get excluded properties info for display
-        $excludedProperties = $this->getExcludedPropertiesInfo();
+        $excludedProperties = $this->analyticsService->getExcludedPropertiesInfo();
 
         return Inertia::render('Utilities/Index', [
             'period' => $periodType,
@@ -278,95 +276,4 @@ class UtilityDashboardController extends Controller
         };
     }
 
-    /**
-     * Get information about properties excluded from utility reports.
-     *
-     * Returns both flag-based exclusions (all utilities) and utility-specific exclusions.
-     */
-    private function getExcludedPropertiesInfo(): array
-    {
-        $utilityTypeOptions = UtilityAccount::getUtilityTypeOptions();
-
-        // Get properties that have any utility exclusion flags (excluded from ALL utilities)
-        $flagExcludedProperties = Property::active()
-            ->whereHas('flags', function ($query) {
-                $query->whereIn('flag_type', PropertyFlag::UTILITY_EXCLUSION_FLAGS);
-            })
-            ->with(['flags' => function ($query) {
-                $query->whereIn('flag_type', PropertyFlag::UTILITY_EXCLUSION_FLAGS);
-            }])
-            ->orderBy('name')
-            ->get()
-            ->map(function ($property) {
-                $flags = $property->flags->map(fn ($flag) => [
-                    'type' => $flag->flag_type,
-                    'label' => $flag->flag_label,
-                    'reason' => $flag->reason,
-                ])->values()->all();
-
-                return [
-                    'id' => $property->id,
-                    'name' => $property->name,
-                    'exclusion_type' => 'all_utilities',
-                    'flags' => $flags,
-                    'utility_exclusions' => [],
-                ];
-            });
-
-        // Get utility-specific exclusions (excluded from specific utility types only)
-        $utilityExclusions = PropertyUtilityExclusion::query()
-            ->with(['property' => function ($query) {
-                $query->where('is_active', true);
-            }, 'creator'])
-            ->whereHas('property', function ($query) {
-                $query->where('is_active', true);
-            })
-            ->get()
-            ->groupBy('property_id');
-
-        // Get property IDs that are already fully excluded by flags
-        $flagExcludedIds = $flagExcludedProperties->pluck('id')->toArray();
-
-        // Map utility-specific exclusions to properties (excluding those fully excluded by flags)
-        $utilityExcludedProperties = $utilityExclusions
-            ->filter(fn ($exclusions, $propertyId) => ! in_array($propertyId, $flagExcludedIds))
-            ->map(function ($exclusions) {
-                $property = $exclusions->first()->property;
-                if (! $property) {
-                    return null;
-                }
-
-                $utilityExclusionsList = $exclusions->map(fn ($exclusion) => [
-                    'utility_type' => $exclusion->utility_type,
-                    'utility_label' => $exclusion->utility_type_label,
-                    'reason' => $exclusion->reason,
-                    'created_by' => $exclusion->creator?->name,
-                    'created_at' => $exclusion->created_at->toDateString(),
-                ])->values()->all();
-
-                return [
-                    'id' => $property->id,
-                    'name' => $property->name,
-                    'exclusion_type' => 'specific_utilities',
-                    'flags' => [],
-                    'utility_exclusions' => $utilityExclusionsList,
-                ];
-            })
-            ->filter()
-            ->values();
-
-        // Combine both lists, sorted by property name
-        $allExcluded = $flagExcludedProperties
-            ->concat($utilityExcludedProperties)
-            ->sortBy('name')
-            ->values()
-            ->all();
-
-        return [
-            'total_count' => count($allExcluded),
-            'flag_excluded_count' => $flagExcludedProperties->count(),
-            'utility_excluded_count' => $utilityExcludedProperties->count(),
-            'properties' => $allExcluded,
-        ];
-    }
 }
