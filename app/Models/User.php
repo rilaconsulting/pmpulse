@@ -170,4 +170,40 @@ class User extends Authenticatable
     {
         return $query->where('auth_provider', $provider);
     }
+
+    /**
+     * Scope a query to filter users by various criteria.
+     *
+     * @param  Builder<User>  $query
+     * @param  array<string, mixed>  $filters
+     * @return Builder<User>
+     */
+    public function scopeFilter(Builder $query, array $filters): Builder
+    {
+        // Filter by active status
+        if (array_key_exists('active', $filters) && $filters['active'] !== null && $filters['active'] !== '') {
+            $query->where('is_active', (bool) $filters['active']);
+        }
+
+        // Filter by auth provider
+        if (! empty($filters['auth_provider'])) {
+            $query->where('auth_provider', $filters['auth_provider']);
+        }
+
+        // Filter by role
+        if (! empty($filters['role_id'])) {
+            $query->where('role_id', $filters['role_id']);
+        }
+
+        // Search by name or email
+        if (! empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        return $query;
+    }
 }
