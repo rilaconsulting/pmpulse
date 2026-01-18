@@ -12,7 +12,7 @@ export default function ConnectionForm({ connection }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post('/admin/integrations/connection');
+        post(route('admin.integrations.connection'));
     };
 
     // Generate preview URL from database name

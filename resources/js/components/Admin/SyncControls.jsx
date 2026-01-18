@@ -31,7 +31,7 @@ export default function SyncControls({ hasConnection }) {
         }
 
         setIsSubmitting(true);
-        router.post('/admin/sync/trigger', data, {
+        router.post(route('admin.sync.trigger'), data, {
             onFinish: () => setIsSubmitting(false),
         });
     };

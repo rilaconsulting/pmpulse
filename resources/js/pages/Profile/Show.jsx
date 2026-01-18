@@ -21,12 +21,12 @@ export default function Show({ user }) {
 
     const handleProfileSubmit = (e) => {
         e.preventDefault();
-        profileForm.patch('/profile');
+        profileForm.patch(route('profile.update'));
     };
 
     const handlePasswordSubmit = (e) => {
         e.preventDefault();
-        passwordForm.put('/profile/password', {
+        passwordForm.put(route('profile.password'), {
             onSuccess: () => {
                 passwordForm.reset();
             },

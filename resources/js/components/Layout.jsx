@@ -16,11 +16,11 @@ export default function Layout({ children }) {
     const isAdmin = auth.user?.role?.name === 'admin';
 
     const navigation = [
-        { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-        { name: 'Properties', href: '/properties', icon: BuildingOfficeIcon },
-        { name: 'Utilities', href: '/utilities', icon: BoltIcon },
-        { name: 'Vendors', href: '/vendors', icon: WrenchScrewdriverIcon },
-        ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: Cog6ToothIcon }] : []),
+        { name: 'Dashboard', routeName: 'dashboard', icon: HomeIcon },
+        { name: 'Properties', routeName: 'properties.index', icon: BuildingOfficeIcon },
+        { name: 'Utilities', routeName: 'utilities.index', icon: BoltIcon },
+        { name: 'Vendors', routeName: 'vendors.index', icon: WrenchScrewdriverIcon },
+        ...(isAdmin ? [{ name: 'Admin', routeName: 'admin.users.index', icon: Cog6ToothIcon }] : []),
     ];
 
     const currentPath = usePage().url;
@@ -37,11 +37,12 @@ export default function Layout({ children }) {
                 {/* Navigation */}
                 <nav className="flex-1 px-4 py-4 space-y-1">
                     {navigation.map((item) => {
-                        const isActive = currentPath.startsWith(item.href);
+                        const href = route(item.routeName);
+                        const isActive = currentPath.startsWith(href);
                         return (
                             <Link
                                 key={item.name}
-                                href={item.href}
+                                href={href}
                                 className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                                     isActive
                                         ? 'bg-blue-50 text-blue-700'
@@ -59,9 +60,9 @@ export default function Layout({ children }) {
                 <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200">
                     {/* What's New link */}
                     <Link
-                        href="/changelog"
+                        href={route('changelog')}
                         className={`flex items-center px-7 py-3 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors ${
-                            currentPath === '/changelog' ? 'bg-gray-50 text-gray-700' : ''
+                            currentPath === route('changelog') ? 'bg-gray-50 text-gray-700' : ''
                         }`}
                     >
                         <DocumentTextIcon className="w-4 h-4 mr-2" />
@@ -69,7 +70,7 @@ export default function Layout({ children }) {
                     </Link>
                     <div className="p-4 pt-0 flex items-center justify-between">
                         <Link
-                            href="/profile"
+                            href={route('profile.show')}
                             className="flex items-center hover:bg-gray-50 rounded-lg p-1 -m-1 transition-colors"
                         >
                             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -85,7 +86,7 @@ export default function Layout({ children }) {
                             </div>
                         </Link>
                         <Link
-                            href="/logout"
+                            href={route('logout')}
                             method="post"
                             as="button"
                             className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"

@@ -22,7 +22,7 @@ export default function Sync({ syncHistory, hasConnection, stats, syncConfigurat
         }
 
         setIsResetting(true);
-        router.post('/admin/sync/reset-utility-expenses', {}, {
+        router.post(route('admin.sync.reset-utility'), {}, {
             onFinish: () => setIsResetting(false),
         });
     };

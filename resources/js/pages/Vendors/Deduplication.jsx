@@ -275,7 +275,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                             Manage duplicate vendor records and canonical groupings
                         </p>
                     </div>
-                    <Link href="/vendors" className="btn-secondary">
+                    <Link href={route('vendors.index')} className="btn-secondary">
                         Back to Vendors
                     </Link>
                 </div>
@@ -416,7 +416,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                             <div className="flex-1 grid grid-cols-2 gap-4">
                                                 <div>
                                                     <Link
-                                                        href={`/vendors/${pair.vendor1.id}`}
+                                                        href={route('vendors.show', pair.vendor1.id)}
                                                         className="font-medium text-gray-900 hover:text-blue-600"
                                                     >
                                                         {pair.vendor1.company_name}
@@ -430,7 +430,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                                 </div>
                                                 <div>
                                                     <Link
-                                                        href={`/vendors/${pair.vendor2.id}`}
+                                                        href={route('vendors.show', pair.vendor2.id)}
                                                         className="font-medium text-gray-900 hover:text-blue-600"
                                                     >
                                                         {pair.vendor2.company_name}
@@ -521,7 +521,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                                 </button>
                                                 <div>
                                                     <Link
-                                                        href={`/vendors/${group.id}`}
+                                                        href={route('vendors.show', group.id)}
                                                         className="font-medium text-gray-900 hover:text-blue-600"
                                                     >
                                                         {group.company_name}
@@ -547,7 +547,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                                             <LinkIcon className="w-4 h-4 text-purple-500" />
                                                             <div>
                                                                 <Link
-                                                                    href={`/vendors/${dup.id}`}
+                                                                    href={route('vendors.show', dup.id)}
                                                                     className="text-sm font-medium text-gray-700 hover:text-blue-600"
                                                                 >
                                                                     {dup.company_name}

@@ -30,7 +30,7 @@ function AddAccountForm({ utilityTypes, onCancel }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post('/admin/utility-accounts', {
+        post(route('admin.utility-accounts.store'), {
             onSuccess: () => {
                 reset();
                 onCancel();
@@ -121,7 +121,7 @@ function EditAccountRow({ account, utilityTypes, onCancel }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        patch(`/admin/utility-accounts/${account.id}`, {
+        patch(route('admin.utility-accounts.update', account.id), {
             onSuccess: () => onCancel(),
         });
     };
@@ -248,7 +248,7 @@ export default function UtilityAccounts({ accounts, utilityTypes }) {
 
     const handleDelete = (account) => {
         if (confirm(`Are you sure you want to delete the mapping for GL account "${account.gl_account_number}"?`)) {
-            router.delete(`/admin/utility-accounts/${account.id}`);
+            router.delete(route('admin.utility-accounts.destroy', account.id));
         }
     };
 
@@ -265,7 +265,7 @@ export default function UtilityAccounts({ accounts, utilityTypes }) {
                     </div>
                     <div className="flex items-center gap-3">
                         <Link
-                            href="/admin/utility-accounts/suggestions"
+                            href={route('admin.utility-accounts.suggestions')}
                             className="btn-secondary"
                         >
                             <LightBulbIcon className="w-4 h-4 mr-2" />

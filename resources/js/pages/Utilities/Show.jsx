@@ -41,7 +41,7 @@ export default function UtilitiesShow({
 
     const handlePeriodChange = (newPeriod) => {
         setSelectedPeriod(newPeriod);
-        router.get(`/utilities/property/${property.id}`, { period: newPeriod }, { preserveState: true });
+        router.get(route('utilities.show', property.id), { period: newPeriod }, { preserveState: true });
     };
 
     return (
@@ -53,7 +53,7 @@ export default function UtilitiesShow({
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                         <Link
-                            href="/utilities"
+                            href={route('utilities.index')}
                             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
                         >
                             <ArrowLeftIcon className="w-5 h-5" />

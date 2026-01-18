@@ -19,7 +19,7 @@ function SuggestionRow({ glAccount, count, utilityTypes, onMapped }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post('/admin/utility-accounts', {
+        post(route('admin.utility-accounts.store'), {
             onSuccess: () => {
                 reset();
                 setIsMapping(false);
@@ -146,7 +146,7 @@ export default function UtilityAccountSuggestions({ unmatchedAccounts, utilityTy
                         </p>
                     </div>
                     <Link
-                        href="/admin/utility-accounts"
+                        href={route('admin.utility-accounts.index')}
                         className="btn-secondary"
                     >
                         View All Mappings
@@ -202,7 +202,7 @@ export default function UtilityAccountSuggestions({ unmatchedAccounts, utilityTy
                             </p>
                             <div className="mt-6">
                                 <Link
-                                    href="/admin/utility-accounts"
+                                    href={route('admin.utility-accounts.index')}
                                     className="btn-primary"
                                 >
                                     View All Mappings
