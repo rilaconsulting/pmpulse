@@ -7,22 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
 ### Added
-New features
+- Backend infrastructure for enhanced utility reporting (database, services, API routes)
 
-### Changed
-Changes in existing functionality
-
-### Fixed
-Bug fixes
-
-### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
+<!--
+Note: The above entry covers Phase 1-3 backend work for the Utility Reporting Enhancement project.
+User-facing features (split dashboard/data views, filtering, conditional formatting, notes) will be
+added to the changelog once the frontend components are complete in Phase 4.
 -->
 
 ---

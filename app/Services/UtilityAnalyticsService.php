@@ -1120,6 +1120,45 @@ class UtilityAnalyticsService
     }
 
     /**
+     * Attach utility notes to property comparison data.
+     *
+     * Fetches notes for the specified utility type and attaches them to
+     * the property data array, keyed by property_id.
+     *
+     * @param  array  $comparisonData  Comparison data with 'properties' key
+     * @param  string  $utilityType  The utility type to get notes for
+     * @return array Modified comparison data with notes attached to each property
+     */
+    public function attachNotesToComparisonData(array &$comparisonData, string $utilityType): void
+    {
+        if (empty($comparisonData['properties'])) {
+            return;
+        }
+
+        $propertyIds = array_column($comparisonData['properties'], 'property_id');
+
+        // Get notes for the selected utility type (keyed by property_id)
+        $notes = \App\Models\UtilityNote::query()
+            ->whereIn('property_id', $propertyIds)
+            ->where('utility_type', $utilityType)
+            ->with('creator:id,name')
+            ->get()
+            ->keyBy('property_id');
+
+        // Attach notes to property data
+        foreach ($comparisonData['properties'] as &$property) {
+            $note = $notes->get($property['property_id']);
+            $property['note'] = $note ? [
+                'id' => $note->id,
+                'note' => $note->note,
+                'created_by' => $note->creator?->name ?? 'Unknown',
+                'updated_at' => $note->updated_at->toIso8601String(),
+            ] : null;
+        }
+        unset($property);
+    }
+
+    /**
      * Get information about properties excluded from utility reports.
      *
      * Returns both flag-based exclusions (all utilities) and utility-specific exclusions.

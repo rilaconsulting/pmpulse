@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateUtilityFormattingRuleRequest;
 use App\Models\UtilityAccount;
 use App\Models\UtilityFormattingRule;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,8 +19,9 @@ class UtilityFormattingRuleController extends Controller
     /**
      * Display a listing of the formatting rules.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        abort_unless($request->user()?->isAdmin(), 403);
         $rules = UtilityFormattingRule::query()
             ->with('creator:id,name')
             ->orderBy('utility_type')
@@ -84,8 +86,10 @@ class UtilityFormattingRuleController extends Controller
     /**
      * Remove the specified formatting rule.
      */
-    public function destroy(UtilityFormattingRule $utilityFormattingRule): RedirectResponse
+    public function destroy(Request $request, UtilityFormattingRule $utilityFormattingRule): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $utilityFormattingRule->delete();
 
         return redirect()->route('admin.utility-formatting-rules.index')

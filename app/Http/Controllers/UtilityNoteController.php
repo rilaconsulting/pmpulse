@@ -6,16 +6,28 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreUtilityNoteRequest;
 use App\Models\Property;
+use App\Models\UtilityAccount;
 use App\Models\UtilityNote;
 use Illuminate\Http\JsonResponse;
 
 class UtilityNoteController extends Controller
 {
     /**
+     * Valid utility types (cached for the request).
+     */
+    private ?array $validUtilityTypes = null;
+
+    /**
      * Get the note for a specific property and utility type.
      */
     public function show(Property $property, string $utilityType): JsonResponse
     {
+        if (! $this->isValidUtilityType($utilityType)) {
+            return response()->json([
+                'message' => 'Invalid utility type.',
+            ], 422);
+        }
+
         $note = UtilityNote::query()
             ->forProperty($property->id)
             ->ofType($utilityType)
@@ -74,6 +86,12 @@ class UtilityNoteController extends Controller
      */
     public function destroy(Property $property, string $utilityType): JsonResponse
     {
+        if (! $this->isValidUtilityType($utilityType)) {
+            return response()->json([
+                'message' => 'Invalid utility type.',
+            ], 422);
+        }
+
         $deleted = UtilityNote::query()
             ->forProperty($property->id)
             ->ofType($utilityType)
@@ -88,5 +106,17 @@ class UtilityNoteController extends Controller
         return response()->json([
             'message' => 'Note deleted successfully.',
         ]);
+    }
+
+    /**
+     * Check if the given utility type is valid.
+     */
+    private function isValidUtilityType(string $utilityType): bool
+    {
+        if ($this->validUtilityTypes === null) {
+            $this->validUtilityTypes = array_keys(UtilityAccount::getUtilityTypeOptions());
+        }
+
+        return in_array($utilityType, $this->validUtilityTypes, true);
     }
 }

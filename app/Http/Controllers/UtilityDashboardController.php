@@ -8,7 +8,6 @@ use App\Http\Requests\UtilityDataRequest;
 use App\Models\Property;
 use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
-use App\Models\UtilityNote;
 use App\Services\UtilityAnalyticsService;
 use App\Services\UtilityFormattingService;
 use Carbon\Carbon;
@@ -146,28 +145,8 @@ class UtilityDashboardController extends Controller
         // Calculate heat map statistics
         $heatMapStats = $this->analyticsService->calculateHeatMapStats($comparisonData['properties']);
 
-        // Get property IDs for notes lookup
-        $propertyIds = array_column($comparisonData['properties'], 'property_id');
-
-        // Get notes for the selected utility type (keyed by property_id)
-        $notes = UtilityNote::query()
-            ->whereIn('property_id', $propertyIds)
-            ->where('utility_type', $selectedUtilityType)
-            ->with('creator:id,name')
-            ->get()
-            ->keyBy('property_id');
-
-        // Attach notes to property data
-        foreach ($comparisonData['properties'] as &$property) {
-            $note = $notes->get($property['property_id']);
-            $property['note'] = $note ? [
-                'id' => $note->id,
-                'note' => $note->note,
-                'created_by' => $note->creator?->name ?? 'Unknown',
-                'updated_at' => $note->updated_at->toIso8601String(),
-            ] : null;
-        }
-        unset($property);
+        // Attach notes to property comparison data
+        $this->analyticsService->attachNotesToComparisonData($comparisonData, $selectedUtilityType);
 
         // Get property type options for filter dropdown
         $propertyTypeOptions = $this->analyticsService->getPropertyTypeOptions();
