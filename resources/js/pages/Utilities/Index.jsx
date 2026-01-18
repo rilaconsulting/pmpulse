@@ -24,7 +24,7 @@ export default function UtilitiesIndex({
 
     const handlePeriodChange = (newPeriod) => {
         setSelectedPeriod(newPeriod);
-        router.get('/utilities', { period: newPeriod }, { preserveState: true });
+        router.get(route('utilities.index'), { period: newPeriod }, { preserveState: true });
     };
 
     return (
