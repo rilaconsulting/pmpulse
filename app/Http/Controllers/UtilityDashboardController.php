@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UtilityDataRequest;
 use App\Models\Property;
 use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
 use App\Services\UtilityAnalyticsService;
+use App\Services\UtilityFormattingService;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,13 +21,22 @@ class UtilityDashboardController extends Controller
     private const VALID_PERIODS = ['month', 'last_month', 'last_3_months', 'last_6_months', 'last_12_months', 'quarter', 'ytd', 'year'];
 
     public function __construct(
-        private readonly UtilityAnalyticsService $analyticsService
+        private readonly UtilityAnalyticsService $analyticsService,
+        private readonly UtilityFormattingService $formattingService
     ) {}
+
+    /**
+     * Redirect to dashboard view.
+     */
+    public function index(): RedirectResponse
+    {
+        return redirect()->route('utilities.dashboard');
+    }
 
     /**
      * Display the utility dashboard overview.
      */
-    public function index(Request $request): Response
+    public function dashboard(Request $request): Response
     {
         $periodType = $request->get('period', 'month');
         if (! in_array($periodType, self::VALID_PERIODS, true)) {
@@ -79,28 +91,76 @@ class UtilityDashboardController extends Controller
         // Get trend data for the portfolio (last 12 months)
         $trendData = $this->getPortfolioTrend($utilityTypes, 12);
 
-        // Get selected utility type for comparison table (default to first available)
-        $selectedUtilityType = $request->get('utility_type', $utilityTypes[0] ?? 'water');
-        if (! in_array($selectedUtilityType, $utilityTypes, true)) {
-            $selectedUtilityType = $utilityTypes[0] ?? 'water';
-        }
-
-        // Get property comparison data for the selected utility type
-        $propertyComparison = $this->getPropertyComparisonData($selectedUtilityType);
-
         // Get excluded properties info for display
         $excludedProperties = $this->analyticsService->getExcludedPropertiesInfo();
 
-        return Inertia::render('Utilities/Index', [
+        return Inertia::render('Utilities/Dashboard', [
             'period' => $periodType,
             'periodLabel' => $this->getPeriodLabel($periodType, $date),
             'utilitySummary' => array_values($utilitySummary),
             'portfolioTotal' => $portfolioTotal,
             'anomalies' => $anomalies,
             'trendData' => $trendData,
-            'propertyComparison' => $propertyComparison,
+            'utilityTypes' => $utilityTypeOptions,
+            'excludedProperties' => $excludedProperties,
+        ]);
+    }
+
+    /**
+     * Display the utility data table view with filtering and formatting.
+     */
+    public function data(UtilityDataRequest $request): Response
+    {
+        $validated = $request->validated();
+
+        // Get utility types from configured accounts
+        $utilityTypeOptions = UtilityAccount::getUtilityTypeOptions();
+        $utilityTypes = array_keys($utilityTypeOptions);
+
+        // Get selected utility type (default to first available)
+        $selectedUtilityType = $validated['utility_type'] ?? $utilityTypes[0] ?? 'water';
+        if (! in_array($selectedUtilityType, $utilityTypes, true)) {
+            $selectedUtilityType = $utilityTypes[0] ?? 'water';
+        }
+
+        // Build filters array
+        $filters = [
+            'unit_count_min' => $validated['unit_count_min'] ?? null,
+            'unit_count_max' => $validated['unit_count_max'] ?? null,
+            'property_types' => $validated['property_types'] ?? [],
+        ];
+
+        // Get filtered property comparison data
+        $comparisonData = $this->analyticsService->getFilteredPropertyComparisonData(
+            $selectedUtilityType,
+            $filters
+        );
+
+        // Apply conditional formatting to each property
+        $comparisonData = $this->formattingService->applyFormattingToComparison(
+            $comparisonData,
+            $selectedUtilityType
+        );
+
+        // Calculate heat map statistics
+        $heatMapStats = $this->analyticsService->calculateHeatMapStats($comparisonData['properties']);
+
+        // Attach notes to property comparison data
+        $this->analyticsService->attachNotesToComparisonData($comparisonData, $selectedUtilityType);
+
+        // Get property type options for filter dropdown
+        $propertyTypeOptions = $this->analyticsService->getPropertyTypeOptions();
+
+        // Get excluded properties info for display
+        $excludedProperties = $this->analyticsService->getExcludedPropertiesInfo();
+
+        return Inertia::render('Utilities/Data', [
+            'propertyComparison' => $comparisonData,
             'selectedUtilityType' => $selectedUtilityType,
             'utilityTypes' => $utilityTypeOptions,
+            'heatMapStats' => $heatMapStats,
+            'filters' => $filters,
+            'propertyTypeOptions' => $propertyTypeOptions,
             'excludedProperties' => $excludedProperties,
         ]);
     }
@@ -240,24 +300,6 @@ class UtilityDashboardController extends Controller
         }
 
         return $data;
-    }
-
-    /**
-     * Get property comparison data for a single utility type.
-     *
-     * Columns:
-     * - Current Period (current calendar month)
-     * - Previous Period (previous full calendar month)
-     * - Previous 3 Months (monthly average)
-     * - Previous 12 Months (monthly average)
-     * - Avg $/unit (12-month average)
-     * - Avg $/sqft (12-month average)
-     *
-     * Uses a single bulk query instead of per-property queries for optimal performance.
-     */
-    private function getPropertyComparisonData(string $utilityType): array
-    {
-        return $this->analyticsService->getPropertyComparisonDataBulk($utilityType);
     }
 
     /**

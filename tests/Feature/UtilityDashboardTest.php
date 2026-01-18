@@ -60,11 +60,11 @@ class UtilityDashboardTest extends TestCase
             $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
-            ->component('Utilities/Index')
+            ->component('Utilities/Dashboard', shouldExist: false)
         );
     }
 
@@ -74,19 +74,17 @@ class UtilityDashboardTest extends TestCase
             $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
-            ->component('Utilities/Index')
+            ->component('Utilities/Dashboard', shouldExist: false)
             ->has('period')
             ->has('periodLabel')
             ->has('utilitySummary')
             ->has('portfolioTotal')
             ->has('anomalies')
             ->has('trendData')
-            ->has('propertyComparison')
-            ->has('selectedUtilityType')
             ->has('utilityTypes')
             ->has('excludedProperties')
         );
@@ -98,7 +96,7 @@ class UtilityDashboardTest extends TestCase
             $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -115,7 +113,7 @@ class UtilityDashboardTest extends TestCase
         $validPeriods = ['month', 'last_month', 'last_3_months', 'last_6_months', 'last_12_months', 'quarter', 'ytd', 'year'];
 
         foreach ($validPeriods as $period) {
-            $response = $this->actingAs($this->user)->get("/utilities?period={$period}");
+            $response = $this->actingAs($this->user)->get("/utilities/dashboard?period={$period}");
 
             $response->assertStatus(200);
             $response->assertInertia(fn ($page) => $page
@@ -130,7 +128,7 @@ class UtilityDashboardTest extends TestCase
             $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
-        $response = $this->actingAs($this->user)->get('/utilities?period=invalid_period');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard?period=invalid_period');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -138,34 +136,36 @@ class UtilityDashboardTest extends TestCase
         );
     }
 
-    public function test_utilities_index_accepts_utility_type_parameter(): void
+    public function test_utilities_data_accepts_utility_type_parameter(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Data endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         UtilityAccount::factory()->electric()->create();
 
-        $response = $this->actingAs($this->user)->get('/utilities?utility_type=electric');
+        $response = $this->actingAs($this->user)->get('/utilities/data?utility_type=electric');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
+            ->component('Utilities/Data', shouldExist: false)
             ->where('selectedUtilityType', 'electric')
         );
     }
 
-    public function test_utilities_index_invalid_utility_type_uses_first_available(): void
+    public function test_utilities_data_invalid_utility_type_uses_first_available(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Data endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         UtilityAccount::factory()->water()->create();
 
-        $response = $this->actingAs($this->user)->get('/utilities?utility_type=invalid_type');
+        $response = $this->actingAs($this->user)->get('/utilities/data?utility_type=invalid_type');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
+            ->component('Utilities/Data', shouldExist: false)
             ->where('selectedUtilityType', 'water')
         );
     }
@@ -361,7 +361,7 @@ class UtilityDashboardTest extends TestCase
             $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -375,7 +375,7 @@ class UtilityDashboardTest extends TestCase
     public function test_excluded_properties_returns_flag_based_exclusions(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Dashboard endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         // Create a property with an HOA flag (utility exclusion flag)
@@ -386,7 +386,7 @@ class UtilityDashboardTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -405,7 +405,7 @@ class UtilityDashboardTest extends TestCase
     public function test_excluded_properties_returns_tenant_pays_utilities_flag(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Dashboard endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         PropertyFlag::create([
@@ -415,7 +415,7 @@ class UtilityDashboardTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -427,7 +427,7 @@ class UtilityDashboardTest extends TestCase
     public function test_excluded_properties_returns_utility_specific_exclusions(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Dashboard endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         // Create a utility-specific exclusion
@@ -438,7 +438,7 @@ class UtilityDashboardTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -456,7 +456,7 @@ class UtilityDashboardTest extends TestCase
     public function test_excluded_properties_utility_exclusion_includes_creator(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Dashboard endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         PropertyUtilityExclusion::create([
@@ -466,7 +466,7 @@ class UtilityDashboardTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -477,7 +477,7 @@ class UtilityDashboardTest extends TestCase
     public function test_excluded_properties_filters_duplicates_flag_takes_priority(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Dashboard endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         // Create both a flag and utility exclusion for the same property
@@ -495,7 +495,7 @@ class UtilityDashboardTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         // Should only appear once (as flag-based exclusion, which takes priority)
@@ -510,7 +510,7 @@ class UtilityDashboardTest extends TestCase
     public function test_excluded_properties_multiple_utility_exclusions_for_same_property(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Dashboard endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         // Create multiple utility-specific exclusions for same property
@@ -528,7 +528,7 @@ class UtilityDashboardTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -541,7 +541,7 @@ class UtilityDashboardTest extends TestCase
     public function test_excluded_properties_excludes_inactive_properties(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Dashboard endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         // Make the property inactive
@@ -554,7 +554,7 @@ class UtilityDashboardTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -565,7 +565,7 @@ class UtilityDashboardTest extends TestCase
     public function test_excluded_properties_sorted_by_property_name(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Dashboard endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         $propertyZ = Property::create([
@@ -592,7 +592,7 @@ class UtilityDashboardTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -606,7 +606,7 @@ class UtilityDashboardTest extends TestCase
     public function test_excluded_properties_multiple_flags_same_property(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Dashboard endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         PropertyFlag::create([
@@ -623,7 +623,7 @@ class UtilityDashboardTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -635,7 +635,7 @@ class UtilityDashboardTest extends TestCase
     public function test_excluded_properties_non_utility_flags_not_included(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Dashboard endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         // Create a non-utility exclusion flag (under_renovation)
@@ -646,7 +646,7 @@ class UtilityDashboardTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -657,7 +657,7 @@ class UtilityDashboardTest extends TestCase
     public function test_excluded_properties_response_format(): void
     {
         if (! $this->isPostgres()) {
-            $this->markTestSkipped('Index endpoint requires PostgreSQL for DATE_TRUNC');
+            $this->markTestSkipped('Dashboard endpoint requires PostgreSQL for DATE_TRUNC');
         }
 
         PropertyFlag::create([
@@ -667,7 +667,7 @@ class UtilityDashboardTest extends TestCase
             'created_by' => $this->user->id,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/utilities');
+        $response = $this->actingAs($this->user)->get('/utilities/dashboard');
 
         $excludedProperties = $response->viewData('page')['props']['excludedProperties'];
 
