@@ -10,7 +10,7 @@ import {
 
 export default function VendorCompare({ vendors, comparison, trades, selectedTrade }) {
     const handleTradeChange = (trade) => {
-        router.get('/vendors/compare', { trade }, {
+        router.get(route('vendors.compare'), { trade }, {
             preserveState: true,
             preserveScroll: true,
         });
@@ -42,7 +42,7 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
             <div className="space-y-6">
                 {/* Back Button */}
                 <Link
-                    href="/vendors"
+                    href={route('vendors.index')}
                     className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
                 >
                     <ArrowLeftIcon className="w-4 h-4 mr-1" />
@@ -131,7 +131,7 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
                                 Select a different trade to compare multiple vendors
                             </p>
                             <Link
-                                href={`/vendors/${vendors[0].id}`}
+                                href={route('vendors.show', vendors[0].id)}
                                 className="inline-flex items-center mt-4 text-blue-600 hover:text-blue-800"
                             >
                                 View {vendors[0].company_name} details
@@ -172,7 +172,7 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
                                     {vendors.map((vendor) => (
                                         <tr key={vendor.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4 whitespace-nowrap sticky left-0 bg-white z-10">
-                                                <Link href={`/vendors/${vendor.id}`} className="flex items-center group">
+                                                <Link href={route('vendors.show', vendor.id)} className="flex items-center group">
                                                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                                                         <WrenchScrewdriverIcon className="w-5 h-5 text-blue-600" />
                                                     </div>
@@ -266,7 +266,7 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
                         {vendors.map((vendor) => (
                             <div key={vendor.id} className="card">
                                 <div className="card-body">
-                                    <Link href={`/vendors/${vendor.id}`} className="flex items-center gap-3 mb-4">
+                                    <Link href={route('vendors.show', vendor.id)} className="flex items-center gap-3 mb-4">
                                         <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                                             <WrenchScrewdriverIcon className="w-6 h-6 text-blue-600" />
                                         </div>

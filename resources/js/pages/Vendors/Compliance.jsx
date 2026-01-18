@@ -132,7 +132,7 @@ export default function VendorsCompliance({
                 <div className="flex items-center justify-between">
                     <div>
                         <div className="flex items-center gap-2">
-                            <Link href="/vendors" className="text-sm text-gray-500 hover:text-gray-700">
+                            <Link href={route('vendors.index')} className="text-sm text-gray-500 hover:text-gray-700">
                                 Vendors
                             </Link>
                             <span className="text-gray-400">/</span>

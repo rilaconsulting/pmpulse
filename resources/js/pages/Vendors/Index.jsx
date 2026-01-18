@@ -34,7 +34,7 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
     };
 
     const handleFilter = (key, value) => {
-        router.get('/vendors', {
+        router.get(route('vendors.index'), {
             ...filters,
             [key]: value,
             page: 1,
@@ -51,7 +51,7 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
 
     const handleSort = (field) => {
         const direction = filters.sort === field && filters.direction === 'asc' ? 'desc' : 'asc';
-        router.get('/vendors', {
+        router.get(route('vendors.index'), {
             ...filters,
             sort: field,
             direction: direction,
@@ -63,7 +63,7 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
     };
 
     const clearFilters = () => {
-        router.get('/vendors', {}, {
+        router.get(route('vendors.index'), {}, {
             preserveState: true,
             preserveScroll: true,
         });
@@ -133,7 +133,7 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                     <div className="flex items-center gap-2">
                         {isAdmin && (
                             <Link
-                                href="/vendors/deduplication"
+                                href={route('vendors.deduplication')}
                                 className="btn-secondary flex items-center"
                             >
                                 <LinkIcon className="w-4 h-4 mr-2" />
@@ -141,13 +141,13 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                             </Link>
                         )}
                         <Link
-                            href="/vendors/compare"
+                            href={route('vendors.compare')}
                             className="btn-secondary flex items-center"
                         >
                             Compare Vendors
                         </Link>
                         <Link
-                            href="/vendors/compliance"
+                            href={route('vendors.compliance')}
                             className="btn-primary flex items-center"
                         >
                             <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
@@ -372,7 +372,7 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                                                             ) : (
                                                                 <div className="w-7" /> // Spacer for alignment
                                                             )}
-                                                            <Link href={`/vendors/${vendor.id}`} className="flex items-center group">
+                                                            <Link href={route('vendors.show', vendor.id)} className="flex items-center group">
                                                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                                                     isDuplicate ? 'bg-gray-100' : 'bg-blue-100'
                                                                 }`}>
@@ -465,7 +465,7 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                                                     vendor.duplicate_vendors.map((duplicate) => (
                                                         <tr key={duplicate.id} className="bg-purple-50/30">
                                                             <td className="px-6 py-3 pl-20">
-                                                                <Link href={`/vendors/${duplicate.id}`} className="flex items-center group">
+                                                                <Link href={route('vendors.show', duplicate.id)} className="flex items-center group">
                                                                     <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
                                                                         <LinkIcon className="w-4 h-4 text-purple-600" />
                                                                     </div>
