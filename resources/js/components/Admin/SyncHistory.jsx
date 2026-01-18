@@ -7,7 +7,7 @@ export default function SyncHistory({ syncHistory, hasConnection }) {
     });
 
     const handleSync = (mode) => {
-        post('/admin/integrations/sync', {
+        post(route('admin.sync.trigger'), {
             data: { mode },
         });
     };

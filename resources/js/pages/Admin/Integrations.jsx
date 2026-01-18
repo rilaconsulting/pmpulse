@@ -68,12 +68,12 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
 
     const handleAppfolioSubmit = (e) => {
         e.preventDefault();
-        appfolioForm.post('/admin/integrations/connection');
+        appfolioForm.post(route('admin.integrations.connection'));
     };
 
     const handleMapsSubmit = (e) => {
         e.preventDefault();
-        mapsForm.post('/admin/integrations/google-maps', {
+        mapsForm.post(route('admin.integrations.google-maps'), {
             onSuccess: () => {
                 mapsForm.reset();
                 setShowMapsKey(false);
@@ -83,7 +83,7 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
 
     const handleSsoSubmit = (e) => {
         e.preventDefault();
-        ssoForm.post('/admin/integrations/google-sso', {
+        ssoForm.post(route('admin.integrations.google-sso'), {
             preserveScroll: true,
         });
     };
@@ -275,7 +275,7 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
                                         disabled={mapsForm.processing}
                                         onClick={() => {
                                             if (confirm('Remove the API key? Map features will be disabled.')) {
-                                                mapsForm.post('/admin/integrations/google-maps', {
+                                                mapsForm.post(route('admin.integrations.google-maps'), {
                                                     data: { maps_api_key: '' },
                                                     onSuccess: () => mapsForm.reset(),
                                                 });
