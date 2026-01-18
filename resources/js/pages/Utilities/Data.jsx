@@ -8,9 +8,6 @@ export default function UtilitiesData({
     propertyComparison,
     selectedUtilityType,
     utilityTypes,
-    heatMapStats,
-    filters,
-    propertyTypeOptions,
     excludedProperties,
 }) {
     return (
@@ -34,7 +31,6 @@ export default function UtilitiesData({
                     data={propertyComparison}
                     utilityTypes={utilityTypes}
                     selectedType={selectedUtilityType}
-                    heatMapStats={heatMapStats}
                 />
 
                 {/* Excluded Properties */}

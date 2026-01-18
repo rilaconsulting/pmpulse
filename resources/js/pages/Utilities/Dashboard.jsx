@@ -1,5 +1,4 @@
 import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
 import Layout from '../../components/Layout';
 import UtilityNavTabs from '../../components/Utilities/UtilityNavTabs';
 import UtilityTrendChart from '../../components/Utilities/UtilityTrendChart';
@@ -18,10 +17,7 @@ export default function UtilitiesDashboard({
     utilityTypes,
     excludedProperties,
 }) {
-    const [selectedPeriod, setSelectedPeriod] = useState(period);
-
     const handlePeriodChange = (newPeriod) => {
-        setSelectedPeriod(newPeriod);
         router.get(route('utilities.dashboard'), { period: newPeriod }, { preserveState: true });
     };
 
@@ -41,7 +37,7 @@ export default function UtilitiesDashboard({
                     <div className="flex items-center space-x-2">
                         <span className="text-sm text-gray-500">Period:</span>
                         <select
-                            value={selectedPeriod}
+                            value={period}
                             onChange={(e) => handlePeriodChange(e.target.value)}
                             className="input py-1.5 pr-8"
                         >

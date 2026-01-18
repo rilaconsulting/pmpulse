@@ -7,14 +7,12 @@ const tabs = [
         name: 'Dashboard',
         routeName: 'utilities.dashboard',
         icon: ChartBarIcon,
-        description: 'Overview and trends',
     },
     {
         id: 'data',
         name: 'Data Table',
         routeName: 'utilities.data',
         icon: TableCellsIcon,
-        description: 'Detailed property data',
     },
 ];
 
