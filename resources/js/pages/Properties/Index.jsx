@@ -36,7 +36,7 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
     }, [viewMode]);
 
     const handleFilter = (key, value) => {
-        router.get('/properties', {
+        router.get(route('properties.index'), {
             ...filters,
             [key]: value,
             page: 1,
@@ -53,7 +53,7 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
 
     const handleSort = (field) => {
         const direction = filters.sort === field && filters.direction === 'asc' ? 'desc' : 'asc';
-        router.get('/properties', {
+        router.get(route('properties.index'), {
             ...filters,
             sort: field,
             direction: direction,
@@ -65,7 +65,7 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
     };
 
     const clearFilters = () => {
-        router.get('/properties', {}, {
+        router.get(route('properties.index'), {}, {
             preserveState: true,
             preserveScroll: true,
         });
@@ -302,7 +302,7 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                                         <tr key={property.id} className="hover:bg-gray-50">
                                             <td className="px-6 py-4">
                                                 <Link
-                                                    href={`/properties/${property.id}`}
+                                                    href={route('properties.show', property.id)}
                                                     className="group"
                                                 >
                                                     <div className="flex items-center">

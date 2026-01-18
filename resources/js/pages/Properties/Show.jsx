@@ -51,7 +51,7 @@ export default function PropertyShow({
         if (merged.direction && merged.direction !== 'asc') data.unit_direction = merged.direction;
 
         router.get(
-            `/properties/${property.id}`,
+            route('properties.show', property.id),
             data,
             { preserveScroll: true, preserveState: true }
         );
@@ -65,7 +65,7 @@ export default function PropertyShow({
 
     const handleAddFlag = (e) => {
         e.preventDefault();
-        post(`/properties/${property.id}/flags`, {
+        post(route('properties.flags.store', property.id), {
             onSuccess: () => {
                 reset();
                 setShowAddFlagModal(false);
@@ -76,7 +76,7 @@ export default function PropertyShow({
     const handleDeleteFlag = (flagId) => {
         if (!confirm('Are you sure you want to remove this flag?')) return;
         setDeletingFlagId(flagId);
-        router.delete(`/properties/${property.id}/flags/${flagId}`, {
+        router.delete(route('properties.flags.destroy', [property.id, flagId]), {
             onFinish: () => setDeletingFlagId(null),
         });
     };
@@ -186,7 +186,7 @@ export default function PropertyShow({
             <div className="space-y-6">
                 {/* Back link */}
                 <Link
-                    href="/properties"
+                    href={route('properties.index')}
                     className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
                 >
                     <ArrowLeftIcon className="w-4 h-4 mr-1" />
