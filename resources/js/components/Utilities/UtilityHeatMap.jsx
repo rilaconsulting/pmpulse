@@ -42,7 +42,7 @@ export default function UtilityHeatMap({ data, utilityTypes, selectedType, perio
     };
 
     const handleUtilityTypeChange = (newType) => {
-        router.get('/utilities', { utility_type: newType, period }, { preserveState: true });
+        router.get(route('utilities.index'), { utility_type: newType, period }, { preserveState: true });
     };
 
     const sortedProperties = [...data.properties].sort((a, b) => {
