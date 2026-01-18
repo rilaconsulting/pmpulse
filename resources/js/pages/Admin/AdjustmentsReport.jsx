@@ -35,18 +35,18 @@ export default function AdjustmentsReport({
     };
 
     const applyFilters = () => {
-        router.get('/admin/adjustments', localFilters, { preserveState: true });
+        router.get(route('admin.adjustments.index'), localFilters, { preserveState: true });
     };
 
     const clearFilters = () => {
         const cleared = { status: 'active', field: '', creator: '', from: '', to: '' };
         setLocalFilters(cleared);
-        router.get('/admin/adjustments', cleared, { preserveState: true });
+        router.get(route('admin.adjustments.index'), cleared, { preserveState: true });
     };
 
     const handleExport = () => {
         const params = new URLSearchParams(filters);
-        window.location.href = `/admin/adjustments/export?${params.toString()}`;
+        window.location.href = `${route('admin.adjustments.export')}?${params.toString()}`;
     };
 
     const formatValue = (value, fieldName) => {
@@ -139,7 +139,7 @@ export default function AdjustmentsReport({
                                     type="button"
                                     onClick={() => {
                                         handleFilterChange('status', status);
-                                        router.get('/admin/adjustments', { ...localFilters, status }, { preserveState: true });
+                                        router.get(route('admin.adjustments.index'), { ...localFilters, status }, { preserveState: true });
                                     }}
                                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                                         filters.status === status
@@ -294,7 +294,7 @@ export default function AdjustmentsReport({
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 {adjustment.property?.id ? (
                                                     <Link
-                                                        href={`/properties/${adjustment.property.id}`}
+                                                        href={route('properties.show', adjustment.property.id)}
                                                         className="text-sm font-medium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
                                                     >
                                                         {adjustment.property.name || 'Unknown Property'}
