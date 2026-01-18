@@ -139,6 +139,14 @@ class Property extends Model
     }
 
     /**
+     * Get the utility notes for this property.
+     */
+    public function utilityNotes(): HasMany
+    {
+        return $this->hasMany(UtilityNote::class);
+    }
+
+    /**
      * Check if property is excluded for a specific utility type.
      */
     public function isExcludedForUtilityType(string $utilityType): bool
