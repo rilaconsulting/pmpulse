@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdjustmentController;
 use App\Http\Controllers\AdjustmentReportController;
+use App\Http\Controllers\Admin\UtilityFormattingRuleController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleSsoController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PropertyController;
 use App\Http\Controllers\UtilityAccountController;
 use App\Http\Controllers\UtilityDashboardController;
+use App\Http\Controllers\UtilityNoteController;
 use App\Http\Controllers\VendorController;
 use Illuminate\Support\Facades\Route;
 
@@ -61,8 +63,20 @@ Route::middleware('auth')->group(function () {
     // Utilities Dashboard
     Route::get('/utilities', [UtilityDashboardController::class, 'index'])
         ->name('utilities.index');
+    Route::get('/utilities/dashboard', [UtilityDashboardController::class, 'dashboard'])
+        ->name('utilities.dashboard');
+    Route::get('/utilities/data', [UtilityDashboardController::class, 'data'])
+        ->name('utilities.data');
     Route::get('/utilities/property/{property}', [UtilityDashboardController::class, 'show'])
         ->name('utilities.show');
+
+    // Utility Notes
+    Route::get('/utilities/notes/{property}/{utilityType}', [UtilityNoteController::class, 'show'])
+        ->name('utilities.notes.show');
+    Route::post('/utilities/notes/{property}', [UtilityNoteController::class, 'store'])
+        ->name('utilities.notes.store');
+    Route::delete('/utilities/notes/{property}/{utilityType}', [UtilityNoteController::class, 'destroy'])
+        ->name('utilities.notes.destroy');
 
     // Vendors
     Route::get('/vendors', [VendorController::class, 'index'])
@@ -131,6 +145,12 @@ Route::middleware('auth')->group(function () {
         Route::patch('/utility-types/{key}', [UtilityAccountController::class, 'updateType'])->name('utility-types.update');
         Route::delete('/utility-types/{key}', [UtilityAccountController::class, 'destroyType'])->name('utility-types.destroy');
         Route::post('/utility-types/reset', [UtilityAccountController::class, 'resetTypes'])->name('utility-types.reset');
+
+        // Utility Formatting Rules
+        Route::get('/utility-formatting-rules', [UtilityFormattingRuleController::class, 'index'])->name('utility-formatting-rules.index');
+        Route::post('/utility-formatting-rules', [UtilityFormattingRuleController::class, 'store'])->name('utility-formatting-rules.store');
+        Route::patch('/utility-formatting-rules/{utilityFormattingRule}', [UtilityFormattingRuleController::class, 'update'])->name('utility-formatting-rules.update');
+        Route::delete('/utility-formatting-rules/{utilityFormattingRule}', [UtilityFormattingRuleController::class, 'destroy'])->name('utility-formatting-rules.destroy');
     });
 
     // Profile (all authenticated users)
