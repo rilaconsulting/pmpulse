@@ -605,6 +605,7 @@ class UtilityAnalyticsService
             $data[] = [
                 'property_id' => $property->id,
                 'property_name' => $property->name,
+                'property_type' => $property->property_type,
                 'unit_count' => $property->unit_count,
                 'total_sqft' => $property->total_sqft,
                 'current_month' => $currentMonth > 0 ? $currentMonth : null,
@@ -642,7 +643,8 @@ class UtilityAnalyticsService
     /**
      * Get filtered property comparison data with support for unit count and property type filters.
      *
-     * Wraps getPropertyComparisonDataBulk with additional filtering options.
+     * Similar to getPropertyComparisonDataBulk but with additional filtering capabilities.
+     * Includes property_type in returned data for display purposes.
      *
      * @param  string  $utilityType  The utility type to compare
      * @param  array  $filters  Filters: unit_count_min, unit_count_max, property_types
@@ -854,9 +856,9 @@ class UtilityAnalyticsService
 
         if ($count === 0) {
             return [
-                'min' => 0,
-                'max' => 0,
-                'avg' => 0,
+                'min' => 0.0,
+                'max' => 0.0,
+                'avg' => 0.0,
                 'count' => 0,
             ];
         }
