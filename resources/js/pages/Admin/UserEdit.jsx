@@ -29,11 +29,11 @@ export default function UserEdit({ user, roles, canDeactivate }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        patch(`/admin/users/${user.id}`);
+        patch(route('admin.users.update', user.id));
     };
 
     const handleDeactivate = () => {
-        router.delete(`/admin/users/${user.id}`, {
+        router.delete(route('admin.users.destroy', user.id), {
             onSuccess: () => setShowDeactivateModal(false),
         });
     };
@@ -45,7 +45,7 @@ export default function UserEdit({ user, roles, canDeactivate }) {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link
-                            href="/admin/users"
+                            href={route('admin.users.index')}
                             className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                         >
                             <ArrowLeftIcon className="w-5 h-5" />
@@ -245,7 +245,7 @@ export default function UserEdit({ user, roles, canDeactivate }) {
                                     )}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <Link href="/admin/users" className="btn-secondary">
+                                    <Link href={route('admin.users.index')} className="btn-secondary">
                                         Cancel
                                     </Link>
                                     <button

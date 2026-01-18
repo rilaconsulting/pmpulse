@@ -16,7 +16,7 @@ export default function UserCreate({ roles }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post('/admin/users');
+        post(route('admin.users.store'));
     };
 
     return (
@@ -25,7 +25,7 @@ export default function UserCreate({ roles }) {
                 {/* Header */}
                 <div className="flex items-center gap-4">
                     <Link
-                        href="/admin/users"
+                        href={route('admin.users.index')}
                         className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                     >
                         <ArrowLeftIcon className="w-5 h-5" />
@@ -193,7 +193,7 @@ export default function UserCreate({ roles }) {
 
                             {/* Actions */}
                             <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                                <Link href="/admin/users" className="btn-secondary">
+                                <Link href={route('admin.users.index')} className="btn-secondary">
                                     Cancel
                                 </Link>
                                 <button

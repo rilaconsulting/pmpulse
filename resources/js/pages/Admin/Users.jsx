@@ -14,7 +14,7 @@ export default function Users({ users, roles, filters }) {
     const [search, setSearch] = useState(filters.search || '');
 
     const handleFilter = (key, value) => {
-        router.get('/admin/users', {
+        router.get(route('admin.users.index'), {
             ...filters,
             [key]: value,
             page: 1,
@@ -30,7 +30,7 @@ export default function Users({ users, roles, filters }) {
     };
 
     const clearFilters = () => {
-        router.get('/admin/users', {}, {
+        router.get(route('admin.users.index'), {}, {
             preserveState: true,
             preserveScroll: true,
         });
@@ -50,7 +50,7 @@ export default function Users({ users, roles, filters }) {
                             Create, edit, and manage user accounts
                         </p>
                     </div>
-                    <Link href="/admin/users/create" className="btn-primary flex items-center">
+                    <Link href={route('admin.users.create')} className="btn-primary flex items-center">
                         <PlusIcon className="w-5 h-5 mr-2" />
                         Add User
                     </Link>
@@ -231,7 +231,7 @@ export default function Users({ users, roles, filters }) {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <Link
-                                                    href={`/admin/users/${user.id}/edit`}
+                                                    href={route('admin.users.edit', user.id)}
                                                     className="text-blue-600 hover:text-blue-900 inline-flex items-center"
                                                 >
                                                     <PencilIcon className="w-4 h-4 mr-1" />
