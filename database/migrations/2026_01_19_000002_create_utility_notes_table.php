@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignUuid('property_id')->constrained()->cascadeOnDelete();
             $table->string('utility_type', 20);
             $table->text('note');
-            $table->foreignUuid('created_by')->constrained('users')->cascadeOnDelete();
+            $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
             $table->unique(['property_id', 'utility_type']);

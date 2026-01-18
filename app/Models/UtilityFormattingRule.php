@@ -56,6 +56,7 @@ class UtilityFormattingRule extends Model
      *
      * @param  float  $value  The current value to evaluate
      * @param  float  $average  The 12-month average to compare against
+     * @return bool True if the rule matches, false otherwise
      */
     public function evaluate(float $value, float $average): bool
     {
