@@ -11,13 +11,13 @@ import {
 } from '@heroicons/react/24/outline';
 
 const tabs = [
-    { name: 'Users', href: '/admin/users', icon: UsersIcon },
-    { name: 'Integrations', href: '/admin/integrations', icon: CloudIcon },
-    { name: 'Sync', href: '/admin/sync', icon: ArrowPathIcon },
-    { name: 'Utility Accounts', href: '/admin/utility-accounts', icon: BoltIcon },
-    { name: 'Utility Types', href: '/admin/utility-types', icon: TagIcon },
-    { name: 'Adjustments', href: '/admin/adjustments', icon: AdjustmentsHorizontalIcon },
-    { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
+    { name: 'Users', routeName: 'admin.users.index', icon: UsersIcon },
+    { name: 'Integrations', routeName: 'admin.integrations', icon: CloudIcon },
+    { name: 'Sync', routeName: 'admin.sync', icon: ArrowPathIcon },
+    { name: 'Utility Accounts', routeName: 'admin.utility-accounts.index', icon: BoltIcon },
+    { name: 'Utility Types', routeName: 'admin.utility-types.index', icon: TagIcon },
+    { name: 'Adjustments', routeName: 'admin.adjustments.index', icon: AdjustmentsHorizontalIcon },
+    { name: 'Settings', routeName: 'admin.settings', icon: Cog6ToothIcon },
 ];
 
 export default function AdminLayout({ children, currentTab }) {
@@ -40,11 +40,12 @@ export default function AdminLayout({ children, currentTab }) {
                 <div className="border-b border-gray-200">
                     <nav className="-mb-px flex space-x-8">
                         {tabs.map((tab) => {
-                            const isActive = currentPath.startsWith(tab.href);
+                            const href = route(tab.routeName);
+                            const isActive = currentPath.startsWith(href);
                             return (
                                 <Link
                                     key={tab.name}
-                                    href={tab.href}
+                                    href={href}
                                     className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
                                         isActive
                                             ? 'border-blue-500 text-blue-600'

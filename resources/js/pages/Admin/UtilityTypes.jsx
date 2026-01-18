@@ -19,7 +19,7 @@ function AddTypeForm({ onCancel }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post('/admin/utility-types', {
+        post(route('admin.utility-types.store'), {
             onSuccess: () => {
                 reset();
                 onCancel();
@@ -90,7 +90,7 @@ function EditTypeRow({ typeKey, typeLabel, onCancel }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        patch(`/admin/utility-types/${typeKey}`, {
+        patch(route('admin.utility-types.update', typeKey), {
             onSuccess: () => onCancel(),
         });
     };
@@ -194,13 +194,13 @@ export default function UtilityTypes({ utilityTypes, typeCounts, defaultTypes })
 
     const handleDelete = (key, label) => {
         if (confirm(`Are you sure you want to delete the utility type "${label}"?`)) {
-            router.delete(`/admin/utility-types/${key}`);
+            router.delete(route('admin.utility-types.destroy', key));
         }
     };
 
     const handleReset = () => {
         if (confirm('Reset all utility types to their default values? This will remove any custom types that are not in use.')) {
-            router.post('/admin/utility-types/reset');
+            router.post(route('admin.utility-types.reset'));
         }
     };
 
