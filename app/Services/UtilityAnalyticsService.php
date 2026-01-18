@@ -605,6 +605,7 @@ class UtilityAnalyticsService
             $data[] = [
                 'property_id' => $property->id,
                 'property_name' => $property->name,
+                'property_type' => $property->property_type,
                 'unit_count' => $property->unit_count,
                 'total_sqft' => $property->total_sqft,
                 'current_month' => $currentMonth > 0 ? $currentMonth : null,
@@ -636,6 +637,237 @@ class UtilityAnalyticsService
             'totals' => $totals,
             'averages' => $portfolioAvg,
             'property_count' => $propertyCount,
+        ];
+    }
+
+    /**
+     * Get filtered property comparison data with support for unit count and property type filters.
+     *
+     * Similar to getPropertyComparisonDataBulk but with additional filtering capabilities.
+     * Includes property_type in returned data for display purposes.
+     *
+     * @param  string  $utilityType  The utility type to compare
+     * @param  array  $filters  Filters: unit_count_min, unit_count_max, property_types
+     * @param  Carbon|null  $referenceDate  Reference date (defaults to now)
+     * @return array Comparison data with properties, totals, and averages
+     */
+    public function getFilteredPropertyComparisonData(
+        string $utilityType,
+        array $filters = [],
+        ?Carbon $referenceDate = null
+    ): array {
+        $now = $referenceDate ?? now();
+
+        // Get properties excluded for this specific utility type
+        $utilityExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds($utilityType);
+
+        // Build base query with filters
+        $query = Property::active()
+            ->forUtilityReports()
+            ->when(! empty($utilityExcludedIds), function ($q) use ($utilityExcludedIds) {
+                $q->whereNotIn('id', $utilityExcludedIds);
+            });
+
+        // Apply unit count filters
+        if (isset($filters['unit_count_min']) && is_numeric($filters['unit_count_min'])) {
+            $query->where('unit_count', '>=', (int) $filters['unit_count_min']);
+        }
+
+        if (isset($filters['unit_count_max']) && is_numeric($filters['unit_count_max'])) {
+            $query->where('unit_count', '<=', (int) $filters['unit_count_max']);
+        }
+
+        // Apply property type filter
+        if (! empty($filters['property_types']) && is_array($filters['property_types'])) {
+            $query->whereIn('property_type', $filters['property_types']);
+        }
+
+        $properties = $query->orderBy('name')->get();
+
+        if ($properties->isEmpty()) {
+            return [
+                'properties' => [],
+                'totals' => ['current_month' => 0, 'prev_month' => 0, 'prev_3_months' => 0, 'prev_12_months' => 0],
+                'averages' => ['current_month' => 0, 'prev_month' => 0, 'prev_3_months' => 0, 'prev_12_months' => 0],
+                'property_count' => 0,
+            ];
+        }
+
+        $propertyIds = $properties->pluck('id')->toArray();
+
+        // Define date ranges
+        $currentMonthStart = $now->copy()->startOfMonth();
+        $currentMonthEnd = $now->copy()->endOfMonth();
+        $prevMonthStart = $now->copy()->subMonth()->startOfMonth();
+        $prevMonthEnd = $now->copy()->subMonth()->endOfMonth();
+        $prev3MonthStart = $now->copy()->subMonths(3)->startOfMonth();
+        $prev12MonthStart = $now->copy()->subMonths(12)->startOfMonth();
+
+        // Single query to get all expense data grouped by property and month
+        $expenseData = UtilityExpense::query()
+            ->select([
+                'utility_expenses.property_id',
+                DB::raw("DATE_TRUNC('month', expense_date) as month"),
+                DB::raw('SUM(amount) as total'),
+            ])
+            ->join('utility_accounts', 'utility_expenses.utility_account_id', '=', 'utility_accounts.id')
+            ->whereIn('utility_expenses.property_id', $propertyIds)
+            ->where('utility_accounts.utility_type', $utilityType)
+            ->whereBetween('expense_date', [$prev12MonthStart, $currentMonthEnd])
+            ->groupBy('utility_expenses.property_id', DB::raw("DATE_TRUNC('month', expense_date)"))
+            ->toBase()
+            ->get()
+            ->groupBy('property_id');
+
+        $data = [];
+        $totals = [
+            'current_month' => 0,
+            'prev_month' => 0,
+            'prev_3_months' => 0,
+            'prev_12_months' => 0,
+        ];
+
+        foreach ($properties as $property) {
+            $propertyExpenses = $expenseData->get($property->id, collect());
+
+            // Calculate costs for each period from the grouped data
+            $currentMonth = $this->sumExpensesInPeriod($propertyExpenses, $currentMonthStart, $currentMonthEnd);
+            $prevMonth = $this->sumExpensesInPeriod($propertyExpenses, $prevMonthStart, $prevMonthEnd);
+            $prev3Total = $this->sumExpensesInPeriod($propertyExpenses, $prev3MonthStart, $prevMonthEnd);
+            $prev12Total = $this->sumExpensesInPeriod($propertyExpenses, $prev12MonthStart, $prevMonthEnd);
+
+            $prev3Monthly = $prev3Total > 0 ? round($prev3Total / 3, 2) : null;
+            $prev12Monthly = $prev12Total > 0 ? round($prev12Total / 12, 2) : null;
+
+            // Calculate $/unit and $/sqft using 12-month average
+            $avgPerUnit = null;
+            $avgPerSqft = null;
+
+            if ($prev12Total > 0) {
+                $monthlyAvg = $prev12Total / 12;
+
+                if ($property->unit_count && $property->unit_count > 0) {
+                    $avgPerUnit = round($monthlyAvg / $property->unit_count, 2);
+                }
+
+                if ($property->total_sqft && $property->total_sqft > 0) {
+                    $avgPerSqft = round($monthlyAvg / $property->total_sqft, 4);
+                }
+            }
+
+            $data[] = [
+                'property_id' => $property->id,
+                'property_name' => $property->name,
+                'property_type' => $property->property_type,
+                'unit_count' => $property->unit_count,
+                'total_sqft' => $property->total_sqft,
+                'current_month' => $currentMonth > 0 ? $currentMonth : null,
+                'prev_month' => $prevMonth > 0 ? $prevMonth : null,
+                'prev_3_months' => $prev3Monthly,
+                'prev_12_months' => $prev12Monthly,
+                'avg_per_unit' => $avgPerUnit,
+                'avg_per_sqft' => $avgPerSqft,
+            ];
+
+            // Accumulate totals
+            $totals['current_month'] += $currentMonth;
+            $totals['prev_month'] += $prevMonth;
+            $totals['prev_3_months'] += $prev3Total;
+            $totals['prev_12_months'] += $prev12Total;
+        }
+
+        // Calculate portfolio averages
+        $propertyCount = $properties->count();
+        $portfolioAvg = [
+            'current_month' => $propertyCount > 0 ? round($totals['current_month'] / $propertyCount, 2) : 0,
+            'prev_month' => $propertyCount > 0 ? round($totals['prev_month'] / $propertyCount, 2) : 0,
+            'prev_3_months' => $propertyCount > 0 ? round($totals['prev_3_months'] / 3 / $propertyCount, 2) : 0,
+            'prev_12_months' => $propertyCount > 0 ? round($totals['prev_12_months'] / 12 / $propertyCount, 2) : 0,
+        ];
+
+        return [
+            'properties' => $data,
+            'totals' => $totals,
+            'averages' => $portfolioAvg,
+            'property_count' => $propertyCount,
+        ];
+    }
+
+    /**
+     * Calculate statistics needed for heat map coloring.
+     *
+     * Computes min, max, and average for $/unit and $/sqft values
+     * from the property comparison data.
+     *
+     * @param  array  $properties  Array of property data from getFilteredPropertyComparisonData
+     * @return array{per_unit: array{min: float, max: float, avg: float, count: int}, per_sqft: array{min: float, max: float, avg: float, count: int}}
+     */
+    public function calculateHeatMapStats(array $properties): array
+    {
+        $perUnitValues = [];
+        $perSqftValues = [];
+
+        foreach ($properties as $property) {
+            if (isset($property['avg_per_unit']) && $property['avg_per_unit'] !== null) {
+                $perUnitValues[] = (float) $property['avg_per_unit'];
+            }
+
+            if (isset($property['avg_per_sqft']) && $property['avg_per_sqft'] !== null) {
+                $perSqftValues[] = (float) $property['avg_per_sqft'];
+            }
+        }
+
+        return [
+            'per_unit' => $this->computeStats($perUnitValues),
+            'per_sqft' => $this->computeStats($perSqftValues),
+        ];
+    }
+
+    /**
+     * Get distinct property types with counts for filter dropdown.
+     *
+     * Returns property types from active properties included in utility reports,
+     * sorted alphabetically.
+     *
+     * @return array<string, int> Property types with counts, e.g., ['Apartment' => 15, 'Commercial' => 8]
+     */
+    public function getPropertyTypeOptions(): array
+    {
+        return Property::active()
+            ->forUtilityReports()
+            ->whereNotNull('property_type')
+            ->where('property_type', '!=', '')
+            ->selectRaw('property_type, COUNT(*) as count')
+            ->groupBy('property_type')
+            ->orderBy('property_type')
+            ->pluck('count', 'property_type')
+            ->toArray();
+    }
+
+    /**
+     * Compute min, max, avg statistics for an array of values.
+     *
+     * @param  array<float>  $values  Array of numeric values
+     * @return array{min: float, max: float, avg: float, count: int}
+     */
+    private function computeStats(array $values): array
+    {
+        $count = count($values);
+
+        if ($count === 0) {
+            return [
+                'min' => 0.0,
+                'max' => 0.0,
+                'avg' => 0.0,
+                'count' => 0,
+            ];
+        }
+
+        return [
+            'min' => round(min($values), 4),
+            'max' => round(max($values), 4),
+            'avg' => round(array_sum($values) / $count, 4),
+            'count' => $count,
         ];
     }
 
