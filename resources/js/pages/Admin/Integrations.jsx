@@ -275,8 +275,7 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
                                         disabled={mapsForm.processing}
                                         onClick={() => {
                                             if (confirm('Remove the API key? Map features will be disabled.')) {
-                                                mapsForm.post(route('admin.integrations.google-maps'), {
-                                                    data: { maps_api_key: '' },
+                                                mapsForm.transform(() => ({ maps_api_key: '' })).post(route('admin.integrations.google-maps'), {
                                                     onSuccess: () => mapsForm.reset(),
                                                 });
                                             }

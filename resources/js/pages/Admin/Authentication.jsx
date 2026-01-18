@@ -14,7 +14,7 @@ export default function Authentication({ googleSso }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post(route('admin.authentication.update'), {
+        post(route('admin.integrations.google-sso'), {
             preserveScroll: true,
         });
     };

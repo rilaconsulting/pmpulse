@@ -26,7 +26,7 @@ export default function Show({ user }) {
 
     const handlePasswordSubmit = (e) => {
         e.preventDefault();
-        passwordForm.put(route('profile.password.update'), {
+        passwordForm.put(route('profile.password'), {
             onSuccess: () => {
                 passwordForm.reset();
             },
