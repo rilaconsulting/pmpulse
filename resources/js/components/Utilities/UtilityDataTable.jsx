@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from '@inertiajs/react';
 import { ArrowDownTrayIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import ColumnVisibilityDropdown from './ColumnVisibilityDropdown';
-import { UtilityIcons, UtilityColors, formatCurrency } from './constants';
+import { UtilityIcons, UtilityColors, formatCurrency, getHeatMapStyle, calculateHeatMapStats } from './constants';
 
 // Column definitions
 const COLUMNS = [
@@ -38,6 +38,23 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
         () => COLUMNS.filter((col) => visibleColumns[col.key]),
         [visibleColumns]
     );
+
+    // Calculate heat map stats for $/Unit and $/Sq Ft columns
+    const heatMapStats = useMemo(() => {
+        if (!data?.properties) return { avg_per_unit: null, avg_per_sqft: null };
+
+        const unitValues = data.properties
+            .map((p) => p.avg_per_unit)
+            .filter((v) => v !== null && v !== undefined);
+        const sqftValues = data.properties
+            .map((p) => p.avg_per_sqft)
+            .filter((v) => v !== null && v !== undefined);
+
+        return {
+            avg_per_unit: calculateHeatMapStats(unitValues),
+            avg_per_sqft: calculateHeatMapStats(sqftValues),
+        };
+    }, [data?.properties]);
 
     // Sort properties
     const sortedProperties = useMemo(() => {
@@ -230,15 +247,29 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                             <tr key={property.property_id} className="hover:bg-gray-50">
                                 {activeColumns.map((column) => {
                                     const value = property[column.key];
-                                    const formatting = property.formatting?.[column.key];
 
-                                    // Build cell style from formatting (for Phase 6)
-                                    const cellStyle = formatting
-                                        ? {
-                                              color: formatting.color,
-                                              backgroundColor: formatting.background_color,
-                                          }
-                                        : {};
+                                    // Get conditional formatting from backend (for current_month, prev_month, prev_3_months)
+                                    const backendFormatting = property[`${column.key}_formatting`];
+
+                                    // Get heat map styling for $/Unit and $/Sq Ft columns
+                                    let cellStyle = {};
+                                    let hasFormatting = false;
+
+                                    if (backendFormatting) {
+                                        // Apply backend-provided conditional formatting
+                                        cellStyle = {
+                                            color: backendFormatting.color,
+                                            backgroundColor: backendFormatting.background_color,
+                                        };
+                                        hasFormatting = true;
+                                    } else if (['avg_per_unit', 'avg_per_sqft'].includes(column.key)) {
+                                        // Apply heat map coloring for $/Unit and $/Sq Ft columns
+                                        const stats = heatMapStats[column.key];
+                                        if (stats?.average !== null && stats?.stdDev !== null) {
+                                            cellStyle = getHeatMapStyle(value, stats.average, stats.stdDev);
+                                            hasFormatting = Object.keys(cellStyle).length > 0;
+                                        }
+                                    }
 
                                     return (
                                         <td
@@ -258,7 +289,7 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                             ) : column.key === 'property_type' ? (
                                                 <span className="text-gray-500">{value || '-'}</span>
                                             ) : (
-                                                <span className={formatting ? '' : 'text-gray-900'}>
+                                                <span className={hasFormatting ? '' : 'text-gray-900'}>
                                                     {formatValue(value, column.format)}
                                                 </span>
                                             )}
