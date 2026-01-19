@@ -4,14 +4,14 @@ import { FunnelIcon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outl
 import { UtilityIcons, UtilityColors } from './constants';
 
 export default function UtilityFiltersBar({
-    filters,
-    utilityTypes,
+    filters = {},
+    utilityTypes = {},
     selectedUtilityType,
-    propertyTypeOptions,
+    propertyTypeOptions = [],
 }) {
-    const [unitCountMin, setUnitCountMin] = useState(filters.unit_count_min ?? '');
-    const [unitCountMax, setUnitCountMax] = useState(filters.unit_count_max ?? '');
-    const [selectedPropertyTypes, setSelectedPropertyTypes] = useState(filters.property_types ?? []);
+    const [unitCountMin, setUnitCountMin] = useState(filters?.unit_count_min ?? '');
+    const [unitCountMax, setUnitCountMax] = useState(filters?.unit_count_max ?? '');
+    const [selectedPropertyTypes, setSelectedPropertyTypes] = useState(filters?.property_types ?? []);
     const [propertyTypeDropdownOpen, setPropertyTypeDropdownOpen] = useState(false);
     const propertyTypeRef = useRef(null);
 
@@ -34,9 +34,9 @@ export default function UtilityFiltersBar({
 
     // Calculate active filter count
     const activeFilterCount = [
-        filters.unit_count_min != null,
-        filters.unit_count_max != null,
-        (filters.property_types?.length ?? 0) > 0,
+        filters?.unit_count_min != null,
+        filters?.unit_count_max != null,
+        (filters?.property_types?.length ?? 0) > 0,
     ].filter(Boolean).length;
 
     const applyFilters = () => {
@@ -68,9 +68,9 @@ export default function UtilityFiltersBar({
     const handleUtilityTypeChange = (newType) => {
         router.get(route('utilities.data'), {
             utility_type: newType,
-            unit_count_min: filters.unit_count_min,
-            unit_count_max: filters.unit_count_max,
-            property_types: filters.property_types,
+            unit_count_min: filters?.unit_count_min,
+            unit_count_max: filters?.unit_count_max,
+            property_types: filters?.property_types,
         }, { preserveState: true });
     };
 
@@ -163,7 +163,7 @@ export default function UtilityFiltersBar({
                         {propertyTypeDropdownOpen && (
                             <div className="absolute z-20 mt-1 w-64 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5">
                                 <div className="py-2 max-h-60 overflow-y-auto">
-                                    {propertyTypeOptions.length === 0 ? (
+                                    {(!propertyTypeOptions || propertyTypeOptions.length === 0) ? (
                                         <div className="px-3 py-2 text-sm text-gray-500">
                                             No property types available
                                         </div>

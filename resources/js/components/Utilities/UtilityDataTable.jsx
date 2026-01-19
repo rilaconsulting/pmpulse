@@ -19,7 +19,7 @@ const COLUMNS = [
     { key: 'note', label: 'Notes', sortable: false, align: 'left' },
 ];
 
-export default function UtilityDataTable({ data, utilityTypes, selectedType, heatMapStats, onNoteClick }) {
+export default function UtilityDataTable({ data, utilityTypes = {}, selectedType, heatMapStats, onNoteClick }) {
     const [sortField, setSortField] = useState('property_name');
     const [sortDirection, setSortDirection] = useState('asc');
     const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -240,7 +240,7 @@ export default function UtilityDataTable({ data, utilityTypes, selectedType, hea
                                         >
                                             {column.key === 'property_name' ? (
                                                 <Link
-                                                    href={route('utilities.property', property.property_id)}
+                                                    href={route('utilities.show', property.property_id)}
                                                     className="font-medium text-blue-600 hover:text-blue-800"
                                                 >
                                                     {value}
