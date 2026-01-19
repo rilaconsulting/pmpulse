@@ -7,8 +7,7 @@ export default function NoteModal({
     onClose,
     propertyId,
     propertyName,
-    utilityType,
-    utilityTypeName,
+    utilityType, // Now expects full utility type object { id, key, label, icon, color_scheme }
     existingNote,
     onSave,
     onDelete,
@@ -46,12 +45,17 @@ export default function NoteModal({
             return;
         }
 
+        if (!utilityType?.id) {
+            setError('Utility type is required.');
+            return;
+        }
+
         setIsSaving(true);
         setError(null);
 
         try {
             const response = await axios.post(route('utilities.notes.store', propertyId), {
-                utility_type: utilityType,
+                utility_type_id: utilityType.id,
                 note: note.trim(),
             });
 
@@ -71,7 +75,7 @@ export default function NoteModal({
         setError(null);
 
         try {
-            await axios.delete(route('utilities.notes.destroy', [propertyId, utilityType]));
+            await axios.delete(route('utilities.notes.destroy', [propertyId, utilityType?.key]));
             onDelete?.();
             onClose();
         } catch (err) {
@@ -137,7 +141,7 @@ export default function NoteModal({
                             {existingNote ? 'Edit Note' : 'Add Note'}
                         </h3>
                         <p className="mt-1 text-sm text-gray-500">
-                            {propertyName} - {utilityTypeName}
+                            {propertyName} - {utilityType?.label || 'Unknown'}
                         </p>
                     </div>
 

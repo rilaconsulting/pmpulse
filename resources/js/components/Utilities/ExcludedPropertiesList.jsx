@@ -7,7 +7,7 @@ import {
     FlagIcon,
     XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { UtilityIcons, UtilityColors } from './constants';
+import { getIconComponent, getColorScheme } from './constants';
 
 const FlagLabels = {
     hoa: 'HOA Property',
@@ -117,8 +117,9 @@ export default function ExcludedPropertiesList({ excludedProperties }) {
                                                 </span>
                                                 <div className="mt-1 flex flex-wrap gap-2">
                                                     {property.utility_exclusions.map((exclusion) => {
-                                                        const Icon = UtilityIcons[exclusion.utility_type];
-                                                        const colors = UtilityColors[exclusion.utility_type] || UtilityColors.other;
+                                                        // Use icon and color_scheme from exclusion if available (from backend join)
+                                                        const Icon = getIconComponent(exclusion.icon);
+                                                        const colors = getColorScheme(exclusion.color_scheme);
 
                                                         return (
                                                             <span
@@ -126,7 +127,7 @@ export default function ExcludedPropertiesList({ excludedProperties }) {
                                                                 className={`inline-flex items-center px-2 py-1 rounded-md text-xs ${colors.bg} ${colors.text}`}
                                                                 title={exclusion.reason ? `Reason: ${exclusion.reason}` : ''}
                                                             >
-                                                                {Icon && <Icon className="w-3 h-3 mr-1" />}
+                                                                <Icon className="w-3 h-3 mr-1" />
                                                                 {exclusion.utility_label}
                                                                 {exclusion.reason && (
                                                                     <span className="ml-1 opacity-75">

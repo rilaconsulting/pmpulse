@@ -2,10 +2,9 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import Layout from '../../components/Layout';
 import PropertyUtilityTrend from '../../components/Utilities/PropertyUtilityTrend';
-import { UtilityIcons, UtilityColors, formatCurrency, formatPercent } from '../../components/Utilities/constants';
+import { formatCurrency, formatPercent, findUtilityType, getIconComponent, getColorScheme } from '../../components/Utilities/constants';
 import {
     ArrowLeftIcon,
-    CubeIcon,
     ArrowTrendingUpIcon,
     ArrowTrendingDownIcon,
     MinusIcon,
@@ -104,8 +103,9 @@ export default function UtilitiesShow({
                         {/* Breakdown Bars */}
                         <div className="space-y-3">
                             {costBreakdown.breakdown.map((item) => {
-                                const Icon = UtilityIcons[item.type] || CubeIcon;
-                                const colors = UtilityColors[item.type] || UtilityColors.other;
+                                const utilityType = findUtilityType(utilityTypes, item.type);
+                                const Icon = getIconComponent(utilityType?.icon);
+                                const colors = getColorScheme(utilityType?.color_scheme);
                                 const widthPercent = costBreakdown.total > 0
                                     ? Math.max((item.cost / costBreakdown.total) * 100, 2)
                                     : 0;
@@ -118,7 +118,7 @@ export default function UtilitiesShow({
                                         <div className="flex-1">
                                             <div className="flex items-center justify-between mb-1">
                                                 <span className="text-sm font-medium text-gray-700">
-                                                    {utilityTypes[item.type]}
+                                                    {utilityType?.label || item.type}
                                                 </span>
                                                 <span className="text-sm text-gray-900">
                                                     {formatCurrency(item.cost)}
@@ -175,7 +175,8 @@ export default function UtilitiesShow({
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {comparisons.map((comp) => {
-                                    const Icon = UtilityIcons[comp.type] || CubeIcon;
+                                    const utilityType = findUtilityType(utilityTypes, comp.type);
+                                    const Icon = getIconComponent(utilityType?.icon);
                                     const MonthChangeIcon = getChangeIcon(comp.month_change);
                                     const QuarterChangeIcon = getChangeIcon(comp.quarter_change);
                                     const PortfolioIcon = getChangeIcon(comp.vs_portfolio);
@@ -265,29 +266,28 @@ export default function UtilitiesShow({
                                         </td>
                                     </tr>
                                 ) : (
-                                    recentExpenses.map((expense) => (
-                                        <tr key={expense.id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {new Date(expense.expense_date).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                {(() => {
-                                                    const colors = UtilityColors[expense.utility_type] || UtilityColors.other;
-                                                    return (
-                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
-                                                            {expense.utility_label}
-                                                        </span>
-                                                    );
-                                                })()}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {expense.vendor_name || '-'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
-                                                {formatCurrency(expense.amount)}
-                                            </td>
-                                        </tr>
-                                    ))
+                                    recentExpenses.map((expense) => {
+                                        const utilityType = findUtilityType(utilityTypes, expense.utility_type);
+                                        const colors = getColorScheme(utilityType?.color_scheme);
+                                        return (
+                                            <tr key={expense.id} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    {new Date(expense.expense_date).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
+                                                        {expense.utility_label}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    {expense.vendor_name || '-'}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                                    {formatCurrency(expense.amount)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

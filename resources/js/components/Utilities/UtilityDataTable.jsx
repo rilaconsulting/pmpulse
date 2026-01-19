@@ -3,7 +3,7 @@ import { Link } from '@inertiajs/react';
 import { ArrowDownTrayIcon, ChevronUpIcon, ChevronDownIcon, ChatBubbleLeftIcon, PlusIcon } from '@heroicons/react/24/outline';
 import ColumnVisibilityDropdown from './ColumnVisibilityDropdown';
 import NoteModal from './NoteModal';
-import { UtilityIcons, UtilityColors, formatCurrency, getHeatMapStyle, calculateHeatMapStats } from './constants';
+import { findUtilityType, getIconComponent, getColorScheme, formatCurrency, getHeatMapStyle, calculateHeatMapStats } from './constants';
 
 // Column definitions
 const COLUMNS = [
@@ -38,8 +38,9 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
     // Local notes state to track updates without page reload
     const [localNotes, setLocalNotes] = useState({});
 
-    const Icon = UtilityIcons[selectedType];
-    const colors = UtilityColors[selectedType] || UtilityColors.other;
+    const selectedUtilityType = findUtilityType(utilityTypes, selectedType);
+    const Icon = getIconComponent(selectedUtilityType?.icon);
+    const colors = getColorScheme(selectedUtilityType?.color_scheme);
 
     // Filter visible columns
     const activeColumns = useMemo(
@@ -242,14 +243,12 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
             {/* Header */}
             <div className="card-header flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                    {Icon && (
-                        <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
-                            <Icon className="w-5 h-5" />
-                        </div>
-                    )}
+                    <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
+                        <Icon className="w-5 h-5" />
+                    </div>
                     <div>
                         <h3 className="text-lg font-medium text-gray-900">
-                            {utilityTypes[selectedType]} Data
+                            {selectedUtilityType?.label || selectedType} Data
                         </h3>
                         <p className="text-sm text-gray-500">
                             {data.property_count} properties
@@ -435,8 +434,7 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                 onClose={closeNoteModal}
                 propertyId={selectedProperty?.property_id}
                 propertyName={selectedProperty?.property_name}
-                utilityType={selectedType}
-                utilityTypeName={utilityTypes[selectedType]}
+                utilityType={selectedUtilityType}
                 existingNote={selectedProperty ? getPropertyNote(selectedProperty) : null}
                 onSave={handleNoteSave}
                 onDelete={handleNoteDelete}

@@ -1200,7 +1200,7 @@ class UtilityAnalyticsService
 
         // Get utility-specific exclusions (excluded from specific utility types only)
         $utilityExclusions = PropertyUtilityExclusion::query()
-            ->with(['property', 'creator'])
+            ->with(['property', 'creator', 'utilityType'])
             ->whereHas('property', function ($query) {
                 $query->where('is_active', true);
             })
@@ -1220,8 +1220,10 @@ class UtilityAnalyticsService
                 }
 
                 $utilityExclusionsList = $exclusions->map(fn ($exclusion) => [
-                    'utility_type' => $exclusion->utility_type,
+                    'utility_type' => $exclusion->utilityType?->key,
                     'utility_label' => $exclusion->utility_type_label,
+                    'icon' => $exclusion->utilityType?->icon ?? UtilityType::DEFAULT_ICON,
+                    'color_scheme' => $exclusion->utilityType?->color_scheme ?? UtilityType::DEFAULT_COLOR_SCHEME,
                     'reason' => $exclusion->reason,
                     'created_by' => $exclusion->creator?->name,
                     'created_at' => $exclusion->created_at->toDateString(),

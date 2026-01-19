@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import { FunnelIcon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
-import { UtilityIcons, UtilityColors } from './constants';
+import { findUtilityType, getIconComponent, getColorScheme } from './constants';
 
 export default function UtilityFiltersBar({
     filters = {},
@@ -120,8 +120,9 @@ export default function UtilityFiltersBar({
         });
     };
 
-    const Icon = UtilityIcons[selectedUtilityType];
-    const colors = UtilityColors[selectedUtilityType] || UtilityColors.other;
+    const selectedType = findUtilityType(utilityTypes, selectedUtilityType);
+    const Icon = getIconComponent(selectedType?.icon);
+    const colors = getColorScheme(selectedType?.color_scheme);
 
     return (
         <div className="card overflow-visible">
@@ -147,15 +148,13 @@ export default function UtilityFiltersBar({
                                 onChange={(e) => handleUtilityTypeChange(e.target.value)}
                                 className="input py-1.5 pl-9 pr-8 text-sm"
                             >
-                                {Object.entries(utilityTypes).map(([key, label]) => (
-                                    <option key={key} value={key}>{label}</option>
+                                {Array.isArray(utilityTypes) && utilityTypes.map((type) => (
+                                    <option key={type.key} value={type.key}>{type.label}</option>
                                 ))}
                             </select>
-                            {Icon && (
-                                <div className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${colors.text}`}>
-                                    <Icon className="w-4 h-4" />
-                                </div>
-                            )}
+                            <div className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${colors.text}`}>
+                                <Icon className="w-4 h-4" />
+                            </div>
                         </div>
                     </div>
 
