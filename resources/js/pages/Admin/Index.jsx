@@ -8,6 +8,7 @@ import {
     BoltIcon,
     TagIcon,
     ArrowPathIcon,
+    SwatchIcon,
 } from '@heroicons/react/24/outline';
 
 const tabs = [
@@ -16,6 +17,7 @@ const tabs = [
     { name: 'Sync', routeName: 'admin.sync', icon: ArrowPathIcon },
     { name: 'Utility Accounts', routeName: 'admin.utility-accounts.index', icon: BoltIcon },
     { name: 'Utility Types', routeName: 'admin.utility-types.index', icon: TagIcon },
+    { name: 'Formatting Rules', routeName: 'admin.utility-formatting-rules.index', icon: SwatchIcon },
     { name: 'Adjustments', routeName: 'admin.adjustments.index', icon: AdjustmentsHorizontalIcon },
     { name: 'Settings', routeName: 'admin.settings', icon: Cog6ToothIcon },
 ];

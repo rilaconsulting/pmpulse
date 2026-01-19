@@ -306,7 +306,7 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                     const value = property[column.key];
 
                                     // Get conditional formatting from backend (for current_month, prev_month, prev_3_months)
-                                    const backendFormatting = property[`${column.key}_formatting`];
+                                    const backendFormatting = property.formatting?.[column.key];
 
                                     // Get heat map styling for $/Unit and $/Sq Ft columns
                                     let cellStyle = {};
