@@ -1,13 +1,16 @@
 import { Head } from '@inertiajs/react';
 import Layout from '../../components/Layout';
 import UtilityNavTabs from '../../components/Utilities/UtilityNavTabs';
-import UtilityHeatMap from '../../components/Utilities/UtilityHeatMap';
+import UtilityFiltersBar from '../../components/Utilities/UtilityFiltersBar';
+import UtilityDataTable from '../../components/Utilities/UtilityDataTable';
 import ExcludedPropertiesList from '../../components/Utilities/ExcludedPropertiesList';
 
 export default function UtilitiesData({
     propertyComparison,
     selectedUtilityType,
     utilityTypes,
+    filters,
+    propertyTypeOptions,
     excludedProperties,
 }) {
     return (
@@ -26,8 +29,16 @@ export default function UtilitiesData({
                 {/* Navigation Tabs */}
                 <UtilityNavTabs currentView="data" />
 
-                {/* Property Comparison Table */}
-                <UtilityHeatMap
+                {/* Filters Bar */}
+                <UtilityFiltersBar
+                    filters={filters}
+                    utilityTypes={utilityTypes}
+                    selectedUtilityType={selectedUtilityType}
+                    propertyTypeOptions={propertyTypeOptions}
+                />
+
+                {/* Property Data Table */}
+                <UtilityDataTable
                     data={propertyComparison}
                     utilityTypes={utilityTypes}
                     selectedType={selectedUtilityType}

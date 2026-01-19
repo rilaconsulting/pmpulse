@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Backend infrastructure for enhanced utility reporting (database, services, API routes)
 - Split utility dashboard into separate Dashboard and Data Table views for better navigation
+- Filter controls for utility data table (unit count range, property type, utility type)
+- Column visibility toggle to show/hide table columns
+- Enhanced data table with sticky headers, sortable columns, and CSV export
 
 ---
 
