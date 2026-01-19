@@ -108,8 +108,8 @@ export const getHeatMapStyle = (value, average, stdDev) => {
     // Clamp zScore to [-2, 2] for reasonable color intensity
     const clampedZ = Math.max(-2, Math.min(2, zScore));
 
-    // Calculate opacity (max 40% as per spec)
-    const opacity = Math.min(0.4, Math.abs(clampedZ) * 0.2);
+    // Calculate opacity - since clampedZ is in [-2, 2], this naturally maxes at 0.4
+    const opacity = Math.abs(clampedZ) * 0.2;
 
     if (opacity < 0.05) {
         // Near average - no background
@@ -142,6 +142,8 @@ export const calculateHeatMapStats = (values) => {
 
     const squaredDiffs = validValues.map((v) => Math.pow(v - average, 2));
     const avgSquaredDiff = squaredDiffs.reduce((acc, v) => acc + v, 0) / validValues.length;
+    // Note: When there's only one value, stdDev will be 0, which means getHeatMapStyle
+    // will return no styling. This is intentional - a single property has no comparison basis.
     const stdDev = Math.sqrt(avgSquaredDiff);
 
     return {

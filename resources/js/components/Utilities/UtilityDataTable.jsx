@@ -43,8 +43,12 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
     const heatMapStats = useMemo(() => {
         if (!data?.properties) return { avg_per_unit: null, avg_per_sqft: null };
 
-        const unitValues = data.properties.map((p) => p.avg_per_unit).filter((v) => v != null);
-        const sqftValues = data.properties.map((p) => p.avg_per_sqft).filter((v) => v != null);
+        const unitValues = data.properties
+            .map((p) => p.avg_per_unit)
+            .filter((v) => v !== null && v !== undefined);
+        const sqftValues = data.properties
+            .map((p) => p.avg_per_sqft)
+            .filter((v) => v !== null && v !== undefined);
 
         return {
             avg_per_unit: calculateHeatMapStats(unitValues),
@@ -258,22 +262,13 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                             backgroundColor: backendFormatting.background_color,
                                         };
                                         hasFormatting = true;
-                                    } else if (column.key === 'avg_per_unit' && heatMapStats.avg_per_unit) {
-                                        // Apply heat map coloring for $/Unit
-                                        cellStyle = getHeatMapStyle(
-                                            value,
-                                            heatMapStats.avg_per_unit.average,
-                                            heatMapStats.avg_per_unit.stdDev
-                                        );
-                                        hasFormatting = Object.keys(cellStyle).length > 0;
-                                    } else if (column.key === 'avg_per_sqft' && heatMapStats.avg_per_sqft) {
-                                        // Apply heat map coloring for $/Sq Ft
-                                        cellStyle = getHeatMapStyle(
-                                            value,
-                                            heatMapStats.avg_per_sqft.average,
-                                            heatMapStats.avg_per_sqft.stdDev
-                                        );
-                                        hasFormatting = Object.keys(cellStyle).length > 0;
+                                    } else if (['avg_per_unit', 'avg_per_sqft'].includes(column.key)) {
+                                        // Apply heat map coloring for $/Unit and $/Sq Ft columns
+                                        const stats = heatMapStats[column.key];
+                                        if (stats?.average !== null && stats?.stdDev !== null) {
+                                            cellStyle = getHeatMapStyle(value, stats.average, stats.stdDev);
+                                            hasFormatting = Object.keys(cellStyle).length > 0;
+                                        }
                                     }
 
                                     return (
