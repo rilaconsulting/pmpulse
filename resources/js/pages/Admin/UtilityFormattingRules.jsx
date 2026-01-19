@@ -7,7 +7,6 @@ import {
     TrashIcon,
     XMarkIcon,
     CheckIcon,
-    SwatchIcon,
 } from '@heroicons/react/24/outline';
 
 const UtilityTypeColors = {
@@ -20,6 +19,14 @@ const UtilityTypeColors = {
 };
 
 function ColorPicker({ value, onChange, label }) {
+    const handleTextChange = (e) => {
+        const newValue = e.target.value;
+        // Allow typing and validate on the fly
+        if (newValue === '' || /^#[0-9A-Fa-f]{0,6}$/.test(newValue)) {
+            onChange(newValue);
+        }
+    };
+
     return (
         <div className="flex items-center gap-2">
             <input
@@ -28,13 +35,15 @@ function ColorPicker({ value, onChange, label }) {
                 onChange={(e) => onChange(e.target.value)}
                 className="w-8 h-8 p-0 border border-gray-300 rounded cursor-pointer"
                 title={label}
+                aria-label={label}
             />
             <input
                 type="text"
                 value={value || ''}
-                onChange={(e) => onChange(e.target.value)}
+                onChange={handleTextChange}
                 placeholder="#000000"
                 className="input w-24 text-xs font-mono"
+                pattern="^#[0-9A-Fa-f]{6}$"
             />
         </div>
     );
@@ -132,7 +141,7 @@ function AddRuleForm({ utilityType, operators, onCancel }) {
                 <input
                     type="number"
                     value={data.priority}
-                    onChange={(e) => setData('priority', parseInt(e.target.value) || 0)}
+                    onChange={(e) => setData('priority', e.target.value)}
                     min="0"
                     max="100"
                     className="input w-16 text-sm text-center"
@@ -259,7 +268,7 @@ function EditRuleRow({ rule, operators, onCancel }) {
                 <input
                     type="number"
                     value={data.priority}
-                    onChange={(e) => setData('priority', parseInt(e.target.value) || 0)}
+                    onChange={(e) => setData('priority', e.target.value)}
                     min="0"
                     max="100"
                     className="input w-16 text-sm text-center"
@@ -356,6 +365,7 @@ function RuleRow({ rule, operators, onEdit, onDelete }) {
                         onClick={() => onEdit(rule)}
                         className="text-blue-600 hover:text-blue-900"
                         title="Edit"
+                        aria-label={`Edit rule ${rule.name}`}
                     >
                         <PencilIcon className="w-4 h-4" />
                     </button>
@@ -364,6 +374,7 @@ function RuleRow({ rule, operators, onEdit, onDelete }) {
                         onClick={() => onDelete(rule)}
                         className="text-red-600 hover:text-red-900"
                         title="Delete"
+                        aria-label={`Delete rule ${rule.name}`}
                     >
                         <TrashIcon className="w-4 h-4" />
                     </button>
@@ -490,7 +501,7 @@ export default function UtilityFormattingRules({ rules, rulesByType, utilityType
                 <div>
                     <h2 className="text-lg font-medium text-gray-900">Conditional Formatting Rules</h2>
                     <p className="mt-1 text-sm text-gray-500">
-                        Configure color-coded alerts for utility costs that exceed or fall below the 12-month average.
+                        Configure color-coded alerts for utility costs that exceed or fall below the 12 month average.
                     </p>
                 </div>
 
@@ -516,7 +527,7 @@ export default function UtilityFormattingRules({ rules, rulesByType, utilityType
                     <div className="card-body">
                         <h3 className="text-sm font-medium text-gray-900 mb-2">How Formatting Rules Work</h3>
                         <ul className="text-sm text-gray-600 space-y-2 list-disc list-inside">
-                            <li>Rules compare current period costs against the 12-month average</li>
+                            <li>Rules compare current period costs against the 12 month average</li>
                             <li><strong>Increase %</strong>: Highlights when costs are above average by the threshold percentage</li>
                             <li><strong>Decrease %</strong>: Highlights when costs are below average by the threshold percentage</li>
                             <li>Higher priority rules are evaluated first; the first matching rule is applied</li>
@@ -525,7 +536,7 @@ export default function UtilityFormattingRules({ rules, rulesByType, utilityType
                         </ul>
                         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                             <p className="text-xs text-gray-500">
-                                <strong>Example:</strong> A rule with "Increase % over average" at 20% threshold will highlight cells where the current value is 20% or more above the 12-month average.
+                                <strong>Example:</strong> A rule with "Increase % over average" at 20% threshold will highlight cells where the current value is 20% or more above the 12 month average.
                             </p>
                         </div>
                     </div>
