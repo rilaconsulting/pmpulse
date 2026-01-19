@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Link } from '@inertiajs/react';
 import { ArrowDownTrayIcon, ChevronUpIcon, ChevronDownIcon, ChatBubbleLeftIcon, PlusIcon } from '@heroicons/react/24/outline';
 import ColumnVisibilityDropdown from './ColumnVisibilityDropdown';
@@ -111,34 +111,40 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
         }));
     };
 
-    // Note modal handlers
-    const openNoteModal = (property) => {
+    // Note modal handlers (memoized to prevent unnecessary re-renders)
+    const openNoteModal = useCallback((property) => {
         setSelectedProperty(property);
         setNoteModalOpen(true);
-    };
+    }, []);
 
-    const closeNoteModal = () => {
+    const closeNoteModal = useCallback(() => {
         setNoteModalOpen(false);
         setSelectedProperty(null);
-    };
+    }, []);
 
-    const handleNoteSave = (savedNote) => {
-        if (selectedProperty) {
-            setLocalNotes((prev) => ({
-                ...prev,
-                [selectedProperty.property_id]: savedNote,
-            }));
-        }
-    };
+    const handleNoteSave = useCallback((savedNote) => {
+        setSelectedProperty((currentProperty) => {
+            if (currentProperty) {
+                setLocalNotes((prev) => ({
+                    ...prev,
+                    [currentProperty.property_id]: savedNote,
+                }));
+            }
+            return currentProperty;
+        });
+    }, []);
 
-    const handleNoteDelete = () => {
-        if (selectedProperty) {
-            setLocalNotes((prev) => ({
-                ...prev,
-                [selectedProperty.property_id]: null,
-            }));
-        }
-    };
+    const handleNoteDelete = useCallback(() => {
+        setSelectedProperty((currentProperty) => {
+            if (currentProperty) {
+                setLocalNotes((prev) => ({
+                    ...prev,
+                    [currentProperty.property_id]: null,
+                }));
+            }
+            return currentProperty;
+        });
+    }, []);
 
     // Get the effective note for a property (local updates take precedence)
     const getPropertyNote = (property) => {

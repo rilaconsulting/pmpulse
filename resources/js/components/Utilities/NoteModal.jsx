@@ -32,12 +32,13 @@ export default function NoteModal({
 
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
+                if (isSaving || isDeleting) return;
                 onClose();
             }
         };
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, onClose]);
+    }, [isOpen, onClose, isSaving, isDeleting]);
 
     const handleSave = async () => {
         if (!note.trim()) {
@@ -110,7 +111,7 @@ export default function NoteModal({
                 <div
                     className="fixed inset-0 bg-gray-500/75 transition-opacity"
                     aria-hidden="true"
-                    onClick={onClose}
+                    onClick={() => !isProcessing && onClose()}
                 />
 
                 {/* Center modal */}
