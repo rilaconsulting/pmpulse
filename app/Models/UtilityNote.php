@@ -16,7 +16,7 @@ class UtilityNote extends Model
 
     protected $fillable = [
         'property_id',
-        'utility_type',
+        'utility_type_id',
         'note',
         'created_by',
     ];
@@ -38,13 +38,19 @@ class UtilityNote extends Model
     }
 
     /**
+     * Get the utility type for this note.
+     */
+    public function utilityType(): BelongsTo
+    {
+        return $this->belongsTo(UtilityType::class);
+    }
+
+    /**
      * Get the utility type label.
      */
     public function getUtilityTypeLabelAttribute(): string
     {
-        $types = UtilityAccount::getUtilityTypeOptions();
-
-        return $types[$this->utility_type] ?? ucfirst($this->utility_type);
+        return $this->utilityType?->label ?? 'Unknown';
     }
 
     /**
@@ -56,10 +62,18 @@ class UtilityNote extends Model
     }
 
     /**
-     * Scope to filter by utility type.
+     * Scope to filter by utility type ID.
      */
-    public function scopeOfType(Builder $query, string $utilityType): Builder
+    public function scopeOfType(Builder $query, string $utilityTypeId): Builder
     {
-        return $query->where('utility_type', $utilityType);
+        return $query->where('utility_type_id', $utilityTypeId);
+    }
+
+    /**
+     * Scope to filter by utility type key.
+     */
+    public function scopeOfTypeKey(Builder $query, string $typeKey): Builder
+    {
+        return $query->whereHas('utilityType', fn ($q) => $q->where('key', $typeKey));
     }
 }

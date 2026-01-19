@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Models\PropertyUtilityExclusion;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\UtilityType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,6 +19,12 @@ class PropertyUtilityExclusionTest extends TestCase
     private Property $property;
 
     private User $user;
+
+    private UtilityType $electricType;
+
+    private UtilityType $waterType;
+
+    private UtilityType $gasType;
 
     protected function setUp(): void
     {
@@ -31,13 +38,18 @@ class PropertyUtilityExclusionTest extends TestCase
 
         $role = Role::create(['name' => 'admin']);
         $this->user = User::factory()->create(['role_id' => $role->id]);
+
+        // Get the seeded utility types
+        $this->electricType = UtilityType::findByKey('electric');
+        $this->waterType = UtilityType::findByKey('water');
+        $this->gasType = UtilityType::findByKey('gas');
     }
 
     public function test_can_create_property_utility_exclusion(): void
     {
         $exclusion = PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'reason' => 'Tenant pays electric',
             'created_by' => $this->user->id,
         ]);
@@ -45,7 +57,7 @@ class PropertyUtilityExclusionTest extends TestCase
         $this->assertDatabaseHas('property_utility_exclusions', [
             'id' => $exclusion->id,
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
     }
 
@@ -53,7 +65,7 @@ class PropertyUtilityExclusionTest extends TestCase
     {
         $exclusion = PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
         ]);
 
         $this->assertEquals($this->property->id, $exclusion->property->id);
@@ -63,7 +75,7 @@ class PropertyUtilityExclusionTest extends TestCase
     {
         $exclusion = PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'gas',
+            'utility_type_id' => $this->gasType->id,
             'created_by' => $this->user->id,
         ]);
 
@@ -74,7 +86,7 @@ class PropertyUtilityExclusionTest extends TestCase
     {
         $exclusion = PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'gas',
+            'utility_type_id' => $this->gasType->id,
             'created_by' => null,
         ]);
 
@@ -85,40 +97,60 @@ class PropertyUtilityExclusionTest extends TestCase
     {
         $exclusion = PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
 
         $this->assertEquals('Electric', $exclusion->utility_type_label);
     }
 
-    public function test_utility_type_label_attribute_returns_ucfirst_for_unknown_type(): void
+    public function test_utility_type_relationship_returns_utility_type(): void
     {
         $exclusion = PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'custom_utility',
+            'utility_type_id' => $this->electricType->id,
         ]);
 
-        $this->assertEquals('Custom_utility', $exclusion->utility_type_label);
+        $this->assertInstanceOf(UtilityType::class, $exclusion->utilityType);
+        $this->assertEquals($this->electricType->id, $exclusion->utilityType->id);
+        $this->assertEquals('electric', $exclusion->utilityType->key);
     }
 
-    public function test_scope_of_type_filters_by_utility_type(): void
+    public function test_scope_of_type_filters_by_utility_type_id(): void
     {
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
         ]);
 
-        $electricExclusions = PropertyUtilityExclusion::ofType('electric')->get();
-        $waterExclusions = PropertyUtilityExclusion::ofType('water')->get();
+        $electricExclusions = PropertyUtilityExclusion::ofType($this->electricType->id)->get();
+        $waterExclusions = PropertyUtilityExclusion::ofType($this->waterType->id)->get();
 
         $this->assertCount(1, $electricExclusions);
         $this->assertCount(1, $waterExclusions);
-        $this->assertEquals('electric', $electricExclusions->first()->utility_type);
-        $this->assertEquals('water', $waterExclusions->first()->utility_type);
+        $this->assertEquals($this->electricType->id, $electricExclusions->first()->utility_type_id);
+        $this->assertEquals($this->waterType->id, $waterExclusions->first()->utility_type_id);
+    }
+
+    public function test_scope_of_type_key_filters_by_utility_type_key(): void
+    {
+        PropertyUtilityExclusion::create([
+            'property_id' => $this->property->id,
+            'utility_type_id' => $this->electricType->id,
+        ]);
+        PropertyUtilityExclusion::create([
+            'property_id' => $this->property->id,
+            'utility_type_id' => $this->waterType->id,
+        ]);
+
+        $electricExclusions = PropertyUtilityExclusion::ofTypeKey('electric')->get();
+        $waterExclusions = PropertyUtilityExclusion::ofTypeKey('water')->get();
+
+        $this->assertCount(1, $electricExclusions);
+        $this->assertCount(1, $waterExclusions);
     }
 
     public function test_scope_for_property_filters_by_property_id(): void
@@ -131,11 +163,11 @@ class PropertyUtilityExclusionTest extends TestCase
 
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
         PropertyUtilityExclusion::create([
             'property_id' => $property2->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
         ]);
 
         $property1Exclusions = PropertyUtilityExclusion::forProperty($this->property->id)->get();
@@ -162,20 +194,20 @@ class PropertyUtilityExclusionTest extends TestCase
 
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
         PropertyUtilityExclusion::create([
             'property_id' => $property2->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
         PropertyUtilityExclusion::create([
             'property_id' => $property3->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
         ]);
 
-        $electricExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds('electric');
-        $waterExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds('water');
-        $gasExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds('gas');
+        $electricExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds($this->electricType->id);
+        $waterExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds($this->waterType->id);
+        $gasExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds($this->gasType->id);
 
         $this->assertCount(2, $electricExcludedIds);
         $this->assertContains($this->property->id, $electricExcludedIds);
@@ -187,15 +219,28 @@ class PropertyUtilityExclusionTest extends TestCase
         $this->assertEmpty($gasExcludedIds);
     }
 
+    public function test_get_excluded_property_ids_by_type_key(): void
+    {
+        PropertyUtilityExclusion::create([
+            'property_id' => $this->property->id,
+            'utility_type_id' => $this->electricType->id,
+        ]);
+
+        $excludedIds = PropertyUtilityExclusion::getExcludedPropertyIdsByTypeKey('electric');
+
+        $this->assertCount(1, $excludedIds);
+        $this->assertContains($this->property->id, $excludedIds);
+    }
+
     public function test_is_property_excluded_returns_true_when_excluded(): void
     {
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
 
         $this->assertTrue(
-            PropertyUtilityExclusion::isPropertyExcluded($this->property->id, 'electric')
+            PropertyUtilityExclusion::isPropertyExcluded($this->property->id, $this->electricType->id)
         );
     }
 
@@ -203,11 +248,26 @@ class PropertyUtilityExclusionTest extends TestCase
     {
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
 
         $this->assertFalse(
-            PropertyUtilityExclusion::isPropertyExcluded($this->property->id, 'water')
+            PropertyUtilityExclusion::isPropertyExcluded($this->property->id, $this->waterType->id)
+        );
+    }
+
+    public function test_is_property_excluded_by_type_key(): void
+    {
+        PropertyUtilityExclusion::create([
+            'property_id' => $this->property->id,
+            'utility_type_id' => $this->electricType->id,
+        ]);
+
+        $this->assertTrue(
+            PropertyUtilityExclusion::isPropertyExcludedByTypeKey($this->property->id, 'electric')
+        );
+        $this->assertFalse(
+            PropertyUtilityExclusion::isPropertyExcludedByTypeKey($this->property->id, 'water')
         );
     }
 
@@ -221,11 +281,11 @@ class PropertyUtilityExclusionTest extends TestCase
 
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
 
         $this->assertFalse(
-            PropertyUtilityExclusion::isPropertyExcluded($property2->id, 'electric')
+            PropertyUtilityExclusion::isPropertyExcluded($property2->id, $this->electricType->id)
         );
     }
 
@@ -233,7 +293,7 @@ class PropertyUtilityExclusionTest extends TestCase
     {
         $exclusion = PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
 
         $exclusionId = $exclusion->id;
@@ -246,7 +306,7 @@ class PropertyUtilityExclusionTest extends TestCase
     {
         $exclusion = PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'created_by' => $this->user->id,
         ]);
 
@@ -262,16 +322,17 @@ class PropertyUtilityExclusionTest extends TestCase
 
         $this->assertNotNull($exclusion->id);
         $this->assertNotNull($exclusion->property_id);
-        $this->assertNotNull($exclusion->utility_type);
+        $this->assertNotNull($exclusion->utility_type_id);
     }
 
     public function test_factory_for_utility_type_creates_with_specific_type(): void
     {
+        $sewerType = UtilityType::findByKey('sewer');
         $exclusion = PropertyUtilityExclusion::factory()
-            ->forUtilityType('sewer')
+            ->forUtilityType($sewerType)
             ->create();
 
-        $this->assertEquals('sewer', $exclusion->utility_type);
+        $this->assertEquals($sewerType->id, $exclusion->utility_type_id);
     }
 
     public function test_factory_for_property_creates_with_specific_property(): void
@@ -302,23 +363,23 @@ class PropertyUtilityExclusionTest extends TestCase
 
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
         ]);
         PropertyUtilityExclusion::create([
             'property_id' => $property2->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
         ]);
 
         $results = PropertyUtilityExclusion::forProperty($this->property->id)
-            ->ofType('electric')
+            ->ofType($this->electricType->id)
             ->get();
 
         $this->assertCount(1, $results);
         $this->assertEquals($this->property->id, $results->first()->property_id);
-        $this->assertEquals('electric', $results->first()->utility_type);
+        $this->assertEquals($this->electricType->id, $results->first()->utility_type_id);
     }
 }

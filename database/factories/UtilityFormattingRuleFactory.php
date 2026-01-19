@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Models\User;
-use App\Models\UtilityAccount;
 use App\Models\UtilityFormattingRule;
+use App\Models\UtilityType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -23,11 +23,10 @@ class UtilityFormattingRuleFactory extends Factory
      */
     public function definition(): array
     {
-        $utilityTypes = array_keys(UtilityAccount::DEFAULT_UTILITY_TYPES);
         $operators = array_keys(UtilityFormattingRule::OPERATORS);
 
         return [
-            'utility_type' => $this->faker->randomElement($utilityTypes),
+            'utility_type_id' => UtilityType::factory(),
             'name' => $this->faker->words(3, true),
             'operator' => $this->faker->randomElement($operators),
             'threshold' => $this->faker->randomFloat(2, 5, 50),
@@ -46,6 +45,16 @@ class UtilityFormattingRuleFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'enabled' => false,
+        ]);
+    }
+
+    /**
+     * Set a specific utility type.
+     */
+    public function forUtilityType(UtilityType $utilityType): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'utility_type_id' => $utilityType->id,
         ]);
     }
 
@@ -76,9 +85,13 @@ class UtilityFormattingRuleFactory extends Factory
      */
     public function water(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'utility_type' => 'water',
-        ]);
+        return $this->state(function (array $attributes) {
+            $waterType = UtilityType::findByKey('water') ?? UtilityType::factory()->water()->create();
+
+            return [
+                'utility_type_id' => $waterType->id,
+            ];
+        });
     }
 
     /**
@@ -86,9 +99,13 @@ class UtilityFormattingRuleFactory extends Factory
      */
     public function electric(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'utility_type' => 'electric',
-        ]);
+        return $this->state(function (array $attributes) {
+            $electricType = UtilityType::findByKey('electric') ?? UtilityType::factory()->electric()->create();
+
+            return [
+                'utility_type_id' => $electricType->id,
+            ];
+        });
     }
 
     /**

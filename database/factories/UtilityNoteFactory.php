@@ -6,8 +6,8 @@ namespace Database\Factories;
 
 use App\Models\Property;
 use App\Models\User;
-use App\Models\UtilityAccount;
 use App\Models\UtilityNote;
+use App\Models\UtilityType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -24,14 +24,22 @@ class UtilityNoteFactory extends Factory
      */
     public function definition(): array
     {
-        $utilityTypes = array_keys(UtilityAccount::DEFAULT_UTILITY_TYPES);
-
         return [
             'property_id' => Property::factory(),
-            'utility_type' => $this->faker->randomElement($utilityTypes),
+            'utility_type_id' => UtilityType::factory(),
             'note' => $this->faker->paragraph(),
             'created_by' => User::factory(),
         ];
+    }
+
+    /**
+     * Set a specific utility type.
+     */
+    public function forUtilityType(UtilityType $utilityType): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'utility_type_id' => $utilityType->id,
+        ]);
     }
 
     /**
@@ -39,9 +47,13 @@ class UtilityNoteFactory extends Factory
      */
     public function water(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'utility_type' => 'water',
-        ]);
+        return $this->state(function (array $attributes) {
+            $waterType = UtilityType::findByKey('water') ?? UtilityType::factory()->water()->create();
+
+            return [
+                'utility_type_id' => $waterType->id,
+            ];
+        });
     }
 
     /**
@@ -49,8 +61,12 @@ class UtilityNoteFactory extends Factory
      */
     public function electric(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'utility_type' => 'electric',
-        ]);
+        return $this->state(function (array $attributes) {
+            $electricType = UtilityType::findByKey('electric') ?? UtilityType::factory()->electric()->create();
+
+            return [
+                'utility_type_id' => $electricType->id,
+            ];
+        });
     }
 }

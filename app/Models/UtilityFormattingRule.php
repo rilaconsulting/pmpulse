@@ -15,7 +15,7 @@ class UtilityFormattingRule extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
-        'utility_type',
+        'utility_type_id',
         'name',
         'operator',
         'threshold',
@@ -49,6 +49,14 @@ class UtilityFormattingRule extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the utility type for this rule.
+     */
+    public function utilityType(): BelongsTo
+    {
+        return $this->belongsTo(UtilityType::class);
     }
 
     /**
@@ -90,11 +98,19 @@ class UtilityFormattingRule extends Model
     }
 
     /**
-     * Scope to filter by utility type.
+     * Scope to filter by utility type ID.
      */
-    public function scopeForUtilityType(Builder $query, string $utilityType): Builder
+    public function scopeForUtilityType(Builder $query, string $utilityTypeId): Builder
     {
-        return $query->where('utility_type', $utilityType);
+        return $query->where('utility_type_id', $utilityTypeId);
+    }
+
+    /**
+     * Scope to filter by utility type key.
+     */
+    public function scopeForUtilityTypeKey(Builder $query, string $typeKey): Builder
+    {
+        return $query->whereHas('utilityType', fn ($q) => $q->where('key', $typeKey));
     }
 
     /**

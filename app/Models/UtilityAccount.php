@@ -35,7 +35,7 @@ class UtilityAccount extends Model
     protected $fillable = [
         'gl_account_number',
         'gl_account_name',
-        'utility_type',
+        'utility_type_id',
         'is_active',
         'created_by',
     ];
@@ -56,6 +56,14 @@ class UtilityAccount extends Model
     }
 
     /**
+     * Get the utility type for this account.
+     */
+    public function utilityType(): BelongsTo
+    {
+        return $this->belongsTo(UtilityType::class);
+    }
+
+    /**
      * Get the utility expenses linked to this account.
      */
     public function utilityExpenses(): HasMany
@@ -68,9 +76,7 @@ class UtilityAccount extends Model
      */
     public function getUtilityTypeLabelAttribute(): string
     {
-        $types = self::getUtilityTypeOptions();
-
-        return $types[$this->utility_type] ?? ucfirst($this->utility_type);
+        return $this->utilityType?->label ?? 'Unknown';
     }
 
     /**
@@ -82,11 +88,19 @@ class UtilityAccount extends Model
     }
 
     /**
-     * Scope to filter by utility type.
+     * Scope to filter by utility type ID.
      */
-    public function scopeOfType(Builder $query, string $type): Builder
+    public function scopeOfType(Builder $query, string $utilityTypeId): Builder
     {
-        return $query->where('utility_type', $type);
+        return $query->where('utility_type_id', $utilityTypeId);
+    }
+
+    /**
+     * Scope to filter by utility type key.
+     */
+    public function scopeOfTypeKey(Builder $query, string $typeKey): Builder
+    {
+        return $query->whereHas('utilityType', fn ($q) => $q->where('key', $typeKey));
     }
 
     /**

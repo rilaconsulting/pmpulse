@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Models\UtilityAccount;
+use App\Models\UtilityType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -21,12 +22,10 @@ class UtilityAccountFactory extends Factory
      */
     public function definition(): array
     {
-        $utilityTypes = array_keys(UtilityAccount::DEFAULT_UTILITY_TYPES);
-
         return [
             'gl_account_number' => $this->faker->unique()->numerify('6###'),
             'gl_account_name' => $this->faker->words(3, true),
-            'utility_type' => $this->faker->randomElement($utilityTypes),
+            'utility_type_id' => UtilityType::factory(),
             'is_active' => true,
             'created_by' => null,
         ];
@@ -43,14 +42,28 @@ class UtilityAccountFactory extends Factory
     }
 
     /**
+     * Set a specific utility type by ID.
+     */
+    public function forUtilityType(UtilityType $utilityType): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'utility_type_id' => $utilityType->id,
+        ]);
+    }
+
+    /**
      * Create a water utility account.
      */
     public function water(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'utility_type' => 'water',
-            'gl_account_name' => 'Water Expense',
-        ]);
+        return $this->state(function (array $attributes) {
+            $waterType = UtilityType::findByKey('water') ?? UtilityType::factory()->water()->create();
+
+            return [
+                'utility_type_id' => $waterType->id,
+                'gl_account_name' => 'Water Expense',
+            ];
+        });
     }
 
     /**
@@ -58,10 +71,14 @@ class UtilityAccountFactory extends Factory
      */
     public function electric(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'utility_type' => 'electric',
-            'gl_account_name' => 'Electric Expense',
-        ]);
+        return $this->state(function (array $attributes) {
+            $electricType = UtilityType::findByKey('electric') ?? UtilityType::factory()->electric()->create();
+
+            return [
+                'utility_type_id' => $electricType->id,
+                'gl_account_name' => 'Electric Expense',
+            ];
+        });
     }
 
     /**
@@ -69,10 +86,14 @@ class UtilityAccountFactory extends Factory
      */
     public function gas(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'utility_type' => 'gas',
-            'gl_account_name' => 'Gas Expense',
-        ]);
+        return $this->state(function (array $attributes) {
+            $gasType = UtilityType::findByKey('gas') ?? UtilityType::factory()->gas()->create();
+
+            return [
+                'utility_type_id' => $gasType->id,
+                'gl_account_name' => 'Gas Expense',
+            ];
+        });
     }
 
     /**
@@ -80,10 +101,14 @@ class UtilityAccountFactory extends Factory
      */
     public function garbage(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'utility_type' => 'garbage',
-            'gl_account_name' => 'Garbage Expense',
-        ]);
+        return $this->state(function (array $attributes) {
+            $garbageType = UtilityType::findByKey('garbage') ?? UtilityType::factory()->garbage()->create();
+
+            return [
+                'utility_type_id' => $garbageType->id,
+                'gl_account_name' => 'Garbage Expense',
+            ];
+        });
     }
 
     /**
@@ -91,9 +116,13 @@ class UtilityAccountFactory extends Factory
      */
     public function sewer(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'utility_type' => 'sewer',
-            'gl_account_name' => 'Sewer Expense',
-        ]);
+        return $this->state(function (array $attributes) {
+            $sewerType = UtilityType::findByKey('sewer') ?? UtilityType::factory()->sewer()->create();
+
+            return [
+                'utility_type_id' => $sewerType->id,
+                'gl_account_name' => 'Sewer Expense',
+            ];
+        });
     }
 }
