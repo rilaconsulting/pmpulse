@@ -38,15 +38,22 @@ class UtilityDataRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'period' => ['nullable', 'string', Rule::in(self::VALID_PERIODS)],
             // utility_type is validated as string only; controller handles fallback for invalid types
             'utility_type' => ['nullable', 'string', 'max:50'],
             'unit_count_min' => ['nullable', 'integer', 'min:0'],
-            'unit_count_max' => ['nullable', 'integer', 'min:0', 'gte:unit_count_min'],
+            'unit_count_max' => ['nullable', 'integer', 'min:0'],
             'property_types' => ['nullable', 'array'],
             'property_types.*' => ['string', 'max:50'],
         ];
+
+        // Only apply gte validation when unit_count_min is provided
+        if ($this->filled('unit_count_min')) {
+            $rules['unit_count_max'][] = 'gte:unit_count_min';
+        }
+
+        return $rules;
     }
 
     /**
