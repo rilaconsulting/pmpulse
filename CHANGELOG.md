@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Heat map coloring for $/Unit and $/Sq Ft columns to highlight cost outliers (green = below average, red = above average)
 - Notes feature for utility data table allowing users to add comments per property and utility type
 - Conditional formatting rules admin page to color-code utility costs based on comparison to 12-month average
+- Configurable icons and color schemes for utility types in admin settings
 
 ---
 
