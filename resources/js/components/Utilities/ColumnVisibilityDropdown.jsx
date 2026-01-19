@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ViewColumnsIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 
-export default function ColumnVisibilityDropdown({ columns, visibleColumns, onChange }) {
+export default function ColumnVisibilityDropdown({ columns, visibleColumns, onChange, onBatchChange }) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -48,6 +48,8 @@ export default function ColumnVisibilityDropdown({ columns, visibleColumns, onCh
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className="btn-secondary text-sm flex items-center"
+                aria-expanded={isOpen}
+                aria-haspopup="listbox"
             >
                 <ViewColumnsIcon className="w-4 h-4 mr-1.5" />
                 Columns
@@ -99,12 +101,21 @@ export default function ColumnVisibilityDropdown({ columns, visibleColumns, onCh
                         <button
                             type="button"
                             onClick={() => {
-                                // Reset all columns to visible
-                                columns.forEach((column) => {
-                                    if (!column.alwaysVisible) {
-                                        onChange(column.key, true);
-                                    }
-                                });
+                                if (onBatchChange) {
+                                    // Use batch update if available
+                                    const updates = {};
+                                    columns.forEach((column) => {
+                                        updates[column.key] = true;
+                                    });
+                                    onBatchChange(updates);
+                                } else {
+                                    // Fallback to individual updates
+                                    columns.forEach((column) => {
+                                        if (!column.alwaysVisible) {
+                                            onChange(column.key, true);
+                                        }
+                                    });
+                                }
                             }}
                             className="text-xs text-blue-600 hover:text-blue-800"
                         >

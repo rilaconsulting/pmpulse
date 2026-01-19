@@ -8,18 +8,17 @@ import { UtilityIcons, UtilityColors, formatCurrency } from './constants';
 const COLUMNS = [
     { key: 'property_name', label: 'Property', alwaysVisible: true, sortable: true, align: 'left' },
     { key: 'property_type', label: 'Type', sortable: true, align: 'left' },
-    { key: 'unit_count', label: 'Units', sortable: true, align: 'right' },
-    { key: 'total_sqft', label: 'Sq Ft', sortable: true, align: 'right' },
+    { key: 'unit_count', label: 'Units', sortable: true, align: 'right', format: 'number' },
+    { key: 'total_sqft', label: 'Sq Ft', sortable: true, align: 'right', format: 'number' },
     { key: 'current_month', label: 'Current Mo', sortable: true, align: 'right', format: 'currency' },
     { key: 'prev_month', label: 'Prev Mo', sortable: true, align: 'right', format: 'currency' },
     { key: 'prev_3_months', label: '3 Mo Avg', sortable: true, align: 'right', format: 'currency' },
     { key: 'prev_12_months', label: '12 Mo Avg', sortable: true, align: 'right', format: 'currency' },
     { key: 'avg_per_unit', label: '$/Unit', sortable: true, align: 'right', format: 'currency_decimal' },
     { key: 'avg_per_sqft', label: '$/Sq Ft', sortable: true, align: 'right', format: 'currency_sqft' },
-    { key: 'note', label: 'Notes', sortable: false, align: 'left' },
 ];
 
-export default function UtilityDataTable({ data, utilityTypes = {}, selectedType, heatMapStats, onNoteClick }) {
+export default function UtilityDataTable({ data, utilityTypes = {}, selectedType }) {
     const [sortField, setSortField] = useState('property_name');
     const [sortDirection, setSortDirection] = useState('asc');
     const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -48,11 +47,11 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
             let aVal, bVal;
 
             if (sortField === 'property_name') {
-                aVal = (a.property_name || '').toLowerCase();
-                bVal = (b.property_name || '').toLowerCase();
+                aVal = (a.property_name ?? '').toLowerCase();
+                bVal = (b.property_name ?? '').toLowerCase();
             } else if (sortField === 'property_type') {
-                aVal = (a.property_type || '').toLowerCase();
-                bVal = (b.property_type || '').toLowerCase();
+                aVal = (a.property_type ?? '').toLowerCase();
+                bVal = (b.property_type ?? '').toLowerCase();
             } else {
                 aVal = a[sortField] ?? -Infinity;
                 bVal = b[sortField] ?? -Infinity;
@@ -77,6 +76,13 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
         setVisibleColumns((prev) => ({
             ...prev,
             [columnKey]: isVisible,
+        }));
+    };
+
+    const handleBatchColumnVisibilityChange = (updates) => {
+        setVisibleColumns((prev) => ({
+            ...prev,
+            ...updates,
         }));
     };
 
@@ -116,9 +122,6 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
         const rows = sortedProperties.map((p) =>
             activeColumns.map((col) => {
                 const value = p[col.key];
-                if (col.key === 'note') {
-                    return p.note?.note || '';
-                }
                 return value ?? '';
             })
         );
@@ -132,7 +135,13 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `utility-data-${selectedType}-${new Date().toISOString().split('T')[0]}.csv`;
+
+        const safeSelectedType = String(selectedType ?? 'unknown')
+            .toLowerCase()
+            .replace(/[^a-z0-9-_]+/g, '-')
+            .replace(/^-+|-+$/g, '') || 'unknown';
+        link.download = `utility-data-${safeSelectedType}-${new Date().toISOString().split('T')[0]}.csv`;
+
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -178,6 +187,7 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                         columns={COLUMNS}
                         visibleColumns={visibleColumns}
                         onChange={handleColumnVisibilityChange}
+                        onBatchChange={handleBatchColumnVisibilityChange}
                     />
                     <button onClick={exportToCsv} className="btn-secondary text-sm">
                         <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
@@ -245,23 +255,6 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                                 >
                                                     {value}
                                                 </Link>
-                                            ) : column.key === 'note' ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => onNoteClick?.(property)}
-                                                    className={`text-left max-w-[200px] truncate ${
-                                                        property.note?.note
-                                                            ? 'text-gray-700'
-                                                            : 'text-gray-400 hover:text-blue-600'
-                                                    }`}
-                                                    title={property.note?.note || 'Add note'}
-                                                >
-                                                    {property.note?.note || '+ Add note'}
-                                                </button>
-                                            ) : column.key === 'unit_count' || column.key === 'total_sqft' ? (
-                                                <span className="text-gray-500">
-                                                    {value ? new Intl.NumberFormat('en-US').format(value) : '-'}
-                                                </span>
                                             ) : column.key === 'property_type' ? (
                                                 <span className="text-gray-500">{value || '-'}</span>
                                             ) : (

@@ -15,6 +15,13 @@ export default function UtilityFiltersBar({
     const [propertyTypeDropdownOpen, setPropertyTypeDropdownOpen] = useState(false);
     const propertyTypeRef = useRef(null);
 
+    // Sync local state when filters prop changes
+    useEffect(() => {
+        setUnitCountMin(filters?.unit_count_min ?? '');
+        setUnitCountMax(filters?.unit_count_max ?? '');
+        setSelectedPropertyTypes(filters?.property_types ?? []);
+    }, [filters]);
+
     // Close property type dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -32,6 +39,23 @@ export default function UtilityFiltersBar({
         };
     }, [propertyTypeDropdownOpen]);
 
+    // Close property type dropdown on Escape key
+    useEffect(() => {
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                setPropertyTypeDropdownOpen(false);
+            }
+        };
+
+        if (propertyTypeDropdownOpen) {
+            document.addEventListener('keydown', handleEscape);
+        }
+
+        return () => {
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [propertyTypeDropdownOpen]);
+
     // Calculate active filter count
     const activeFilterCount = [
         filters?.unit_count_min != null,
@@ -44,11 +68,13 @@ export default function UtilityFiltersBar({
             utility_type: selectedUtilityType,
         };
 
-        if (unitCountMin !== '' && unitCountMin != null) {
-            newFilters.unit_count_min = parseInt(unitCountMin, 10);
+        const parsedMin = Number(unitCountMin);
+        if (unitCountMin !== '' && unitCountMin != null && !Number.isNaN(parsedMin)) {
+            newFilters.unit_count_min = parsedMin;
         }
-        if (unitCountMax !== '' && unitCountMax != null) {
-            newFilters.unit_count_max = parseInt(unitCountMax, 10);
+        const parsedMax = Number(unitCountMax);
+        if (unitCountMax !== '' && unitCountMax != null && !Number.isNaN(parsedMax)) {
+            newFilters.unit_count_max = parsedMax;
         }
         if (selectedPropertyTypes.length > 0) {
             newFilters.property_types = selectedPropertyTypes;
@@ -66,12 +92,23 @@ export default function UtilityFiltersBar({
     };
 
     const handleUtilityTypeChange = (newType) => {
-        router.get(route('utilities.data'), {
+        const newFilters = {
             utility_type: newType,
-            unit_count_min: filters?.unit_count_min,
-            unit_count_max: filters?.unit_count_max,
-            property_types: filters?.property_types,
-        }, { preserveState: true });
+        };
+
+        const parsedMin = Number(unitCountMin);
+        if (unitCountMin !== '' && unitCountMin != null && !Number.isNaN(parsedMin)) {
+            newFilters.unit_count_min = parsedMin;
+        }
+        const parsedMax = Number(unitCountMax);
+        if (unitCountMax !== '' && unitCountMax != null && !Number.isNaN(parsedMax)) {
+            newFilters.unit_count_max = parsedMax;
+        }
+        if (selectedPropertyTypes.length > 0) {
+            newFilters.property_types = selectedPropertyTypes;
+        }
+
+        router.get(route('utilities.data'), newFilters, { preserveState: true });
     };
 
     const togglePropertyType = (type) => {
@@ -150,6 +187,8 @@ export default function UtilityFiltersBar({
                             type="button"
                             onClick={() => setPropertyTypeDropdownOpen(!propertyTypeDropdownOpen)}
                             className="input py-1.5 pr-8 text-sm text-left min-w-[160px] flex items-center justify-between"
+                            aria-expanded={propertyTypeDropdownOpen}
+                            aria-haspopup="listbox"
                         >
                             <span className={selectedPropertyTypes.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
                                 {selectedPropertyTypes.length > 0
