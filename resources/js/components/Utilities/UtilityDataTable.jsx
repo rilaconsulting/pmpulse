@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Link } from '@inertiajs/react';
-import { ArrowDownTrayIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ChevronUpIcon, ChevronDownIcon, ChatBubbleLeftIcon, PlusIcon } from '@heroicons/react/24/outline';
 import ColumnVisibilityDropdown from './ColumnVisibilityDropdown';
+import NoteModal from './NoteModal';
 import { UtilityIcons, UtilityColors, formatCurrency, getHeatMapStyle, calculateHeatMapStats } from './constants';
 
 // Column definitions
@@ -16,6 +17,7 @@ const COLUMNS = [
     { key: 'prev_12_months', label: '12 Mo Avg', sortable: true, align: 'right', format: 'currency' },
     { key: 'avg_per_unit', label: '$/Unit', sortable: true, align: 'right', format: 'currency_decimal' },
     { key: 'avg_per_sqft', label: '$/Sq Ft', sortable: true, align: 'right', format: 'currency_sqft' },
+    { key: 'note', label: 'Notes', sortable: false, align: 'left' },
 ];
 
 export default function UtilityDataTable({ data, utilityTypes = {}, selectedType }) {
@@ -29,6 +31,12 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
         });
         return initial;
     });
+
+    // Note modal state
+    const [noteModalOpen, setNoteModalOpen] = useState(false);
+    const [selectedProperty, setSelectedProperty] = useState(null);
+    // Local notes state to track updates without page reload
+    const [localNotes, setLocalNotes] = useState({});
 
     const Icon = UtilityIcons[selectedType];
     const colors = UtilityColors[selectedType] || UtilityColors.other;
@@ -101,6 +109,55 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
             ...prev,
             ...updates,
         }));
+    };
+
+    // Note modal handlers (memoized to prevent unnecessary re-renders)
+    const openNoteModal = useCallback((property) => {
+        setSelectedProperty(property);
+        setNoteModalOpen(true);
+    }, []);
+
+    const closeNoteModal = useCallback(() => {
+        setNoteModalOpen(false);
+        setSelectedProperty(null);
+    }, []);
+
+    const handleNoteSave = useCallback((savedNote) => {
+        setSelectedProperty((currentProperty) => {
+            if (currentProperty) {
+                setLocalNotes((prev) => ({
+                    ...prev,
+                    [currentProperty.property_id]: savedNote,
+                }));
+            }
+            return currentProperty;
+        });
+    }, []);
+
+    const handleNoteDelete = useCallback(() => {
+        setSelectedProperty((currentProperty) => {
+            if (currentProperty) {
+                setLocalNotes((prev) => ({
+                    ...prev,
+                    [currentProperty.property_id]: null,
+                }));
+            }
+            return currentProperty;
+        });
+    }, []);
+
+    // Get the effective note for a property (local updates take precedence)
+    const getPropertyNote = (property) => {
+        if (localNotes.hasOwnProperty(property.property_id)) {
+            return localNotes[property.property_id];
+        }
+        return property.note;
+    };
+
+    // Truncate note text for display
+    const truncateNote = (text, maxLength = 30) => {
+        if (!text || text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
     };
 
     const formatValue = (value, format) => {
@@ -271,6 +328,59 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                         }
                                     }
 
+                                    // Render cell content based on column type
+                                    const renderCellContent = () => {
+                                        if (column.key === 'property_name') {
+                                            return (
+                                                <Link
+                                                    href={route('utilities.show', property.property_id)}
+                                                    className="font-medium text-blue-600 hover:text-blue-800"
+                                                >
+                                                    {value}
+                                                </Link>
+                                            );
+                                        }
+
+                                        if (column.key === 'property_type') {
+                                            return <span className="text-gray-500">{value || '-'}</span>;
+                                        }
+
+                                        if (column.key === 'note') {
+                                            const note = getPropertyNote(property);
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openNoteModal(property)}
+                                                    className={`inline-flex items-center text-sm ${
+                                                        note
+                                                            ? 'text-gray-700 hover:text-gray-900'
+                                                            : 'text-gray-400 hover:text-gray-600'
+                                                    }`}
+                                                >
+                                                    {note ? (
+                                                        <>
+                                                            <ChatBubbleLeftIcon className="w-4 h-4 mr-1 flex-shrink-0" />
+                                                            <span className="truncate max-w-[150px]">
+                                                                {truncateNote(note.note)}
+                                                            </span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <PlusIcon className="w-4 h-4 mr-1" />
+                                                            <span>Add note</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            );
+                                        }
+
+                                        return (
+                                            <span className={hasFormatting ? '' : 'text-gray-900'}>
+                                                {formatValue(value, column.format)}
+                                            </span>
+                                        );
+                                    };
+
                                     return (
                                         <td
                                             key={column.key}
@@ -279,20 +389,7 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                             }`}
                                             style={cellStyle}
                                         >
-                                            {column.key === 'property_name' ? (
-                                                <Link
-                                                    href={route('utilities.show', property.property_id)}
-                                                    className="font-medium text-blue-600 hover:text-blue-800"
-                                                >
-                                                    {value}
-                                                </Link>
-                                            ) : column.key === 'property_type' ? (
-                                                <span className="text-gray-500">{value || '-'}</span>
-                                            ) : (
-                                                <span className={hasFormatting ? '' : 'text-gray-900'}>
-                                                    {formatValue(value, column.format)}
-                                                </span>
-                                            )}
+                                            {renderCellContent()}
                                         </td>
                                     );
                                 })}
@@ -331,6 +428,19 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                     </div>
                 </div>
             </div>
+
+            {/* Note Modal */}
+            <NoteModal
+                isOpen={noteModalOpen}
+                onClose={closeNoteModal}
+                propertyId={selectedProperty?.property_id}
+                propertyName={selectedProperty?.property_name}
+                utilityType={selectedType}
+                utilityTypeName={utilityTypes[selectedType]}
+                existingNote={selectedProperty ? getPropertyNote(selectedProperty) : null}
+                onSave={handleNoteSave}
+                onDelete={handleNoteDelete}
+            />
         </div>
     );
 }

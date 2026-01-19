@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Column visibility toggle to show/hide table columns
 - Enhanced data table with sticky headers, sortable columns, and CSV export
 - Heat map coloring for $/Unit and $/Sq Ft columns to highlight cost outliers (green = below average, red = above average)
+- Notes feature for utility data table allowing users to add comments per property and utility type
 
 ---
 
