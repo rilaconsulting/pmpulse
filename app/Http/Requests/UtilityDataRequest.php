@@ -43,7 +43,12 @@ class UtilityDataRequest extends FormRequest
             // utility_type is validated as string only; controller handles fallback for invalid types
             'utility_type' => ['nullable', 'string', 'max:50'],
             'unit_count_min' => ['nullable', 'integer', 'min:0'],
-            'unit_count_max' => ['nullable', 'integer', 'min:0', 'gte:unit_count_min'],
+            'unit_count_max' => [
+                'nullable',
+                'integer',
+                'min:0',
+                Rule::when($this->filled('unit_count_min'), 'gte:unit_count_min'),
+            ],
             'property_types' => ['nullable', 'array'],
             'property_types.*' => ['string', 'max:50'],
         ];
