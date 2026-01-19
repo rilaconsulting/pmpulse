@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use App\Models\UtilityAccount;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -26,7 +25,7 @@ class StoreUtilityNoteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'utility_type' => ['required', 'string', Rule::in(array_keys(UtilityAccount::getUtilityTypeOptions()))],
+            'utility_type_id' => ['required', 'uuid', Rule::exists('utility_types', 'id')],
             'note' => ['required', 'string', 'max:2000'],
         ];
     }

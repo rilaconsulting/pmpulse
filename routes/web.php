@@ -142,8 +142,8 @@ Route::middleware('auth')->group(function () {
         // Utility Types
         Route::get('/utility-types', [UtilityAccountController::class, 'types'])->name('utility-types.index');
         Route::post('/utility-types', [UtilityAccountController::class, 'storeType'])->name('utility-types.store');
-        Route::patch('/utility-types/{key}', [UtilityAccountController::class, 'updateType'])->name('utility-types.update');
-        Route::delete('/utility-types/{key}', [UtilityAccountController::class, 'destroyType'])->name('utility-types.destroy');
+        Route::patch('/utility-types/{utilityType}', [UtilityAccountController::class, 'updateType'])->name('utility-types.update');
+        Route::delete('/utility-types/{utilityType}', [UtilityAccountController::class, 'destroyType'])->name('utility-types.destroy');
         Route::post('/utility-types/reset', [UtilityAccountController::class, 'resetTypes'])->name('utility-types.reset');
 
         // Utility Formatting Rules

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use App\Models\UtilityAccount;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -28,7 +27,7 @@ class StoreUtilityAccountRequest extends FormRequest
         return [
             'gl_account_number' => ['required', 'string', 'max:50', 'unique:utility_accounts,gl_account_number'],
             'gl_account_name' => ['required', 'string', 'max:255'],
-            'utility_type' => ['required', 'string', Rule::in(array_keys(UtilityAccount::getUtilityTypeOptions()))],
+            'utility_type_id' => ['required', 'uuid', Rule::exists('utility_types', 'id')],
             'is_active' => ['boolean'],
         ];
     }

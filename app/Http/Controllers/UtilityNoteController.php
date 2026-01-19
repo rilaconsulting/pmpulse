@@ -6,23 +6,23 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreUtilityNoteRequest;
 use App\Models\Property;
-use App\Models\UtilityAccount;
 use App\Models\UtilityNote;
+use App\Models\UtilityType;
 use Illuminate\Http\JsonResponse;
 
 class UtilityNoteController extends Controller
 {
     /**
-     * Valid utility types (cached for the request).
+     * Valid utility type keys (cached for the request).
      */
-    private ?array $validUtilityTypes = null;
+    private ?array $validUtilityTypeKeys = null;
 
     /**
      * Get the note for a specific property and utility type.
      */
     public function show(Property $property, string $utilityType): JsonResponse
     {
-        if (! $this->isValidUtilityType($utilityType)) {
+        if (! $this->isValidUtilityTypeKey($utilityType)) {
             return response()->json([
                 'message' => 'Invalid utility type.',
             ], 422);
@@ -30,8 +30,8 @@ class UtilityNoteController extends Controller
 
         $note = UtilityNote::query()
             ->forProperty($property->id)
-            ->ofType($utilityType)
-            ->with('creator:id,name')
+            ->ofTypeKey($utilityType)
+            ->with(['creator:id,name', 'utilityType'])
             ->first();
 
         if (! $note) {
@@ -42,7 +42,8 @@ class UtilityNoteController extends Controller
             'note' => [
                 'id' => $note->id,
                 'note' => $note->note,
-                'utility_type' => $note->utility_type,
+                'utility_type_id' => $note->utility_type_id,
+                'utility_type_key' => $note->utilityType?->key,
                 'created_by' => $note->creator?->name ?? 'Unknown',
                 'updated_at' => $note->updated_at->toIso8601String(),
             ],
@@ -59,7 +60,7 @@ class UtilityNoteController extends Controller
         $note = UtilityNote::updateOrCreate(
             [
                 'property_id' => $property->id,
-                'utility_type' => $validated['utility_type'],
+                'utility_type_id' => $validated['utility_type_id'],
             ],
             [
                 'note' => $validated['note'],
@@ -67,13 +68,14 @@ class UtilityNoteController extends Controller
             ]
         );
 
-        $note->load('creator:id,name');
+        $note->load(['creator:id,name', 'utilityType']);
 
         return response()->json([
             'note' => [
                 'id' => $note->id,
                 'note' => $note->note,
-                'utility_type' => $note->utility_type,
+                'utility_type_id' => $note->utility_type_id,
+                'utility_type_key' => $note->utilityType?->key,
                 'created_by' => $note->creator?->name ?? 'Unknown',
                 'updated_at' => $note->updated_at->toIso8601String(),
             ],
@@ -86,7 +88,7 @@ class UtilityNoteController extends Controller
      */
     public function destroy(Property $property, string $utilityType): JsonResponse
     {
-        if (! $this->isValidUtilityType($utilityType)) {
+        if (! $this->isValidUtilityTypeKey($utilityType)) {
             return response()->json([
                 'message' => 'Invalid utility type.',
             ], 422);
@@ -94,7 +96,7 @@ class UtilityNoteController extends Controller
 
         $deleted = UtilityNote::query()
             ->forProperty($property->id)
-            ->ofType($utilityType)
+            ->ofTypeKey($utilityType)
             ->delete();
 
         if (! $deleted) {
@@ -109,14 +111,14 @@ class UtilityNoteController extends Controller
     }
 
     /**
-     * Check if the given utility type is valid.
+     * Check if the given utility type key is valid.
      */
-    private function isValidUtilityType(string $utilityType): bool
+    private function isValidUtilityTypeKey(string $typeKey): bool
     {
-        if ($this->validUtilityTypes === null) {
-            $this->validUtilityTypes = array_keys(UtilityAccount::getUtilityTypeOptions());
+        if ($this->validUtilityTypeKeys === null) {
+            $this->validUtilityTypeKeys = UtilityType::pluck('key')->toArray();
         }
 
-        return in_array($utilityType, $this->validUtilityTypes, true);
+        return in_array($typeKey, $this->validUtilityTypeKeys, true);
     }
 }

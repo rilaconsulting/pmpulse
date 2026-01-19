@@ -7,8 +7,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUtilityFormattingRuleRequest;
 use App\Http\Requests\UpdateUtilityFormattingRuleRequest;
-use App\Models\UtilityAccount;
 use App\Models\UtilityFormattingRule;
+use App\Models\UtilityType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -23,13 +23,17 @@ class UtilityFormattingRuleController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
         $rules = UtilityFormattingRule::query()
-            ->with('creator:id,name')
-            ->orderBy('utility_type')
-            ->orderByDesc('priority')
+            ->with(['creator:id,name', 'utilityType'])
+            ->join('utility_types', 'utility_formatting_rules.utility_type_id', '=', 'utility_types.id')
+            ->orderBy('utility_types.sort_order')
+            ->orderByDesc('utility_formatting_rules.priority')
+            ->select('utility_formatting_rules.*')
             ->get()
             ->map(fn (UtilityFormattingRule $rule) => [
                 'id' => $rule->id,
-                'utility_type' => $rule->utility_type,
+                'utility_type_id' => $rule->utility_type_id,
+                'utility_type_key' => $rule->utilityType?->key,
+                'utility_type_label' => $rule->utilityType?->label ?? 'Unknown',
                 'name' => $rule->name,
                 'operator' => $rule->operator,
                 'operator_label' => $rule->operator_label,
@@ -43,13 +47,13 @@ class UtilityFormattingRuleController extends Controller
                 'updated_at' => $rule->updated_at->toIso8601String(),
             ]);
 
-        // Group rules by utility type
-        $rulesByType = $rules->groupBy('utility_type');
+        // Group rules by utility type key
+        $rulesByType = $rules->groupBy('utility_type_key');
 
         return Inertia::render('Admin/UtilityFormattingRules', [
             'rules' => $rules,
             'rulesByType' => $rulesByType,
-            'utilityTypes' => UtilityAccount::getUtilityTypeOptions(),
+            'utilityTypes' => UtilityType::getAllWithMetadata(),
             'operators' => UtilityFormattingRule::OPERATORS,
         ]);
     }

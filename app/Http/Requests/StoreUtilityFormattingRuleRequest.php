@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use App\Models\UtilityAccount;
 use App\Models\UtilityFormattingRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -27,7 +26,7 @@ class StoreUtilityFormattingRuleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'utility_type' => ['required', 'string', Rule::in(array_keys(UtilityAccount::getUtilityTypeOptions()))],
+            'utility_type_id' => ['required', 'uuid', Rule::exists('utility_types', 'id')],
             'name' => ['required', 'string', 'max:100'],
             'operator' => ['required', 'string', Rule::in(array_keys(UtilityFormattingRule::OPERATORS))],
             'threshold' => ['required', 'numeric', 'min:0', 'max:1000'],
