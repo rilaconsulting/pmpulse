@@ -11,6 +11,7 @@ use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
 use App\Models\UtilityFormattingRule;
 use App\Models\UtilityNote;
+use App\Models\UtilityType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -21,12 +22,17 @@ class UtilityDataTest extends TestCase
 
     private User $user;
 
+    private UtilityType $waterType;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $role = Role::create(['name' => 'user']);
         $this->user = User::factory()->create(['role_id' => $role->id]);
+
+        // Get utility types (seeded by migration)
+        $this->waterType = UtilityType::where('key', 'water')->firstOrFail();
     }
 
     private function isPostgres(): bool
@@ -332,7 +338,7 @@ class UtilityDataTest extends TestCase
 
         // Create formatting rule
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'color' => '#FF0000',
@@ -382,7 +388,7 @@ class UtilityDataTest extends TestCase
 
         // Create formatting rule with high threshold
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 100, // Very high threshold
             'color' => '#FF0000',
@@ -495,7 +501,7 @@ class UtilityDataTest extends TestCase
 
         UtilityNote::factory()->create([
             'property_id' => $property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => 'Test note content',
             'created_by' => $this->user->id,
         ]);

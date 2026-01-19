@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Models\User;
 use App\Models\UtilityFormattingRule;
+use App\Models\UtilityType;
 use App\Services\UtilityFormattingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -18,11 +19,19 @@ class UtilityFormattingServiceTest extends TestCase
 
     private User $user;
 
+    private UtilityType $waterType;
+
+    private UtilityType $electricType;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->service = new UtilityFormattingService;
         $this->user = User::factory()->create();
+
+        // Get utility types (seeded by migration)
+        $this->waterType = UtilityType::where('key', 'water')->firstOrFail();
+        $this->electricType = UtilityType::where('key', 'electric')->firstOrFail();
     }
 
     // ==================== getFormatting Tests ====================
@@ -37,7 +46,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_get_formatting_returns_null_for_null_value(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'created_by' => $this->user->id,
@@ -51,7 +60,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_get_formatting_returns_null_for_null_average(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'created_by' => $this->user->id,
@@ -65,7 +74,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_get_formatting_returns_null_for_zero_average(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'created_by' => $this->user->id,
@@ -79,7 +88,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_get_formatting_returns_null_for_negative_average(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'created_by' => $this->user->id,
@@ -93,7 +102,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_get_formatting_returns_formatting_when_rule_matches(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 20,
             'color' => '#FF0000',
@@ -115,7 +124,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_get_formatting_returns_null_when_no_rule_matches(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 50,
             'enabled' => true,
@@ -131,7 +140,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_get_formatting_ignores_disabled_rules(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'enabled' => false,
@@ -147,7 +156,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_get_formatting_ignores_rules_for_other_utility_types(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'enabled' => true,
@@ -164,7 +173,7 @@ class UtilityFormattingServiceTest extends TestCase
     {
         // Low priority rule - more permissive
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'priority' => 10,
@@ -176,7 +185,7 @@ class UtilityFormattingServiceTest extends TestCase
 
         // High priority rule - more restrictive
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 30,
             'priority' => 100,
@@ -201,7 +210,7 @@ class UtilityFormattingServiceTest extends TestCase
     {
         // High priority but doesn't match
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 50, // Won't match 25% increase
             'priority' => 100,
@@ -213,7 +222,7 @@ class UtilityFormattingServiceTest extends TestCase
 
         // Low priority but matches
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'priority' => 10,
@@ -237,7 +246,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_apply_formatting_to_property_adds_formatting_metadata(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'color' => '#FF0000',
@@ -268,7 +277,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_apply_formatting_applies_to_all_columns(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'color' => '#FF0000',
@@ -296,7 +305,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_apply_formatting_only_formats_matching_columns(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 30,
             'color' => '#FF0000',
@@ -341,7 +350,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_apply_formatting_handles_null_average(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'enabled' => true,
@@ -364,7 +373,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_apply_formatting_handles_null_values(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'enabled' => true,
@@ -393,7 +402,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_apply_formatting_to_comparison_processes_all_properties(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'color' => '#FF0000',
@@ -430,7 +439,7 @@ class UtilityFormattingServiceTest extends TestCase
 
         // Create a rule
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'color' => '#FF0000',
@@ -451,7 +460,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_cache_is_per_utility_type(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'color' => '#BLUE',
@@ -460,7 +469,7 @@ class UtilityFormattingServiceTest extends TestCase
         ]);
 
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'operator' => 'increase_percent',
             'threshold' => 10,
             'color' => '#YELLOW',
@@ -482,7 +491,7 @@ class UtilityFormattingServiceTest extends TestCase
     public function test_get_formatting_with_decrease_rule(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'decrease_percent',
             'threshold' => 20,
             'color' => '#00FF00',
@@ -505,7 +514,7 @@ class UtilityFormattingServiceTest extends TestCase
     {
         // High priority decrease rule
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'decrease_percent',
             'threshold' => 20,
             'priority' => 100,
@@ -517,7 +526,7 @@ class UtilityFormattingServiceTest extends TestCase
 
         // Low priority increase rule
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 20,
             'priority' => 50,

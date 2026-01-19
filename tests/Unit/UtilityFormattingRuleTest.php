@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Models\User;
 use App\Models\UtilityFormattingRule;
+use App\Models\UtilityType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,10 +16,18 @@ class UtilityFormattingRuleTest extends TestCase
 
     private User $user;
 
+    private UtilityType $waterType;
+
+    private UtilityType $electricType;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->user = User::factory()->create();
+
+        // Get utility types (seeded by migration)
+        $this->waterType = UtilityType::where('key', 'water')->firstOrFail();
+        $this->electricType = UtilityType::where('key', 'electric')->firstOrFail();
     }
 
     // ==================== Evaluate Method Tests ====================
@@ -195,18 +204,38 @@ class UtilityFormattingRuleTest extends TestCase
     public function test_scope_for_utility_type_filters_by_type(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Water Rule',
             'created_by' => $this->user->id,
         ]);
 
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'name' => 'Electric Rule',
             'created_by' => $this->user->id,
         ]);
 
-        $waterRules = UtilityFormattingRule::forUtilityType('water')->get();
+        $waterRules = UtilityFormattingRule::forUtilityType($this->waterType->id)->get();
+
+        $this->assertCount(1, $waterRules);
+        $this->assertEquals('Water Rule', $waterRules->first()->name);
+    }
+
+    public function test_scope_for_utility_type_key_filters_by_key(): void
+    {
+        UtilityFormattingRule::factory()->create([
+            'utility_type_id' => $this->waterType->id,
+            'name' => 'Water Rule',
+            'created_by' => $this->user->id,
+        ]);
+
+        UtilityFormattingRule::factory()->create([
+            'utility_type_id' => $this->electricType->id,
+            'name' => 'Electric Rule',
+            'created_by' => $this->user->id,
+        ]);
+
+        $waterRules = UtilityFormattingRule::forUtilityTypeKey('water')->get();
 
         $this->assertCount(1, $waterRules);
         $this->assertEquals('Water Rule', $waterRules->first()->name);
@@ -242,7 +271,7 @@ class UtilityFormattingRuleTest extends TestCase
     public function test_scopes_can_be_chained(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'enabled' => true,
             'priority' => 100,
             'name' => 'Water High',
@@ -250,7 +279,7 @@ class UtilityFormattingRuleTest extends TestCase
         ]);
 
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'enabled' => true,
             'priority' => 50,
             'name' => 'Water Low',
@@ -258,7 +287,7 @@ class UtilityFormattingRuleTest extends TestCase
         ]);
 
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'enabled' => false,
             'priority' => 200,
             'name' => 'Water Disabled',
@@ -266,7 +295,7 @@ class UtilityFormattingRuleTest extends TestCase
         ]);
 
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'enabled' => true,
             'priority' => 150,
             'name' => 'Electric',
@@ -274,7 +303,7 @@ class UtilityFormattingRuleTest extends TestCase
         ]);
 
         $rules = UtilityFormattingRule::enabled()
-            ->forUtilityType('water')
+            ->forUtilityTypeKey('water')
             ->byPriority()
             ->get();
 

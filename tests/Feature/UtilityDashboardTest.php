@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
+use App\Models\UtilityType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -22,6 +23,10 @@ class UtilityDashboardTest extends TestCase
     private User $user;
 
     private Property $property;
+
+    private UtilityType $waterType;
+
+    private UtilityType $electricType;
 
     protected function setUp(): void
     {
@@ -37,6 +42,10 @@ class UtilityDashboardTest extends TestCase
             'unit_count' => 10,
             'total_sqft' => 10000,
         ]);
+
+        // Get utility types (seeded by migration)
+        $this->waterType = UtilityType::where('key', 'water')->firstOrFail();
+        $this->electricType = UtilityType::where('key', 'electric')->firstOrFail();
     }
 
     private function isPostgres(): bool
@@ -433,7 +442,7 @@ class UtilityDashboardTest extends TestCase
         // Create a utility-specific exclusion
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'reason' => 'Tenant pays electric',
             'created_by' => $this->user->id,
         ]);
@@ -461,7 +470,7 @@ class UtilityDashboardTest extends TestCase
 
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'reason' => 'Well water',
             'created_by' => $this->user->id,
         ]);
@@ -490,7 +499,7 @@ class UtilityDashboardTest extends TestCase
 
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'reason' => 'Tenant pays electric',
             'created_by' => $this->user->id,
         ]);
@@ -516,14 +525,14 @@ class UtilityDashboardTest extends TestCase
         // Create multiple utility-specific exclusions for same property
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'reason' => 'Tenant pays electric',
             'created_by' => $this->user->id,
         ]);
 
         PropertyUtilityExclusion::create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'reason' => 'Well water',
             'created_by' => $this->user->id,
         ]);
@@ -588,7 +597,7 @@ class UtilityDashboardTest extends TestCase
 
         PropertyUtilityExclusion::create([
             'property_id' => $propertyA->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'created_by' => $this->user->id,
         ]);
 

@@ -1145,7 +1145,7 @@ class UtilityAnalyticsService
         // Get notes for the selected utility type (keyed by property_id)
         $notes = \App\Models\UtilityNote::query()
             ->whereIn('property_id', $propertyIds)
-            ->where('utility_type', $utilityType)
+            ->ofTypeKey($utilityType)
             ->with('creator:id,name')
             ->get()
             ->keyBy('property_id');
