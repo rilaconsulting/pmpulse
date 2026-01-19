@@ -7,7 +7,7 @@ export default function UtilityFiltersBar({
     filters = {},
     utilityTypes = {},
     selectedUtilityType,
-    propertyTypeOptions = [],
+    propertyTypeOptions = {},
 }) {
     const [unitCountMin, setUnitCountMin] = useState(filters?.unit_count_min ?? '');
     const [unitCountMax, setUnitCountMax] = useState(filters?.unit_count_max ?? '');
@@ -163,24 +163,24 @@ export default function UtilityFiltersBar({
                         {propertyTypeDropdownOpen && (
                             <div className="absolute z-20 mt-1 w-64 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5">
                                 <div className="py-2 max-h-60 overflow-y-auto">
-                                    {(!propertyTypeOptions || propertyTypeOptions.length === 0) ? (
+                                    {(!propertyTypeOptions || Object.keys(propertyTypeOptions).length === 0) ? (
                                         <div className="px-3 py-2 text-sm text-gray-500">
                                             No property types available
                                         </div>
                                     ) : (
-                                        propertyTypeOptions.map((option) => (
+                                        Object.entries(propertyTypeOptions).map(([type, count]) => (
                                             <label
-                                                key={option.type}
+                                                key={type}
                                                 className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-50"
                                             >
                                                 <input
                                                     type="checkbox"
-                                                    checked={selectedPropertyTypes.includes(option.type)}
-                                                    onChange={() => togglePropertyType(option.type)}
+                                                    checked={selectedPropertyTypes.includes(type)}
+                                                    onChange={() => togglePropertyType(type)}
                                                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                                 />
-                                                <span className="ml-2 text-gray-700">{option.type}</span>
-                                                <span className="ml-auto text-xs text-gray-400">{option.count}</span>
+                                                <span className="ml-2 text-gray-700">{type}</span>
+                                                <span className="ml-auto text-xs text-gray-400">{count}</span>
                                             </label>
                                         ))
                                     )}
