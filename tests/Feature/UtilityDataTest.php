@@ -363,13 +363,13 @@ class UtilityDataTest extends TestCase
         $response->assertStatus(200);
         $properties = $response->viewData('page')['props']['propertyComparison']['properties'];
 
-        // Find our property
+        // Find our property - use explicit assertions instead of conditional checks
         $targetProperty = collect($properties)->firstWhere('property_id', $property->id);
+        $this->assertNotNull($targetProperty, 'Expected property not found in response');
 
         // Should have formatting applied (current month is 50% higher than average)
-        if ($targetProperty !== null && isset($targetProperty['formatting'])) {
-            $this->assertArrayHasKey('current_month', $targetProperty['formatting']);
-        }
+        $this->assertArrayHasKey('formatting', $targetProperty, 'Formatting should be applied when value exceeds threshold');
+        $this->assertArrayHasKey('current_month', $targetProperty['formatting']);
     }
 
     public function test_formatting_not_applied_when_no_rules_match(): void
@@ -405,15 +405,16 @@ class UtilityDataTest extends TestCase
         $response->assertStatus(200);
         $properties = $response->viewData('page')['props']['propertyComparison']['properties'];
 
+        // Use explicit assertions instead of conditional checks
         $targetProperty = collect($properties)->firstWhere('property_id', $property->id);
+        $this->assertNotNull($targetProperty, 'Expected property not found in response');
 
-        // Should not have formatting (no significant change)
-        if ($targetProperty !== null) {
-            $this->assertTrue(
-                ! isset($targetProperty['formatting']) ||
-                empty($targetProperty['formatting'])
-            );
-        }
+        // Should not have formatting (no significant change - threshold not met)
+        $this->assertTrue(
+            ! isset($targetProperty['formatting']) ||
+            empty($targetProperty['formatting']),
+            'Formatting should not be applied when threshold is not met'
+        );
     }
 
     // ==================== Utility Type Selection Tests ====================
@@ -504,12 +505,13 @@ class UtilityDataTest extends TestCase
         $response->assertStatus(200);
 
         $properties = $response->viewData('page')['props']['propertyComparison']['properties'];
-        $targetProperty = collect($properties)->firstWhere('property_id', $property->id);
 
-        if ($targetProperty !== null) {
-            $this->assertArrayHasKey('note', $targetProperty);
-            $this->assertEquals('Test note content', $targetProperty['note']['note']);
-        }
+        // Use explicit assertions instead of conditional checks
+        $targetProperty = collect($properties)->firstWhere('property_id', $property->id);
+        $this->assertNotNull($targetProperty, 'Expected property not found in response');
+
+        $this->assertArrayHasKey('note', $targetProperty, 'Note should be attached to property data');
+        $this->assertEquals('Test note content', $targetProperty['note']['note']);
     }
 
     // ==================== Validation Tests ====================
