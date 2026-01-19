@@ -87,8 +87,8 @@ export default function UtilityFiltersBar({
     const colors = UtilityColors[selectedUtilityType] || UtilityColors.other;
 
     return (
-        <div className="card">
-            <div className="card-body">
+        <div className="card overflow-visible">
+            <div className="card-body overflow-visible">
                 <div className="flex flex-wrap items-center gap-4">
                     {/* Filter Icon & Label */}
                     <div className="flex items-center text-gray-600">
@@ -162,8 +162,8 @@ export default function UtilityFiltersBar({
 
                         {propertyTypeDropdownOpen && (
                             <div className="absolute z-20 mt-1 w-64 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5">
-                                <div className="py-2 max-h-60 overflow-y-auto">
-                                    {(!propertyTypeOptions || Object.keys(propertyTypeOptions).length === 0) ? (
+                                <div className="p-2 max-h-60 overflow-y-auto">
+                                    {Object.entries(propertyTypeOptions || {}).length === 0 ? (
                                         <div className="px-3 py-2 text-sm text-gray-500">
                                             No property types available
                                         </div>
@@ -171,7 +171,7 @@ export default function UtilityFiltersBar({
                                         Object.entries(propertyTypeOptions).map(([type, count]) => (
                                             <label
                                                 key={type}
-                                                className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-50"
+                                                className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 rounded"
                                             >
                                                 <input
                                                     type="checkbox"
