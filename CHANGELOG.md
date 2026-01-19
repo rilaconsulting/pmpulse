@@ -9,12 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Backend infrastructure for enhanced utility reporting (database, services, API routes)
-
-<!--
-Note: The above entry covers Phase 1-3 backend work for the Utility Reporting Enhancement project.
-User-facing features (split dashboard/data views, filtering, conditional formatting, notes) will be
-added to the changelog once the frontend components are complete in Phase 4.
--->
+- Split utility dashboard into separate Dashboard and Data Table views for better navigation
 
 ---
 
