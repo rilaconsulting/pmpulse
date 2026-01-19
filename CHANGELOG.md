@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Filter controls for utility data table (unit count range, property type, utility type)
 - Column visibility toggle to show/hide table columns
 - Enhanced data table with sticky headers, sortable columns, and CSV export
+- Heat map coloring for $/Unit and $/Sq Ft columns to highlight cost outliers (green = below average, red = above average)
 
 ---
 
