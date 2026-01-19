@@ -80,3 +80,74 @@ export const formatPercent = (value, options = {}) => {
     const sign = showSign && value > 0 ? '+' : '';
     return `${sign}${value.toFixed(1)}%`;
 };
+
+/**
+ * Calculate heat map style for a value relative to the average.
+ * Green = below average (lower costs = better)
+ * Red = above average (higher costs = worse)
+ * White = near average
+ *
+ * @param {number} value - The value to style
+ * @param {number} average - The average value
+ * @param {number} stdDev - Standard deviation
+ * @returns {object} Inline style object with backgroundColor
+ */
+export const getHeatMapStyle = (value, average, stdDev) => {
+    if (value === null || value === undefined || average === null || average === undefined) {
+        return {};
+    }
+
+    // If stdDev is 0 or undefined, no variation - return no style
+    if (!stdDev || stdDev === 0) {
+        return {};
+    }
+
+    // Calculate how many standard deviations from the mean
+    const zScore = (value - average) / stdDev;
+
+    // Clamp zScore to [-2, 2] for reasonable color intensity
+    const clampedZ = Math.max(-2, Math.min(2, zScore));
+
+    // Calculate opacity (max 40% as per spec)
+    const opacity = Math.min(0.4, Math.abs(clampedZ) * 0.2);
+
+    if (opacity < 0.05) {
+        // Near average - no background
+        return {};
+    }
+
+    // Green for below average (negative z-score = lower costs = good)
+    // Red for above average (positive z-score = higher costs = bad)
+    const color = clampedZ < 0
+        ? `rgba(34, 197, 94, ${opacity})`  // green-500
+        : `rgba(239, 68, 68, ${opacity})`; // red-500
+
+    return { backgroundColor: color };
+};
+
+/**
+ * Calculate statistics for heat map coloring
+ * @param {Array} values - Array of numeric values
+ * @returns {object} { average, stdDev, min, max }
+ */
+export const calculateHeatMapStats = (values) => {
+    const validValues = values.filter((v) => v !== null && v !== undefined && !Number.isNaN(v));
+
+    if (validValues.length === 0) {
+        return { average: null, stdDev: null, min: null, max: null };
+    }
+
+    const sum = validValues.reduce((acc, v) => acc + v, 0);
+    const average = sum / validValues.length;
+
+    const squaredDiffs = validValues.map((v) => Math.pow(v - average, 2));
+    const avgSquaredDiff = squaredDiffs.reduce((acc, v) => acc + v, 0) / validValues.length;
+    const stdDev = Math.sqrt(avgSquaredDiff);
+
+    return {
+        average,
+        stdDev,
+        min: Math.min(...validValues),
+        max: Math.max(...validValues),
+    };
+};
