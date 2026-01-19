@@ -1,15 +1,27 @@
 import { Head } from '@inertiajs/react';
+import { useState } from 'react';
 import Layout from '../../components/Layout';
 import UtilityNavTabs from '../../components/Utilities/UtilityNavTabs';
-import UtilityHeatMap from '../../components/Utilities/UtilityHeatMap';
+import UtilityFiltersBar from '../../components/Utilities/UtilityFiltersBar';
+import UtilityDataTable from '../../components/Utilities/UtilityDataTable';
 import ExcludedPropertiesList from '../../components/Utilities/ExcludedPropertiesList';
 
 export default function UtilitiesData({
     propertyComparison,
     selectedUtilityType,
     utilityTypes,
+    heatMapStats,
+    filters,
+    propertyTypeOptions,
     excludedProperties,
 }) {
+    const [noteModalProperty, setNoteModalProperty] = useState(null);
+
+    const handleNoteClick = (property) => {
+        // Note modal will be implemented in Phase 7
+        setNoteModalProperty(property);
+    };
+
     return (
         <Layout>
             <Head title="Utility Data" />
@@ -26,11 +38,21 @@ export default function UtilitiesData({
                 {/* Navigation Tabs */}
                 <UtilityNavTabs currentView="data" />
 
-                {/* Property Comparison Table */}
-                <UtilityHeatMap
+                {/* Filters Bar */}
+                <UtilityFiltersBar
+                    filters={filters}
+                    utilityTypes={utilityTypes}
+                    selectedUtilityType={selectedUtilityType}
+                    propertyTypeOptions={propertyTypeOptions}
+                />
+
+                {/* Property Data Table */}
+                <UtilityDataTable
                     data={propertyComparison}
                     utilityTypes={utilityTypes}
                     selectedType={selectedUtilityType}
+                    heatMapStats={heatMapStats}
+                    onNoteClick={handleNoteClick}
                 />
 
                 {/* Excluded Properties */}
