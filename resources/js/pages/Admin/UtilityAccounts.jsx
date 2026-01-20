@@ -10,21 +10,13 @@ import {
     BoltIcon,
     LightBulbIcon,
 } from '@heroicons/react/24/outline';
-
-const UtilityTypeColors = {
-    water: 'bg-blue-100 text-blue-800',
-    electric: 'bg-yellow-100 text-yellow-800',
-    gas: 'bg-orange-100 text-orange-800',
-    garbage: 'bg-gray-100 text-gray-800',
-    sewer: 'bg-green-100 text-green-800',
-    other: 'bg-purple-100 text-purple-800',
-};
+import { getColorScheme } from '../../components/Utilities/constants';
 
 function AddAccountForm({ utilityTypes, onCancel }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         gl_account_number: '',
         gl_account_name: '',
-        utility_type: '',
+        utility_type_id: '',
         is_active: true,
     });
 
@@ -67,17 +59,17 @@ function AddAccountForm({ utilityTypes, onCancel }) {
             </td>
             <td className="px-6 py-4">
                 <select
-                    value={data.utility_type}
-                    onChange={(e) => setData('utility_type', e.target.value)}
+                    value={data.utility_type_id}
+                    onChange={(e) => setData('utility_type_id', e.target.value)}
                     className="input w-full"
                 >
                     <option value="">Select type...</option>
-                    {Object.entries(utilityTypes).map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
+                    {utilityTypes.map((type) => (
+                        <option key={type.id} value={type.id}>{type.label}</option>
                     ))}
                 </select>
-                {errors.utility_type && (
-                    <p className="mt-1 text-xs text-red-600">{errors.utility_type}</p>
+                {errors.utility_type_id && (
+                    <p className="mt-1 text-xs text-red-600">{errors.utility_type_id}</p>
                 )}
             </td>
             <td className="px-6 py-4 text-center">
@@ -115,7 +107,7 @@ function EditAccountRow({ account, utilityTypes, onCancel }) {
     const { data, setData, patch, processing, errors } = useForm({
         gl_account_number: account.gl_account_number,
         gl_account_name: account.gl_account_name,
-        utility_type: account.utility_type,
+        utility_type_id: account.utility_type_id,
         is_active: account.is_active,
     });
 
@@ -152,16 +144,16 @@ function EditAccountRow({ account, utilityTypes, onCancel }) {
             </td>
             <td className="px-6 py-4">
                 <select
-                    value={data.utility_type}
-                    onChange={(e) => setData('utility_type', e.target.value)}
+                    value={data.utility_type_id}
+                    onChange={(e) => setData('utility_type_id', e.target.value)}
                     className="input w-full"
                 >
-                    {Object.entries(utilityTypes).map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
+                    {utilityTypes.map((type) => (
+                        <option key={type.id} value={type.id}>{type.label}</option>
                     ))}
                 </select>
-                {errors.utility_type && (
-                    <p className="mt-1 text-xs text-red-600">{errors.utility_type}</p>
+                {errors.utility_type_id && (
+                    <p className="mt-1 text-xs text-red-600">{errors.utility_type_id}</p>
                 )}
             </td>
             <td className="px-6 py-4 text-center">
@@ -195,7 +187,10 @@ function EditAccountRow({ account, utilityTypes, onCancel }) {
     );
 }
 
-function AccountRow({ account, utilityTypes, onEdit, onDelete }) {
+function AccountRow({ account, onEdit, onDelete }) {
+    const utilityType = account.utility_type;
+    const colors = getColorScheme(utilityType?.color_scheme);
+
     return (
         <tr className="hover:bg-gray-50">
             <td className="px-6 py-4 whitespace-nowrap text-sm font-mono font-medium text-gray-900">
@@ -205,8 +200,8 @@ function AccountRow({ account, utilityTypes, onEdit, onDelete }) {
                 {account.gl_account_name}
             </td>
             <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${UtilityTypeColors[account.utility_type] || UtilityTypeColors.other}`}>
-                    {utilityTypes[account.utility_type] || account.utility_type}
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
+                    {utilityType?.label || 'Unknown'}
                 </span>
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -325,7 +320,6 @@ export default function UtilityAccounts({ accounts, utilityTypes }) {
                                     <AccountRow
                                         key={account.id}
                                         account={account}
-                                        utilityTypes={utilityTypes}
                                         onEdit={(account) => setEditingId(account.id)}
                                         onDelete={handleDelete}
                                     />
