@@ -66,8 +66,19 @@ export default function VendorShow({
                         variant: vendor.is_active ? 'success' : 'danger',
                     }}
                     badges={vendor.do_not_use ? [{ label: 'Do Not Use', variant: 'danger' }] : []}
-                    tags={(vendor.vendor_trades ?? '').split(',').map(t => t.trim()).filter(Boolean)}
-                    tagVariant="blue"
+                    actions={
+                        <>
+                            {/* Vendor Trades */}
+                            {(vendor.vendor_trades ?? '').split(',').map(t => t.trim()).filter(Boolean).map(trade => (
+                                <Badge
+                                    key={trade}
+                                    label={trade}
+                                    variant="blue"
+                                    size="sm"
+                                />
+                            ))}
+                        </>
+                    }
                     secondaryInfo={
                         <div className="flex flex-wrap gap-4">
                             {vendor.contact_name && (
