@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DailyKpi;
+use App\Models\Lease;
 use App\Models\LedgerTransaction;
 use App\Models\Property;
 use App\Models\PropertyRollup;
@@ -387,6 +388,71 @@ class AnalyticsService
             'included_in_reports' => $totalActive - $excludedFromReports,
             'excluded_from_reports' => $excludedFromReports,
             'excluded_from_utility_reports' => $excludedFromUtility,
+        ];
+    }
+
+    /**
+     * Recalculate unit statuses based on active lease presence.
+     *
+     * This is a data repair method that can be called manually to ensure
+     * unit statuses are consistent with lease data. Useful for:
+     * - Initial data migration
+     * - Data repair after sync issues
+     * - Manual recalculation without full sync
+     *
+     * Logic:
+     * - Unit is 'occupied' if it has an active lease (start_date <= today AND (end_date >= today OR end_date IS NULL))
+     * - Unit is 'vacant' if no active lease exists
+     * - Unit with 'not_ready' status is preserved (maintenance flag)
+     *
+     * @return array{units_checked: int, units_updated: int, changes: array}
+     */
+    public function recalculateUnitStatusesFromLeases(): array
+    {
+        $today = now()->toDateString();
+        $changes = [];
+
+        // Get all units that are NOT marked as 'not_ready' (preserve maintenance status)
+        $units = Unit::where('status', '!=', 'not_ready')->get();
+
+        $updatedCount = 0;
+
+        foreach ($units as $unit) {
+            // Check if unit has an active lease
+            $hasActiveLease = Lease::where('unit_id', $unit->id)
+                ->where('start_date', '<=', $today)
+                ->where(function ($query) use ($today) {
+                    $query->where('end_date', '>=', $today)
+                        ->orWhereNull('end_date');
+                })
+                ->exists();
+
+            $newStatus = $hasActiveLease ? 'occupied' : 'vacant';
+
+            if ($unit->status !== $newStatus) {
+                $changes[] = [
+                    'unit_id' => $unit->id,
+                    'unit_number' => $unit->unit_number,
+                    'property_id' => $unit->property_id,
+                    'old_status' => $unit->status,
+                    'new_status' => $newStatus,
+                ];
+
+                $unit->status = $newStatus;
+                $unit->save();
+                $updatedCount++;
+            }
+        }
+
+        Log::info('Recalculated unit statuses from leases', [
+            'units_checked' => $units->count(),
+            'units_updated' => $updatedCount,
+        ]);
+
+        return [
+            'units_checked' => $units->count(),
+            'units_updated' => $updatedCount,
+            'changes' => $changes,
         ];
     }
 }
