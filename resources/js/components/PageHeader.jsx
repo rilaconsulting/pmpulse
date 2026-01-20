@@ -55,8 +55,7 @@ export default function PageHeader({
 
     // Sticky wrapper - wraps the card to make it sticky
     // Note: top-16 aligns with Layout.jsx header height (h-16 = 64px)
-    // Added pt-2 pb-4 for visual separation when sticky, bg-gray-50 matches page background
-    const stickyWrapperClasses = sticky ? 'sticky top-16 z-20 pt-2 pb-4 bg-gray-50' : '';
+    const stickyWrapperClasses = sticky ? 'sticky top-16 z-20 pt-2 pb-4 relative' : '';
 
     const headerContent = (
         <div className={`${cardClasses} px-6 py-4`}>
@@ -190,6 +189,10 @@ export default function PageHeader({
     if (sticky) {
         return (
             <div className={stickyWrapperClasses}>
+                {/* Background layer that covers content scrolling underneath */}
+                <div className="absolute inset-x-0 top-0 h-full bg-gray-50 -z-10" />
+                {/* Fade effect at bottom to hide scroll edge */}
+                <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-b from-gray-50 to-transparent -z-10 translate-y-full" />
                 {headerContent}
             </div>
         );
