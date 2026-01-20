@@ -1,12 +1,13 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import Layout from '../../components/Layout';
+import PageHeader from '../../components/PageHeader';
 import UtilityTrendChart from '../../components/Utilities/UtilityTrendChart';
 import UtilityHeatMap from '../../components/Utilities/UtilityHeatMap';
 import AnomalyAlerts from '../../components/Utilities/AnomalyAlerts';
 import ExcludedPropertiesList from '../../components/Utilities/ExcludedPropertiesList';
 import { formatCurrency, findUtilityType, getIconComponent, getColorScheme } from '../../components/Utilities/constants';
-import { BoltIcon } from '@heroicons/react/24/outline';
+import { BoltIcon, ChartBarIcon, TableCellsIcon } from '@heroicons/react/24/outline';
 
 export default function UtilitiesIndex({
     period,
@@ -33,31 +34,34 @@ export default function UtilitiesIndex({
 
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Utility Dashboard</h1>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Portfolio utility expense tracking and analysis
-                        </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-500">Period:</span>
-                        <select
-                            value={selectedPeriod}
-                            onChange={(e) => handlePeriodChange(e.target.value)}
-                            className="input py-1.5 pr-8"
-                        >
-                            <option value="month">This Month</option>
-                            <option value="last_month">Last Month</option>
-                            <option value="last_3_months">Last 3 Months</option>
-                            <option value="last_6_months">Last 6 Months</option>
-                            <option value="last_12_months">Last 12 Months</option>
-                            <option value="quarter">This Quarter</option>
-                            <option value="ytd">Year to Date</option>
-                            <option value="year">This Year</option>
-                        </select>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Utility Dashboard"
+                    subtitle="Portfolio utility expense tracking and analysis"
+                    actions={
+                        <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-500">Period:</span>
+                            <select
+                                value={selectedPeriod}
+                                onChange={(e) => handlePeriodChange(e.target.value)}
+                                className="input py-1.5 pr-8"
+                            >
+                                <option value="month">This Month</option>
+                                <option value="last_month">Last Month</option>
+                                <option value="last_3_months">Last 3 Months</option>
+                                <option value="last_6_months">Last 6 Months</option>
+                                <option value="last_12_months">Last 12 Months</option>
+                                <option value="quarter">This Quarter</option>
+                                <option value="ytd">Year to Date</option>
+                                <option value="year">This Year</option>
+                            </select>
+                        </div>
+                    }
+                    tabs={[
+                        { label: 'Dashboard', href: route('utilities.dashboard'), icon: ChartBarIcon },
+                        { label: 'Data Table', href: route('utilities.data'), icon: TableCellsIcon },
+                    ]}
+                    activeTab="Dashboard"
+                />
 
                 {/* Period Label */}
                 <div className="text-sm text-gray-600">

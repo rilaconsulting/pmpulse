@@ -1,8 +1,9 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import Layout from '../../components/Layout';
+import PageHeader from '../../components/PageHeader';
+import Badge from '../../components/Badge';
 import {
     MetricCard,
-    VendorHeader,
     InsuranceComplianceCard,
     TradeComparisonCard,
     SpendTrendChart,
@@ -12,7 +13,12 @@ import {
     formatCurrency,
     formatDays,
 } from '../../components/Vendor';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import {
+    WrenchScrewdriverIcon,
+    PhoneIcon,
+    EnvelopeIcon,
+    MapPinIcon,
+} from '@heroicons/react/24/outline';
 
 export default function VendorShow({
     vendor,
@@ -36,17 +42,72 @@ export default function VendorShow({
             <Head title={`${vendor.company_name} - Vendor`} />
 
             <div className="space-y-6">
-                {/* Back Button */}
-                <Link
-                    href={route('vendors.index')}
-                    className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-                >
-                    <ArrowLeftIcon className="w-4 h-4 mr-1" />
-                    Back to Vendors
-                </Link>
-
                 {/* Header */}
-                <VendorHeader vendor={vendor} />
+                <PageHeader
+                    title={
+                        <>
+                            {vendor.company_name}
+                            {vendor.duplicate_vendors?.length > 0 && (
+                                <Badge
+                                    label={`+${vendor.duplicate_vendors.length} linked`}
+                                    variant="neutral"
+                                    size="sm"
+                                    className="ml-2"
+                                />
+                            )}
+                        </>
+                    }
+                    backHref={route('vendors.index')}
+                    icon={WrenchScrewdriverIcon}
+                    iconBgColor="bg-blue-100"
+                    iconColor="text-blue-600"
+                    statusBadge={{
+                        label: vendor.is_active ? 'Active' : 'Inactive',
+                        variant: vendor.is_active ? 'success' : 'danger',
+                    }}
+                    badges={vendor.do_not_use ? [{ label: 'Do Not Use', variant: 'danger' }] : []}
+                    actions={
+                        <>
+                            {/* Vendor Trades */}
+                            {(vendor.vendor_trades ?? '').split(',').map(t => t.trim()).filter(Boolean).map(trade => (
+                                <Badge
+                                    key={trade}
+                                    label={trade}
+                                    variant="blue"
+                                    size="sm"
+                                />
+                            ))}
+                        </>
+                    }
+                    secondaryInfo={
+                        <div className="flex flex-wrap gap-4">
+                            {vendor.contact_name && (
+                                <span>{vendor.contact_name}</span>
+                            )}
+                            {vendor.phone && (
+                                <a href={`tel:${vendor.phone}`} className="flex items-center hover:text-gray-700">
+                                    <PhoneIcon className="w-4 h-4 mr-1" />
+                                    {vendor.phone}
+                                </a>
+                            )}
+                            {vendor.email && (
+                                <a href={`mailto:${vendor.email}`} className="flex items-center hover:text-gray-700">
+                                    <EnvelopeIcon className="w-4 h-4 mr-1" />
+                                    {vendor.email}
+                                </a>
+                            )}
+                            {(vendor.address_street || vendor.address_city) && (
+                                <span className="flex items-center">
+                                    <MapPinIcon className="w-4 h-4 mr-1" />
+                                    {[vendor.address_street, vendor.address_city, vendor.address_state, vendor.address_zip]
+                                        .filter(Boolean)
+                                        .join(', ')}
+                                </span>
+                            )}
+                        </div>
+                    }
+                    sticky
+                />
 
                 {/* Metrics Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

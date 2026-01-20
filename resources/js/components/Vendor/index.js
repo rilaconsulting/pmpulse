@@ -7,7 +7,6 @@ export { default as MetricCard } from './MetricCard';
 export { default as WorkOrderStatusBadge } from './WorkOrderStatusBadge';
 
 // Page section components
-export { default as VendorHeader } from './VendorHeader';
 export { default as InsuranceComplianceCard } from './InsuranceComplianceCard';
 export { default as TradeComparisonCard } from './TradeComparisonCard';
 export { default as SpendTrendChart } from './SpendTrendChart';

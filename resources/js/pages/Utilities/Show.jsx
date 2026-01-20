@@ -1,10 +1,10 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import Layout from '../../components/Layout';
+import PageHeader from '../../components/PageHeader';
 import PropertyUtilityTrend from '../../components/Utilities/PropertyUtilityTrend';
 import { formatCurrency, formatPercent, findUtilityType, getIconComponent, getColorScheme } from '../../components/Utilities/constants';
 import {
-    ArrowLeftIcon,
     ArrowTrendingUpIcon,
     ArrowTrendingDownIcon,
     MinusIcon,
@@ -49,36 +49,32 @@ export default function UtilitiesShow({
 
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                        <Link
-                            href={route('utilities.index')}
-                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-                        >
-                            <ArrowLeftIcon className="w-5 h-5" />
-                        </Link>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">{property.name}</h1>
-                            <p className="mt-1 text-sm text-gray-500">
-                                {property.unit_count} units
-                                {property.total_sqft && ` • ${property.total_sqft.toLocaleString()} sqft`}
-                            </p>
+                <PageHeader
+                    title={property.name}
+                    backHref={route('utilities.index')}
+                    secondaryInfo={
+                        <>
+                            {property.unit_count} units
+                            {property.total_sqft && ` • ${property.total_sqft.toLocaleString()} sqft`}
+                        </>
+                    }
+                    actions={
+                        <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-500">Period:</span>
+                            <select
+                                value={selectedPeriod}
+                                onChange={(e) => handlePeriodChange(e.target.value)}
+                                className="input py-1.5 pr-8"
+                            >
+                                <option value="month">This Month</option>
+                                <option value="quarter">This Quarter</option>
+                                <option value="ytd">Year to Date</option>
+                                <option value="year">This Year</option>
+                            </select>
                         </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-500">Period:</span>
-                        <select
-                            value={selectedPeriod}
-                            onChange={(e) => handlePeriodChange(e.target.value)}
-                            className="input py-1.5 pr-8"
-                        >
-                            <option value="month">This Month</option>
-                            <option value="quarter">This Quarter</option>
-                            <option value="ytd">Year to Date</option>
-                            <option value="year">This Year</option>
-                        </select>
-                    </div>
-                </div>
+                    }
+                    sticky
+                />
 
                 {/* Period Label */}
                 <div className="text-sm text-gray-600">
