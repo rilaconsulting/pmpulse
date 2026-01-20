@@ -290,6 +290,7 @@ class IngestionService
         match ($resourceType) {
             'units' => $this->prefetchProperties($items),
             'leases' => $this->prefetchUnitsAndPeople($items),
+            'rent_roll' => $this->prefetchUnitsForRentRoll($items),
             'ledger_transactions' => $this->prefetchPropertiesAndUnits($items),
             'work_orders' => $this->prefetchWorkOrderRelations($items),
             default => null,
@@ -404,6 +405,15 @@ class IngestionService
     }
 
     /**
+     * Prefetch units for rent roll processing.
+     */
+    private function prefetchUnitsForRentRoll(array $items): void
+    {
+        $unitExternalIds = $this->extractExternalIds($items, 'unit_id');
+        $this->cacheIdsByExternalIds(Unit::class, $unitExternalIds, 'unitCache');
+    }
+
+    /**
      * Look up a property ID from cache or database.
      */
     private function lookupPropertyId(string $externalId): ?string
@@ -500,7 +510,7 @@ class IngestionService
      * - vendor_directory: vendor_id
      * - work_order: work_order_id
      * - bill_detail: txn_id (handled separately via upsertBillDetail)
-     * - rent_roll: lease_id or unit_id
+     * - rent_roll: occupancy_id (unique per lease/occupancy)
      * - delinquency: unit_id
      */
     private function extractExternalId(string $resourceType, array $item): ?string
@@ -511,7 +521,7 @@ class IngestionService
             'vendors' => 'vendor_id',
             'work_orders' => 'work_order_id',
             'bill_details' => 'txn_id',
-            'rent_roll' => 'lease_id',
+            'rent_roll' => 'occupancy_id',
             'delinquency' => 'unit_id',
             default => 'id',
         };
@@ -535,6 +545,7 @@ class IngestionService
             'vendors' => $this->upsertVendor($item),
             'people' => $this->upsertPerson($item),
             'leases' => $this->upsertLease($item),
+            'rent_roll' => $this->upsertRentRollData($item),
             'ledger_transactions' => $this->upsertLedgerTransaction($item),
             'work_orders' => $this->upsertWorkOrder($item),
             default => null,
@@ -860,6 +871,75 @@ class IngestionService
             'active', 'current', 'in_progress' => 'active',
             'past', 'expired', 'ended', 'terminated' => 'past',
             'future', 'pending', 'upcoming' => 'future',
+            default => 'active',
+        };
+    }
+
+    /**
+     * Upsert a lease record from rent_roll data.
+     *
+     * Maps AppFolio rent_roll.json response fields to our leases table.
+     * Does NOT store tenant PII - only lease dates, rent, and unit linkage.
+     *
+     * @return bool|null True if record was created, false if updated, null if skipped
+     */
+    private function upsertRentRollData(array $item): ?bool
+    {
+        // Look up unit using cache to avoid N+1 queries
+        $unitExternalId = isset($item['unit_id']) ? (string) $item['unit_id'] : null;
+        $unitId = $unitExternalId ? $this->lookupUnitId($unitExternalId) : null;
+
+        if (! $unitId) {
+            Log::warning('Unit not found for rent roll entry', [
+                'unit_external_id' => $unitExternalId,
+                'occupancy_id' => $item['occupancy_id'] ?? 'unknown',
+            ]);
+
+            return null;
+        }
+
+        // Use occupancy_id as the unique identifier for the lease
+        $externalId = isset($item['occupancy_id']) ? (string) $item['occupancy_id'] : null;
+
+        if (! $externalId) {
+            Log::warning('Rent roll entry missing occupancy_id', [
+                'unit_id' => $unitExternalId,
+            ]);
+
+            return null;
+        }
+
+        // Map AppFolio rent_roll fields to our schema
+        // Note: We intentionally skip tenant name and tenant_id to avoid storing PII
+        $data = [
+            'unit_id' => $unitId,
+            'person_id' => null, // Explicitly null - no tenant PII stored
+            'start_date' => $this->parseDate($item['lease_from'] ?? $item['move_in'] ?? null) ?? now(),
+            'end_date' => $this->parseDate($item['lease_to'] ?? null),
+            'rent' => $this->parseAmount($item['rent'] ?? null) ?? 0,
+            'security_deposit' => $this->parseAmount($item['deposit'] ?? null),
+            'status' => $this->mapRentRollStatus($item['status'] ?? 'Current'),
+        ];
+
+        $lease = Lease::updateOrCreate(
+            ['external_id' => $externalId],
+            $data
+        );
+
+        return $lease->wasRecentlyCreated;
+    }
+
+    /**
+     * Map AppFolio rent roll status to our lease status values.
+     *
+     * AppFolio rent_roll status values: Current, Past, Future, Notice, Evict
+     */
+    private function mapRentRollStatus(string $status): string
+    {
+        return match (strtolower($status)) {
+            'current', 'notice' => 'active',
+            'past', 'evict' => 'past',
+            'future' => 'future',
             default => 'active',
         };
     }
