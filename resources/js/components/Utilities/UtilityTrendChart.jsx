@@ -9,7 +9,7 @@ import {
     Legend,
     ResponsiveContainer,
 } from 'recharts';
-import { findUtilityType, getLineColor } from './constants';
+import { getLineColor } from './constants';
 
 // Total line uses dark gray
 const TOTAL_LINE_COLOR = '#1F2937';
