@@ -2,12 +2,12 @@ import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useState, useCallback } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Layout from '../../components/Layout';
+import PageHeader from '../../components/PageHeader';
 import AdjustmentList from '../../components/Property/AdjustmentList';
 import AdjustedValue from '../../components/AdjustedValue';
 import {
     BuildingOfficeIcon,
     MapPinIcon,
-    ArrowLeftIcon,
     HomeModernIcon,
     ChevronUpIcon,
     ChevronDownIcon,
@@ -184,50 +184,32 @@ export default function PropertyShow({
             <Head title={property.name} />
 
             {/* Sticky Property Header */}
-            <div className="sticky top-16 z-20 -mx-8 px-8 py-4 bg-white border-b border-gray-200 shadow-sm">
-                <div className="flex items-center justify-between gap-4">
-                    {/* Left: Back button + Property name */}
-                    <div className="flex items-center gap-4 min-w-0">
-                        <Link
-                            href={route('properties.index')}
-                            className="flex-shrink-0 p-2 -m-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                            title="Back to Properties"
-                        >
-                            <ArrowLeftIcon className="w-5 h-5" />
-                        </Link>
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h1 className="text-xl font-semibold text-gray-900 truncate">
-                                    {property.name}
-                                </h1>
-                                <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                    property.is_active
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-red-100 text-red-800'
-                                }`}>
-                                    {property.is_active ? 'Active' : 'Inactive'}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
-                                {property.address_line1 && (
-                                    <span className="truncate">
-                                        {property.address_line1}
-                                        {property.city && `, ${property.city}`}
-                                        {property.state && `, ${property.state}`}
-                                    </span>
-                                )}
-                                {property.address_line1 && property.portfolio && (
-                                    <span className="text-gray-300">•</span>
-                                )}
-                                {property.portfolio && (
-                                    <span className="flex-shrink-0 text-gray-500">{property.portfolio}</span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right: AppFolio link + Flags */}
-                    <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+            <PageHeader
+                title={property.name}
+                backHref={route('properties.index')}
+                statusBadge={{
+                    label: property.is_active ? 'Active' : 'Inactive',
+                    variant: property.is_active ? 'success' : 'danger',
+                }}
+                secondaryInfo={
+                    <>
+                        {property.address_line1 && (
+                            <span className="truncate">
+                                {property.address_line1}
+                                {property.city && `, ${property.city}`}
+                                {property.state && `, ${property.state}`}
+                            </span>
+                        )}
+                        {property.address_line1 && property.portfolio && (
+                            <span className="text-gray-300">•</span>
+                        )}
+                        {property.portfolio && (
+                            <span className="flex-shrink-0">{property.portfolio}</span>
+                        )}
+                    </>
+                }
+                actions={
+                    <>
                         {appfolioUrl && (
                             <a
                                 href={appfolioUrl}
@@ -272,9 +254,10 @@ export default function PropertyShow({
                                 Flag
                             </button>
                         )}
-                    </div>
-                </div>
-            </div>
+                    </>
+                }
+                sticky
+            />
 
             <div className="space-y-6 pt-4">
 

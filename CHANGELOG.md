@@ -13,11 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sticky filter bar on property list that stays visible when scrolling
 - Rent roll data sync from AppFolio with automated lease and occupancy tracking
 - Unit occupancy status now automatically derived from active lease presence
+- Unified PageHeader component for consistent page headers across the application
 
 ### Changed
 - Improved data validation during rent roll sync with warnings for missing dates and rent values
 - Property detail header now stays visible when scrolling (sticky header)
 - Property detail header redesigned for better space efficiency with back navigation inline
+- All detail pages now have sticky headers that stay visible when scrolling
+- Standardized page header styling across Properties, Utilities, Vendors, and Admin sections
 
 ### Fixed
 - Active/Inactive filter now works correctly on property list

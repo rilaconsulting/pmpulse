@@ -1,9 +1,10 @@
 import { Head } from '@inertiajs/react';
 import Layout from '../../components/Layout';
-import UtilityNavTabs from '../../components/Utilities/UtilityNavTabs';
+import PageHeader from '../../components/PageHeader';
 import UtilityFiltersBar from '../../components/Utilities/UtilityFiltersBar';
 import UtilityDataTable from '../../components/Utilities/UtilityDataTable';
 import ExcludedPropertiesList from '../../components/Utilities/ExcludedPropertiesList';
+import { ChartBarIcon, TableCellsIcon } from '@heroicons/react/24/outline';
 
 export default function UtilitiesData({
     propertyComparison,
@@ -19,15 +20,15 @@ export default function UtilitiesData({
 
             <div className="space-y-6">
                 {/* Header */}
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Utility Data</h1>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Detailed property utility comparison and analysis
-                    </p>
-                </div>
-
-                {/* Navigation Tabs */}
-                <UtilityNavTabs currentView="data" />
+                <PageHeader
+                    title="Utility Data"
+                    subtitle="Detailed property utility comparison and analysis"
+                    tabs={[
+                        { label: 'Dashboard', href: route('utilities.dashboard'), icon: ChartBarIcon },
+                        { label: 'Data Table', href: route('utilities.data'), icon: TableCellsIcon },
+                    ]}
+                    activeTab="Data Table"
+                />
 
                 {/* Filters Bar */}
                 <UtilityFiltersBar

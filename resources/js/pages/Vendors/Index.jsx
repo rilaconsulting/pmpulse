@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
 import Layout from '../../components/Layout';
+import PageHeader from '../../components/PageHeader';
 import { InsuranceStatusBadge, formatCurrency } from '../../components/Vendor';
 import {
     MagnifyingGlassIcon,
@@ -123,38 +124,36 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
 
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-semibold text-gray-900">Vendors</h1>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Manage vendors and track insurance compliance
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        {isAdmin && (
+                <PageHeader
+                    title="Vendors"
+                    subtitle="Manage vendors and track insurance compliance"
+                    actions={
+                        <div className="flex items-center gap-2">
+                            {isAdmin && (
+                                <Link
+                                    href={route('vendors.deduplication')}
+                                    className="btn-secondary flex items-center"
+                                >
+                                    <LinkIcon className="w-4 h-4 mr-2" />
+                                    Deduplication
+                                </Link>
+                            )}
                             <Link
-                                href={route('vendors.deduplication')}
+                                href={route('vendors.compare')}
                                 className="btn-secondary flex items-center"
                             >
-                                <LinkIcon className="w-4 h-4 mr-2" />
-                                Deduplication
+                                Compare Vendors
                             </Link>
-                        )}
-                        <Link
-                            href={route('vendors.compare')}
-                            className="btn-secondary flex items-center"
-                        >
-                            Compare Vendors
-                        </Link>
-                        <Link
-                            href={route('vendors.compliance')}
-                            className="btn-primary flex items-center"
-                        >
-                            <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
-                            Compliance Report
-                        </Link>
-                    </div>
-                </div>
+                            <Link
+                                href={route('vendors.compliance')}
+                                className="btn-primary flex items-center"
+                            >
+                                <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
+                                Compliance Report
+                            </Link>
+                        </div>
+                    }
+                />
 
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

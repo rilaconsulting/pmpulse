@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState, useEffect, lazy, Suspense } from 'react';
 import Layout from '../../components/Layout';
+import PageHeader from '../../components/PageHeader';
 import AdjustedValue from '../../components/AdjustedValue';
 import {
     MagnifyingGlassIcon,
@@ -161,40 +162,38 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
 
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-semibold text-gray-900">Properties</h1>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Manage and view all properties in your portfolio
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
-                        <button
-                            type="button"
-                            onClick={() => setViewMode('table')}
-                            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                                viewMode === 'table'
-                                    ? 'bg-white text-gray-900 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            <ListBulletIcon className="w-4 h-4" />
-                            Table
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setViewMode('map')}
-                            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                                viewMode === 'map'
-                                    ? 'bg-white text-gray-900 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
-                            <MapIcon className="w-4 h-4" />
-                            Map
-                        </button>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Properties"
+                    subtitle="Manage and view all properties in your portfolio"
+                    actions={
+                        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('table')}
+                                className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                    viewMode === 'table'
+                                        ? 'bg-white text-gray-900 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                <ListBulletIcon className="w-4 h-4" />
+                                Table
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setViewMode('map')}
+                                className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                    viewMode === 'map'
+                                        ? 'bg-white text-gray-900 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                            >
+                                <MapIcon className="w-4 h-4" />
+                                Map
+                            </button>
+                        </div>
+                    }
+                />
 
                 {/* Filters */}
                 <div className="card sticky top-16 z-10 shadow-sm">
