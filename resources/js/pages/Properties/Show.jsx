@@ -6,14 +6,12 @@ import PageHeader from '../../components/PageHeader';
 import AdjustmentList from '../../components/Property/AdjustmentList';
 import AdjustedValue from '../../components/AdjustedValue';
 import {
-    BuildingOfficeIcon,
     MapPinIcon,
     HomeModernIcon,
     ChevronUpIcon,
     ChevronDownIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
-    CalendarIcon,
     Square3Stack3DIcon,
     CurrencyDollarIcon,
     FlagIcon,

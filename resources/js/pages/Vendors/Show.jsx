@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
 import Badge from '../../components/Badge';
@@ -66,7 +66,7 @@ export default function VendorShow({
                         variant: vendor.is_active ? 'success' : 'danger',
                     }}
                     badges={vendor.do_not_use ? [{ label: 'Do Not Use', variant: 'danger' }] : []}
-                    tags={vendor.vendor_trades?.split(',').map(t => t.trim()).filter(Boolean) || []}
+                    tags={(vendor.vendor_trades ?? '').split(',').map(t => t.trim()).filter(Boolean)}
                     tagVariant="blue"
                     secondaryInfo={
                         <div className="flex flex-wrap gap-4">

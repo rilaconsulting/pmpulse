@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
 import {
@@ -12,18 +12,19 @@ import {
     SwatchIcon,
 } from '@heroicons/react/24/outline';
 
-const adminTabs = [
-    { label: 'Users', href: '/admin/users', icon: UsersIcon },
-    { label: 'Integrations', href: '/admin/integrations', icon: CloudIcon },
-    { label: 'Sync', href: '/admin/sync', icon: ArrowPathIcon },
-    { label: 'Utility Accounts', href: '/admin/utility-accounts', icon: BoltIcon },
-    { label: 'Utility Types', href: '/admin/utility-types', icon: TagIcon },
-    { label: 'Formatting Rules', href: '/admin/utility-formatting-rules', icon: SwatchIcon },
-    { label: 'Adjustments', href: '/admin/adjustments', icon: AdjustmentsHorizontalIcon },
-    { label: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
-];
-
 export default function AdminLayout({ children, currentTab }) {
+    // Generate tabs with route() helper for maintainability
+    const adminTabs = [
+        { label: 'Users', href: route('admin.users.index'), icon: UsersIcon },
+        { label: 'Integrations', href: route('admin.integrations'), icon: CloudIcon },
+        { label: 'Sync', href: route('admin.sync'), icon: ArrowPathIcon },
+        { label: 'Utility Accounts', href: route('admin.utility-accounts.index'), icon: BoltIcon },
+        { label: 'Utility Types', href: route('admin.utility-types.index'), icon: TagIcon },
+        { label: 'Formatting Rules', href: route('admin.utility-formatting-rules.index'), icon: SwatchIcon },
+        { label: 'Adjustments', href: route('admin.adjustments.index'), icon: AdjustmentsHorizontalIcon },
+        { label: 'Settings', href: route('admin.settings'), icon: Cog6ToothIcon },
+    ];
+
     return (
         <Layout>
             <Head title="Admin" />

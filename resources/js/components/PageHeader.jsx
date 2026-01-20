@@ -5,7 +5,7 @@ import Badge from './Badge';
 /**
  * Unified page header component for consistent styling across all pages
  *
- * @param {string} title - Page title (required)
+ * @param {string|ReactNode} title - Page title (required, can be string or React node)
  * @param {string} subtitle - Optional subtitle for list/dashboard pages
  * @param {Component} icon - Optional icon component (for entity headers like Vendor)
  * @param {string} iconBgColor - Icon background color class (default: bg-blue-100)
@@ -70,8 +70,9 @@ export default function PageHeader({
                                 href={backHref}
                                 className="flex-shrink-0 p-2 -m-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors mt-0.5"
                                 title="Go back"
+                                aria-label="Go back"
                             >
-                                <ArrowLeftIcon className="w-5 h-5" />
+                                <ArrowLeftIcon className="w-5 h-5" aria-hidden="true" />
                             </Link>
                         )}
 
@@ -109,9 +110,9 @@ export default function PageHeader({
                             {/* Tags (for vendor trades, etc.) */}
                             {tags.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mt-2">
-                                    {tags.map((tag, idx) => (
+                                    {tags.map((tag) => (
                                         <Badge
-                                            key={idx}
+                                            key={tag}
                                             label={tag}
                                             variant={tagVariant}
                                             size="sm"
@@ -136,9 +137,9 @@ export default function PageHeader({
                     {/* Right Side: Badges + Actions */}
                     <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
                         {/* Removable Badges (like property flags) */}
-                        {badges.map((badge, idx) => (
+                        {badges.map((badge) => (
                             <Badge
-                                key={idx}
+                                key={badge.label}
                                 label={badge.label}
                                 variant={badge.variant}
                                 size="sm"
