@@ -18,7 +18,7 @@ import Badge from './Badge';
  * @param {object[]} badges - Optional array of badges { label, variant, onRemove }
  * @param {string|ReactNode} secondaryInfo - Optional secondary info line
  * @param {ReactNode} actions - Optional right-side actions
- * @param {boolean} sticky - Whether header should be sticky (default: false)
+ * @param {boolean} sticky - Whether header should be sticky (default: true)
  * @param {object[]} tabs - Optional tabs array { label, href, icon }
  * @param {string} activeTab - Active tab label for matching
  */
@@ -35,7 +35,7 @@ export default function PageHeader({
     badges = [],
     secondaryInfo,
     actions,
-    sticky = false,
+    sticky = true,
     tabs = [],
     activeTab,
 }) {
