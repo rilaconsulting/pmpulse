@@ -914,14 +914,39 @@ class IngestionService
             return null;
         }
 
+        // Parse and validate start date - required field
+        $startDateRaw = $item['lease_from'] ?? $item['move_in'] ?? null;
+        $startDate = $this->parseDate($startDateRaw);
+
+        if ($startDate === null) {
+            Log::warning('Rent roll entry missing parsable start date', [
+                'unit_external_id' => $unitExternalId,
+                'occupancy_id' => $externalId,
+                'lease_from' => $item['lease_from'] ?? null,
+                'move_in' => $item['move_in'] ?? null,
+            ]);
+
+            return null;
+        }
+
+        // Parse rent - log warning if missing but allow $0 (could be legitimate)
+        $rent = $this->parseAmount($item['rent'] ?? null);
+        if ($rent === null) {
+            Log::warning('Rent roll entry missing rent amount', [
+                'unit_external_id' => $unitExternalId,
+                'occupancy_id' => $externalId,
+            ]);
+            $rent = 0;
+        }
+
         // Map AppFolio rent_roll fields to our schema
         // Note: We intentionally skip tenant name and tenant_id to avoid storing PII
         $data = [
             'unit_id' => $unitId,
             'person_id' => null, // Explicitly null - no tenant PII stored
-            'start_date' => $this->parseDate($item['lease_from'] ?? $item['move_in'] ?? null) ?? now(),
+            'start_date' => $startDate,
             'end_date' => $this->parseDate($item['lease_to'] ?? null),
-            'rent' => $this->parseAmount($item['rent'] ?? null) ?? 0,
+            'rent' => $rent,
             'security_deposit' => $this->parseAmount($item['deposit'] ?? null),
             'status' => $this->mapRentRollStatus($item['status'] ?? 'Current'),
         ];
@@ -937,16 +962,39 @@ class IngestionService
     /**
      * Map AppFolio rent roll status to our lease status values.
      *
-     * AppFolio rent_roll status values: Current, Past, Future, Notice, Evict
+     * AppFolio rent_roll status values: Current, Past, Future, Notice, Evict.
+     *
+     * Business rules:
+     * - "Current" and "Notice" are both treated as "active" because the unit is still
+     *   physically occupied and should be counted as occupied for occupancy reporting
+     *   and KPIs until the actual move-out date.
+     * - "Past" and "Evict" are mapped to "past" and excluded from current occupancy.
+     * - "Future" represents upcoming leases (move-in scheduled but not yet occurred).
+     *
+     * If we later need to distinguish notice leases separately (e.g., for churn metrics),
+     * that should be modeled with an additional field or downstream logic rather than
+     * changing this occupancy-oriented status mapping.
      */
     private function mapRentRollStatus(string $status): string
     {
-        return match (strtolower($status)) {
+        $normalizedStatus = strtolower($status);
+
+        $mapped = match ($normalizedStatus) {
             'current', 'notice' => 'active',
             'past', 'evict' => 'past',
             'future' => 'future',
-            default => 'active',
+            default => null,
         };
+
+        if ($mapped === null) {
+            Log::warning('Unknown rent roll status encountered, defaulting to active', [
+                'status' => $status,
+            ]);
+
+            return 'active';
+        }
+
+        return $mapped;
     }
 
     /**
@@ -1256,14 +1304,26 @@ class IngestionService
     /**
      * Update unit statuses based on active lease presence.
      *
+     * This is the authoritative method for deriving unit occupancy from lease data.
+     * It can be called after rent_roll sync or manually for data repair.
+     *
      * Logic:
-     * - Unit is 'occupied' if it has an active lease (start_date <= today AND (end_date >= today OR end_date IS NULL))
-     * - Unit is 'vacant' if no active lease exists
+     * - Unit is 'occupied' if it has a lease that is currently valid based on dates:
+     *   (start_date <= today AND (end_date >= today OR end_date IS NULL))
+     * - Unit is 'vacant' if no currently valid lease exists
      * - Unit with 'not_ready' status is preserved (maintenance flag)
+     *
+     * Note: We use date-based validation rather than just the lease status field
+     * because AppFolio's status may not always be updated in real-time, whereas
+     * date ranges provide a reliable source of truth for occupancy calculations.
+     *
+     * @param  bool  $returnChanges  If true, returns detailed change array (for data repair use)
+     * @return array{units_checked: int, units_updated: int, changes: array}
      */
-    private function updateUnitStatusFromLeases(): void
+    public function updateUnitStatusFromLeases(bool $returnChanges = false): array
     {
         $today = now()->toDateString();
+        $changes = [];
 
         // Get all units that are NOT marked as 'not_ready' (preserve maintenance status)
         $units = Unit::where('status', '!=', 'not_ready')->get();
@@ -1271,7 +1331,7 @@ class IngestionService
         $updatedCount = 0;
 
         foreach ($units as $unit) {
-            // Check if unit has an active lease
+            // Check if unit has a currently valid lease based on date ranges
             $hasActiveLease = Lease::where('unit_id', $unit->id)
                 ->where('start_date', '<=', $today)
                 ->where(function ($query) use ($today) {
@@ -1283,6 +1343,16 @@ class IngestionService
             $newStatus = $hasActiveLease ? 'occupied' : 'vacant';
 
             if ($unit->status !== $newStatus) {
+                if ($returnChanges) {
+                    $changes[] = [
+                        'unit_id' => $unit->id,
+                        'unit_number' => $unit->unit_number,
+                        'property_id' => $unit->property_id,
+                        'old_status' => $unit->status,
+                        'new_status' => $newStatus,
+                    ];
+                }
+
                 $unit->status = $newStatus;
                 $unit->save();
                 $updatedCount++;
@@ -1293,6 +1363,12 @@ class IngestionService
             'units_checked' => $units->count(),
             'units_updated' => $updatedCount,
         ]);
+
+        return [
+            'units_checked' => $units->count(),
+            'units_updated' => $updatedCount,
+            'changes' => $changes,
+        ];
     }
 
     /**
