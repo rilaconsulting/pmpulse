@@ -1,58 +1,86 @@
-import {
-    BoltIcon,
-    FireIcon,
-    BeakerIcon,
-    TrashIcon,
-    SparklesIcon,
-    CubeIcon,
-} from '@heroicons/react/24/outline';
+import { getIconComponent, getColorScheme, DEFAULT_ICON, DEFAULT_COLOR_SCHEME } from './availableIcons';
 
-export const UtilityIcons = {
-    water: BeakerIcon,
-    electric: BoltIcon,
-    gas: FireIcon,
-    garbage: TrashIcon,
-    sewer: SparklesIcon,
-    other: CubeIcon,
+/**
+ * Re-export functions from availableIcons for convenience.
+ */
+export { getIconComponent, getColorScheme, DEFAULT_ICON, DEFAULT_COLOR_SCHEME };
+
+/**
+ * Create a lookup map from utility types array.
+ * @param {Array} utilityTypes - Array of utility type objects from backend
+ * @returns {Object} Map of key => utility type object
+ */
+export const createUtilityTypeMap = (utilityTypes) => {
+    if (!utilityTypes || !Array.isArray(utilityTypes)) {
+        return {};
+    }
+    return utilityTypes.reduce((acc, type) => {
+        acc[type.key] = type;
+        return acc;
+    }, {});
 };
 
-export const UtilityColors = {
-    water: {
-        bg: 'bg-blue-50',
-        text: 'text-blue-600',
-        border: 'border-blue-200',
-        bar: 'bg-blue-400',
-    },
-    electric: {
-        bg: 'bg-yellow-50',
-        text: 'text-yellow-600',
-        border: 'border-yellow-200',
-        bar: 'bg-yellow-400',
-    },
-    gas: {
-        bg: 'bg-orange-50',
-        text: 'text-orange-600',
-        border: 'border-orange-200',
-        bar: 'bg-orange-400',
-    },
-    garbage: {
-        bg: 'bg-gray-50',
-        text: 'text-gray-600',
-        border: 'border-gray-200',
-        bar: 'bg-gray-400',
-    },
-    sewer: {
-        bg: 'bg-green-50',
-        text: 'text-green-600',
-        border: 'border-green-200',
-        bar: 'bg-green-400',
-    },
-    other: {
-        bg: 'bg-purple-50',
-        text: 'text-purple-600',
-        border: 'border-purple-200',
-        bar: 'bg-purple-400',
-    },
+/**
+ * Get a utility type by key from the array.
+ * @param {Array} utilityTypes - Array of utility type objects
+ * @param {string} key - Utility type key
+ * @returns {Object|null} Utility type object or null
+ */
+export const findUtilityType = (utilityTypes, key) => {
+    if (!utilityTypes || !Array.isArray(utilityTypes)) {
+        return null;
+    }
+    return utilityTypes.find((type) => type.key === key) || null;
+};
+
+/**
+ * Get the label for a utility type key.
+ * @param {Array} utilityTypes - Array of utility type objects
+ * @param {string} key - Utility type key
+ * @returns {string} Label or key if not found
+ */
+export const getUtilityLabel = (utilityTypes, key) => {
+    const type = findUtilityType(utilityTypes, key);
+    return type?.label || key;
+};
+
+/**
+ * Get the line color for charts based on color scheme.
+ * Maps color scheme names to hex colors for Recharts.
+ * @param {string} colorScheme - Color scheme name (e.g., 'blue', 'yellow')
+ * @returns {string} Hex color value
+ */
+export const getLineColor = (colorScheme) => {
+    const colorMap = {
+        blue: '#3B82F6',
+        yellow: '#EAB308',
+        orange: '#F97316',
+        red: '#EF4444',
+        green: '#22C55E',
+        teal: '#14B8A6',
+        cyan: '#06B6D4',
+        purple: '#A855F7',
+        pink: '#EC4899',
+        indigo: '#6366F1',
+        gray: '#6B7280',
+        slate: '#64748B',
+    };
+    return colorMap[colorScheme] || colorMap.slate;
+};
+
+/**
+ * Get options for select dropdowns from utility types array.
+ * @param {Array} utilityTypes - Array of utility type objects
+ * @returns {Object} Map of key => label
+ */
+export const getUtilityTypeOptions = (utilityTypes) => {
+    if (!utilityTypes || !Array.isArray(utilityTypes)) {
+        return {};
+    }
+    return utilityTypes.reduce((acc, type) => {
+        acc[type.key] = type.label;
+        return acc;
+    }, {});
 };
 
 export const formatCurrency = (value, options = {}) => {

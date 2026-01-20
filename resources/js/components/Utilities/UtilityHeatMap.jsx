@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { UtilityIcons, UtilityColors } from './constants';
+import { findUtilityType, getIconComponent, getColorScheme } from './constants';
 
 export default function UtilityHeatMap({ data, utilityTypes, selectedType, period }) {
     const [sortField, setSortField] = useState('property_name');
@@ -116,8 +116,9 @@ export default function UtilityHeatMap({ data, utilityTypes, selectedType, perio
         URL.revokeObjectURL(url);
     };
 
-    const Icon = UtilityIcons[selectedType];
-    const colors = UtilityColors[selectedType] || UtilityColors.other;
+    const selectedUtilityType = findUtilityType(utilityTypes, selectedType);
+    const Icon = getIconComponent(selectedUtilityType?.icon);
+    const colors = getColorScheme(selectedUtilityType?.color_scheme);
 
     return (
         <div className="card">
@@ -139,8 +140,8 @@ export default function UtilityHeatMap({ data, utilityTypes, selectedType, perio
                             onChange={(e) => handleUtilityTypeChange(e.target.value)}
                             className="input py-1.5 pr-8"
                         >
-                            {Object.entries(utilityTypes).map(([key, label]) => (
-                                <option key={key} value={key}>{label}</option>
+                            {Array.isArray(utilityTypes) && utilityTypes.map((type) => (
+                                <option key={type.key} value={type.key}>{type.label}</option>
                             ))}
                         </select>
                     </div>
@@ -157,13 +158,11 @@ export default function UtilityHeatMap({ data, utilityTypes, selectedType, perio
             {/* Selected Utility Type Badge */}
             <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
                 <div className="flex items-center space-x-3">
-                    {Icon && (
-                        <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
-                            <Icon className="w-5 h-5" />
-                        </div>
-                    )}
+                    <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
+                        <Icon className="w-5 h-5" />
+                    </div>
                     <div>
-                        <span className="font-medium text-gray-900">{utilityTypes[selectedType]}</span>
+                        <span className="font-medium text-gray-900">{selectedUtilityType?.label || selectedType}</span>
                         <span className="ml-2 text-sm text-gray-500">
                             {data.property_count} properties
                         </span>

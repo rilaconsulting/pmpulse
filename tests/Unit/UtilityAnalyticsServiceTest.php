@@ -10,6 +10,7 @@ use App\Models\PropertyFlag;
 use App\Models\PropertyUtilityExclusion;
 use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
+use App\Models\UtilityType;
 use App\Services\AdjustmentService;
 use App\Services\UtilityAnalyticsService;
 use Carbon\Carbon;
@@ -24,11 +25,22 @@ class UtilityAnalyticsServiceTest extends TestCase
 
     private AdjustmentService $adjustmentService;
 
+    private UtilityType $waterType;
+
+    private UtilityType $electricType;
+
+    private UtilityType $gasType;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->adjustmentService = new AdjustmentService;
         $this->service = new UtilityAnalyticsService($this->adjustmentService);
+
+        // Get utility types (seeded by migration)
+        $this->waterType = UtilityType::where('key', 'water')->firstOrFail();
+        $this->electricType = UtilityType::where('key', 'electric')->firstOrFail();
+        $this->gasType = UtilityType::where('key', 'gas')->firstOrFail();
     }
 
     /**
@@ -58,7 +70,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         // Create utility expenses totaling $500
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -98,7 +110,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'reason' => 'Test adjustment',
         ]);
 
-        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+        $electricAccount = UtilityAccount::factory()->electric()->create();
 
         UtilityExpense::factory()->forAccount($electricAccount)->create([
             'property_id' => $property->id,
@@ -122,7 +134,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $gasAccount = UtilityAccount::factory()->create(['utility_type' => 'gas']);
+        $gasAccount = UtilityAccount::factory()->gas()->create();
 
         UtilityExpense::factory()->forAccount($gasAccount)->create([
             'property_id' => $property->id,
@@ -146,7 +158,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
@@ -167,7 +179,7 @@ class UtilityAnalyticsServiceTest extends TestCase
         // Use a fixed reference date in mid-year for predictable quarter/YTD calculations
         $referenceDate = Carbon::create(2025, 6, 15);
         $property = Property::factory()->create(['is_active' => true]);
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         // Current month expense (June 2025)
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -243,7 +255,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'reason' => 'Test',
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         // Add expenses to both
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -273,7 +285,7 @@ class UtilityAnalyticsServiceTest extends TestCase
         $properties = [];
         $costs = [100, 105, 95, 102, 98, 500]; // Last one is an outlier
 
-        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+        $electricAccount = UtilityAccount::factory()->electric()->create();
 
         foreach ($costs as $i => $cost) {
             $property = Property::factory()->create([
@@ -304,9 +316,9 @@ class UtilityAnalyticsServiceTest extends TestCase
     {
         $property = Property::factory()->create(['is_active' => true]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
-        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
-        $gasAccount = UtilityAccount::factory()->create(['utility_type' => 'gas']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
+        $electricAccount = UtilityAccount::factory()->electric()->create();
+        $gasAccount = UtilityAccount::factory()->gas()->create();
 
         UtilityExpense::factory()->forAccount($waterAccount)->create([
             'property_id' => $property->id,
@@ -345,7 +357,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         // Create expenses for last 3 months
         for ($i = 0; $i < 3; $i++) {
@@ -372,7 +384,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         // Create expenses for current quarter
         $quarterStart = now()->startOfQuarter();
@@ -406,7 +418,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+        $electricAccount = UtilityAccount::factory()->electric()->create();
 
         $yearStart = $referenceDate->copy()->startOfYear();
         UtilityExpense::factory()->forAccount($electricAccount)->create([
@@ -444,12 +456,12 @@ class UtilityAnalyticsServiceTest extends TestCase
         // Exclude property2 from water reports only
         PropertyUtilityExclusion::create([
             'property_id' => $property2->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'reason' => 'Tenant pays water',
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
-        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
+        $electricAccount = UtilityAccount::factory()->electric()->create();
 
         // Add water expenses to both
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -502,7 +514,7 @@ class UtilityAnalyticsServiceTest extends TestCase
         $this->skipIfNotPostgres();
 
         $property = Property::factory()->create(['is_active' => true]);
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         // Create expenses for 3 different months
         $now = now();
@@ -538,8 +550,8 @@ class UtilityAnalyticsServiceTest extends TestCase
         $this->skipIfNotPostgres();
 
         $property = Property::factory()->create(['is_active' => true]);
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
-        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
+        $electricAccount = UtilityAccount::factory()->electric()->create();
 
         $now = now();
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -572,11 +584,11 @@ class UtilityAnalyticsServiceTest extends TestCase
         // Exclude property2 from water only
         PropertyUtilityExclusion::create([
             'property_id' => $property2->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'reason' => 'Tenant pays water',
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -614,7 +626,7 @@ class UtilityAnalyticsServiceTest extends TestCase
         $activeProperty = Property::factory()->create(['is_active' => true]);
         $inactiveProperty = Property::factory()->create(['is_active' => false]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -648,7 +660,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'reason' => 'Test',
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -678,7 +690,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -721,7 +733,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         // Current month expenses
@@ -760,11 +772,11 @@ class UtilityAnalyticsServiceTest extends TestCase
         // Exclude property2 from water
         PropertyUtilityExclusion::create([
             'property_id' => $property2->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'reason' => 'Tenant pays water',
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -807,7 +819,7 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         // Create 12 months of expenses in PREVIOUS months (not current month)
@@ -838,7 +850,7 @@ class UtilityAnalyticsServiceTest extends TestCase
         $property1 = Property::factory()->create(['unit_count' => 10, 'is_active' => true]);
         $property2 = Property::factory()->create(['unit_count' => 10, 'is_active' => true]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -867,8 +879,8 @@ class UtilityAnalyticsServiceTest extends TestCase
             'is_active' => true,
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
-        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
+        $electricAccount = UtilityAccount::factory()->electric()->create();
 
         $now = now();
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -906,8 +918,8 @@ class UtilityAnalyticsServiceTest extends TestCase
         $property1 = Property::factory()->create(['unit_count' => 10, 'is_active' => true]);
         $property2 = Property::factory()->create(['unit_count' => 10, 'is_active' => true]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
-        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
+        $electricAccount = UtilityAccount::factory()->electric()->create();
 
         $now = now();
         // Water expenses
@@ -946,7 +958,7 @@ class UtilityAnalyticsServiceTest extends TestCase
         $property1 = Property::factory()->create(['unit_count' => 10, 'is_active' => true]);
         $property2 = Property::factory()->create(['unit_count' => 20, 'is_active' => true]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -979,12 +991,12 @@ class UtilityAnalyticsServiceTest extends TestCase
         // Exclude property2 from water only
         PropertyUtilityExclusion::create([
             'property_id' => $property2->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'reason' => 'Tenant pays water',
         ]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
-        $electricAccount = UtilityAccount::factory()->create(['utility_type' => 'electric']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
+        $electricAccount = UtilityAccount::factory()->electric()->create();
 
         $now = now();
         UtilityExpense::factory()->forAccount($waterAccount)->create([
@@ -1043,7 +1055,7 @@ class UtilityAnalyticsServiceTest extends TestCase
         $this->skipIfNotPostgres();
 
         $property = Property::factory()->create(['unit_count' => 10, 'is_active' => true]);
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         // Create expenses in current quarter
@@ -1071,7 +1083,7 @@ class UtilityAnalyticsServiceTest extends TestCase
         $this->skipIfNotPostgres();
 
         $property = Property::factory()->create(['is_active' => true]);
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         // Multiple expenses in the same month
@@ -1105,7 +1117,7 @@ class UtilityAnalyticsServiceTest extends TestCase
         $property2 = Property::factory()->create(['is_active' => true]);
         $property3 = Property::factory()->create(['is_active' => true]);
 
-        $waterAccount = UtilityAccount::factory()->create(['utility_type' => 'water']);
+        $waterAccount = UtilityAccount::factory()->water()->create();
 
         $now = now();
         UtilityExpense::factory()->forAccount($waterAccount)->create([

@@ -6,8 +6,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UtilityDataRequest;
 use App\Models\Property;
-use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
+use App\Models\UtilityType;
 use App\Services\UtilityAnalyticsService;
 use App\Services\UtilityFormattingService;
 use Carbon\Carbon;
@@ -49,14 +49,16 @@ class UtilityDashboardController extends Controller
             'date' => $date,
         ];
 
-        // Get utility types from configured accounts
-        $utilityTypeOptions = UtilityAccount::getUtilityTypeOptions();
+        // Get utility types from the database
+        $utilityTypeModels = UtilityType::ordered()->get();
+        $utilityTypeOptions = $utilityTypeModels->pluck('label', 'key')->toArray();
         $utilityTypes = array_keys($utilityTypeOptions);
 
         // Calculate summary for each utility type using bulk query
         $utilitySummaryRaw = $this->analyticsService->getPortfolioSummaryBulk($utilityTypes, $period);
         $utilitySummary = [];
-        foreach ($utilityTypes as $type) {
+        foreach ($utilityTypeModels as $typeModel) {
+            $type = $typeModel->key;
             $summaryData = $utilitySummaryRaw[$type] ?? [
                 'total_cost' => 0,
                 'average_per_unit' => 0,
@@ -64,7 +66,9 @@ class UtilityDashboardController extends Controller
             ];
             $utilitySummary[$type] = [
                 'type' => $type,
-                'label' => $utilityTypeOptions[$type],
+                'label' => $typeModel->label,
+                'icon' => $typeModel->icon_or_default,
+                'color_scheme' => $typeModel->color_scheme_or_default,
                 'total_cost' => $summaryData['total_cost'],
                 'average_per_unit' => $summaryData['average_per_unit'],
                 'property_count' => $summaryData['property_count'],
@@ -76,11 +80,12 @@ class UtilityDashboardController extends Controller
 
         // Get anomalies across all utility types
         $anomalies = [];
-        foreach ($utilityTypes as $type) {
+        foreach ($utilityTypeModels as $typeModel) {
+            $type = $typeModel->key;
             $typeAnomalies = $this->analyticsService->getAnomalies($type, $period, 2.0);
             foreach ($typeAnomalies as $anomaly) {
                 $anomaly['utility_type'] = $type;
-                $anomaly['utility_label'] = $utilityTypeOptions[$type];
+                $anomaly['utility_label'] = $typeModel->label;
                 $anomalies[] = $anomaly;
             }
         }
@@ -101,7 +106,7 @@ class UtilityDashboardController extends Controller
             'portfolioTotal' => $portfolioTotal,
             'anomalies' => $anomalies,
             'trendData' => $trendData,
-            'utilityTypes' => $utilityTypeOptions,
+            'utilityTypes' => UtilityType::getAllWithMetadata(),
             'excludedProperties' => $excludedProperties,
         ]);
     }
@@ -113,8 +118,9 @@ class UtilityDashboardController extends Controller
     {
         $validated = $request->validated();
 
-        // Get utility types from configured accounts
-        $utilityTypeOptions = UtilityAccount::getUtilityTypeOptions();
+        // Get utility types from the database
+        $utilityTypeModels = UtilityType::ordered()->get();
+        $utilityTypeOptions = $utilityTypeModels->pluck('label', 'key')->toArray();
         $utilityTypes = array_keys($utilityTypeOptions);
 
         // Get selected utility type (default to first available)
@@ -157,7 +163,7 @@ class UtilityDashboardController extends Controller
         return Inertia::render('Utilities/Data', [
             'propertyComparison' => $comparisonData,
             'selectedUtilityType' => $selectedUtilityType,
-            'utilityTypes' => $utilityTypeOptions,
+            'utilityTypes' => UtilityType::getAllWithMetadata(),
             'heatMapStats' => $heatMapStats,
             'filters' => $filters,
             'propertyTypeOptions' => $propertyTypeOptions,
@@ -183,22 +189,26 @@ class UtilityDashboardController extends Controller
             'date' => $date,
         ];
 
-        $utilityTypeOptions = UtilityAccount::getUtilityTypeOptions();
-        $utilityTypes = array_keys($utilityTypeOptions);
+        // Get utility types from the database
+        $utilityTypeModels = UtilityType::ordered()->get();
+        $utilityTypes = $utilityTypeModels->pluck('key')->toArray();
 
         // Get cost breakdown for this property
         $costBreakdown = $this->analyticsService->getCostBreakdown($property, $period);
 
         // Get period comparison for each utility type
         $comparisons = [];
-        foreach ($utilityTypes as $type) {
+        foreach ($utilityTypeModels as $typeModel) {
+            $type = $typeModel->key;
             $comparison = $this->analyticsService->getPeriodComparison($property, $type, $date);
             $portfolioAvg = $this->analyticsService->getPortfolioAverage($type, $period);
             $costPerUnit = $this->analyticsService->getCostPerUnit($property, $type, $period);
 
             $comparisons[$type] = [
                 'type' => $type,
-                'label' => $utilityTypeOptions[$type],
+                'label' => $typeModel->label,
+                'icon' => $typeModel->icon_or_default,
+                'color_scheme' => $typeModel->color_scheme_or_default,
                 'current_month' => $comparison['current_month'],
                 'previous_month' => $comparison['previous_month'],
                 'month_change' => $comparison['month_change'],
@@ -223,9 +233,9 @@ class UtilityDashboardController extends Controller
             $propertyTrend[$type] = $trend;
         }
 
-        // Get recent expenses (eager load utilityAccount to avoid N+1)
+        // Get recent expenses (eager load utilityAccount with utilityType to avoid N+1)
         $recentExpenses = UtilityExpense::query()
-            ->with('utilityAccount')
+            ->with('utilityAccount.utilityType')
             ->forProperty($property->id)
             ->orderByDesc('expense_date')
             ->limit(20)
@@ -233,7 +243,7 @@ class UtilityDashboardController extends Controller
             ->map(fn ($expense) => [
                 'id' => $expense->id,
                 'utility_type' => $expense->utility_type,
-                'utility_label' => $utilityTypeOptions[$expense->utility_type] ?? $expense->utility_type ?? 'Unknown',
+                'utility_label' => $expense->utility_type_label,
                 'amount' => $expense->amount,
                 'expense_date' => $expense->expense_date->toDateString(),
                 'vendor_name' => $expense->vendor_name,
@@ -252,7 +262,7 @@ class UtilityDashboardController extends Controller
             'comparisons' => array_values($comparisons),
             'propertyTrend' => $propertyTrend,
             'recentExpenses' => $recentExpenses,
-            'utilityTypes' => $utilityTypeOptions,
+            'utilityTypes' => UtilityType::getAllWithMetadata(),
         ]);
     }
 

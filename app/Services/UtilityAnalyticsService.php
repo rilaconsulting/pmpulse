@@ -7,8 +7,8 @@ namespace App\Services;
 use App\Models\Property;
 use App\Models\PropertyFlag;
 use App\Models\PropertyUtilityExclusion;
-use App\Models\UtilityAccount;
 use App\Models\UtilityExpense;
+use App\Models\UtilityType;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -180,8 +180,8 @@ class UtilityAnalyticsService
             return $this->cache[$cacheKey];
         }
 
-        // Get properties excluded for this specific utility type
-        $utilityExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds($utilityType);
+        // Get properties excluded for this specific utility type (by key)
+        $utilityExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIdsByTypeKey($utilityType);
 
         $properties = Property::active()
             ->forUtilityReports()
@@ -308,7 +308,7 @@ class UtilityAnalyticsService
      */
     public function getCostBreakdown(Property $property, array $period): array
     {
-        $utilityTypes = array_keys(UtilityAccount::getUtilityTypeOptions());
+        $utilityTypes = array_keys(UtilityType::getOptions());
         $breakdown = [];
         $total = 0;
 
@@ -410,9 +410,9 @@ class UtilityAnalyticsService
      * @param  Carbon  $endDate  End date for the date range
      * @return Collection Grouped by property_id, then utility_type, containing monthly totals
      */
-    private function getBulkExpenseData(array $propertyIds, array $utilityTypes, Carbon $startDate, Carbon $endDate): Collection
+    private function getBulkExpenseData(array $propertyIds, array $utilityTypeKeys, Carbon $startDate, Carbon $endDate): Collection
     {
-        if (empty($propertyIds) || empty($utilityTypes)) {
+        if (empty($propertyIds) || empty($utilityTypeKeys)) {
             return collect();
         }
 
@@ -420,15 +420,16 @@ class UtilityAnalyticsService
         return UtilityExpense::query()
             ->select([
                 'utility_expenses.property_id',
-                'utility_accounts.utility_type',
+                'utility_types.key as utility_type',
                 DB::raw("DATE_TRUNC('month', expense_date) as month"),
                 DB::raw('SUM(amount) as total'),
             ])
             ->join('utility_accounts', 'utility_expenses.utility_account_id', '=', 'utility_accounts.id')
+            ->join('utility_types', 'utility_accounts.utility_type_id', '=', 'utility_types.id')
             ->whereIn('utility_expenses.property_id', $propertyIds)
-            ->whereIn('utility_accounts.utility_type', $utilityTypes)
+            ->whereIn('utility_types.key', $utilityTypeKeys)
             ->whereBetween('expense_date', [$startDate, $endDate])
-            ->groupBy('utility_expenses.property_id', 'utility_accounts.utility_type', DB::raw("DATE_TRUNC('month', expense_date)"))
+            ->groupBy('utility_expenses.property_id', 'utility_types.key', DB::raw("DATE_TRUNC('month', expense_date)"))
             ->toBase()
             ->get();
     }
@@ -444,7 +445,7 @@ class UtilityAnalyticsService
      * @param  Carbon|null  $referenceDate  Reference date (defaults to now)
      * @return Collection Monthly totals grouped by month and utility type
      */
-    public function getPortfolioTrendData(array $utilityTypes, int $months = 12, ?Carbon $referenceDate = null): Collection
+    public function getPortfolioTrendData(array $utilityTypeKeys, int $months = 12, ?Carbon $referenceDate = null): Collection
     {
         $date = $referenceDate ?? now();
         $endDate = $date->copy()->endOfMonth();
@@ -460,25 +461,26 @@ class UtilityAnalyticsService
             return collect();
         }
 
-        // Get utility-specific exclusions for all utility types
+        // Get utility-specific exclusions for all utility types (by key)
         $exclusionsByType = [];
-        foreach ($utilityTypes as $type) {
-            $exclusionsByType[$type] = PropertyUtilityExclusion::getExcludedPropertyIds($type);
+        foreach ($utilityTypeKeys as $typeKey) {
+            $exclusionsByType[$typeKey] = PropertyUtilityExclusion::getExcludedPropertyIdsByTypeKey($typeKey);
         }
 
         // Use toBase() to get plain objects and avoid Eloquent accessor conflicts
         $results = UtilityExpense::query()
             ->select([
                 DB::raw("DATE_TRUNC('month', expense_date) as month"),
-                'utility_accounts.utility_type',
+                'utility_types.key as utility_type',
                 'utility_expenses.property_id',
                 DB::raw('SUM(amount) as total'),
             ])
             ->join('utility_accounts', 'utility_expenses.utility_account_id', '=', 'utility_accounts.id')
+            ->join('utility_types', 'utility_accounts.utility_type_id', '=', 'utility_types.id')
             ->whereIn('utility_expenses.property_id', $propertyIds)
-            ->whereIn('utility_accounts.utility_type', $utilityTypes)
+            ->whereIn('utility_types.key', $utilityTypeKeys)
             ->whereBetween('expense_date', [$startDate, $endDate])
-            ->groupBy(DB::raw("DATE_TRUNC('month', expense_date)"), 'utility_accounts.utility_type', 'utility_expenses.property_id')
+            ->groupBy(DB::raw("DATE_TRUNC('month', expense_date)"), 'utility_types.key', 'utility_expenses.property_id')
             ->orderBy('month')
             ->toBase()
             ->get();
@@ -518,8 +520,8 @@ class UtilityAnalyticsService
     {
         $now = $referenceDate ?? now();
 
-        // Get properties excluded for this specific utility type
-        $utilityExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds($utilityType);
+        // Get properties excluded for this specific utility type (by key)
+        $utilityExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIdsByTypeKey($utilityType);
 
         // Get active properties for utility reports, excluding utility-specific exclusions
         $properties = Property::active()
@@ -558,8 +560,9 @@ class UtilityAnalyticsService
                 DB::raw('SUM(amount) as total'),
             ])
             ->join('utility_accounts', 'utility_expenses.utility_account_id', '=', 'utility_accounts.id')
+            ->join('utility_types', 'utility_accounts.utility_type_id', '=', 'utility_types.id')
             ->whereIn('utility_expenses.property_id', $propertyIds)
-            ->where('utility_accounts.utility_type', $utilityType)
+            ->where('utility_types.key', $utilityType)
             ->whereBetween('expense_date', [$prev12MonthStart, $currentMonthEnd])
             ->groupBy('utility_expenses.property_id', DB::raw("DATE_TRUNC('month', expense_date)"))
             ->toBase()
@@ -658,8 +661,8 @@ class UtilityAnalyticsService
     ): array {
         $now = $referenceDate ?? now();
 
-        // Get properties excluded for this specific utility type
-        $utilityExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIds($utilityType);
+        // Get properties excluded for this specific utility type (by key)
+        $utilityExcludedIds = PropertyUtilityExclusion::getExcludedPropertyIdsByTypeKey($utilityType);
 
         // Build base query with filters
         $query = Property::active()
@@ -711,8 +714,9 @@ class UtilityAnalyticsService
                 DB::raw('SUM(amount) as total'),
             ])
             ->join('utility_accounts', 'utility_expenses.utility_account_id', '=', 'utility_accounts.id')
+            ->join('utility_types', 'utility_accounts.utility_type_id', '=', 'utility_types.id')
             ->whereIn('utility_expenses.property_id', $propertyIds)
-            ->where('utility_accounts.utility_type', $utilityType)
+            ->where('utility_types.key', $utilityType)
             ->whereBetween('expense_date', [$prev12MonthStart, $currentMonthEnd])
             ->groupBy('utility_expenses.property_id', DB::raw("DATE_TRUNC('month', expense_date)"))
             ->toBase()
@@ -923,10 +927,10 @@ class UtilityAnalyticsService
 
         $propertyIds = $properties->pluck('id')->toArray();
 
-        // Get utility-specific exclusions for all utility types upfront
+        // Get utility-specific exclusions for all utility types upfront (by key)
         $exclusionsByType = [];
-        foreach ($utilityTypes as $type) {
-            $exclusionsByType[$type] = PropertyUtilityExclusion::getExcludedPropertyIds($type);
+        foreach ($utilityTypes as $typeKey) {
+            $exclusionsByType[$typeKey] = PropertyUtilityExclusion::getExcludedPropertyIdsByTypeKey($typeKey);
         }
 
         // Single query to get totals by property and utility type
@@ -934,14 +938,15 @@ class UtilityAnalyticsService
         $expenseData = UtilityExpense::query()
             ->select([
                 'utility_expenses.property_id',
-                'utility_accounts.utility_type',
+                'utility_types.key as utility_type',
                 DB::raw('SUM(amount) as total'),
             ])
             ->join('utility_accounts', 'utility_expenses.utility_account_id', '=', 'utility_accounts.id')
+            ->join('utility_types', 'utility_accounts.utility_type_id', '=', 'utility_types.id')
             ->whereIn('utility_expenses.property_id', $propertyIds)
-            ->whereIn('utility_accounts.utility_type', $utilityTypes)
+            ->whereIn('utility_types.key', $utilityTypes)
             ->whereBetween('expense_date', [$startDate, $endDate])
-            ->groupBy('utility_expenses.property_id', 'utility_accounts.utility_type')
+            ->groupBy('utility_expenses.property_id', 'utility_types.key')
             ->toBase()
             ->get()
             ->groupBy('utility_type');
@@ -1140,7 +1145,7 @@ class UtilityAnalyticsService
         // Get notes for the selected utility type (keyed by property_id)
         $notes = \App\Models\UtilityNote::query()
             ->whereIn('property_id', $propertyIds)
-            ->where('utility_type', $utilityType)
+            ->ofTypeKey($utilityType)
             ->with('creator:id,name')
             ->get()
             ->keyBy('property_id');
@@ -1195,7 +1200,7 @@ class UtilityAnalyticsService
 
         // Get utility-specific exclusions (excluded from specific utility types only)
         $utilityExclusions = PropertyUtilityExclusion::query()
-            ->with(['property', 'creator'])
+            ->with(['property', 'creator', 'utilityType'])
             ->whereHas('property', function ($query) {
                 $query->where('is_active', true);
             })
@@ -1215,8 +1220,10 @@ class UtilityAnalyticsService
                 }
 
                 $utilityExclusionsList = $exclusions->map(fn ($exclusion) => [
-                    'utility_type' => $exclusion->utility_type,
+                    'utility_type' => $exclusion->utilityType?->key,
                     'utility_label' => $exclusion->utility_type_label,
+                    'icon' => $exclusion->utilityType?->icon ?? UtilityType::DEFAULT_ICON,
+                    'color_scheme' => $exclusion->utilityType?->color_scheme ?? UtilityType::DEFAULT_COLOR_SCHEME,
                     'reason' => $exclusion->reason,
                     'created_by' => $exclusion->creator?->name,
                     'created_at' => $exclusion->created_at->toDateString(),

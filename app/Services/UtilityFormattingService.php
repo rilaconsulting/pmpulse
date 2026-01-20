@@ -119,7 +119,7 @@ class UtilityFormattingService
         if (! isset($this->rulesCache[$utilityType])) {
             $this->rulesCache[$utilityType] = UtilityFormattingRule::query()
                 ->enabled()
-                ->forUtilityType($utilityType)
+                ->forUtilityTypeKey($utilityType)
                 ->byPriority()
                 ->get();
         }

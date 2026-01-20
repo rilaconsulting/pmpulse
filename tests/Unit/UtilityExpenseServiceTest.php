@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Models\Property;
 use App\Models\UtilityAccount;
+use App\Models\UtilityType;
 use App\Services\UtilityExpenseService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,19 +17,35 @@ class UtilityExpenseServiceTest extends TestCase
 
     private UtilityExpenseService $service;
 
+    private UtilityType $waterType;
+
+    private UtilityType $electricType;
+
+    private UtilityType $gasType;
+
+    private UtilityType $garbageType;
+
+    private UtilityType $sewerType;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->service = new UtilityExpenseService;
+
+        // Get utility types (seeded by migration)
+        $this->waterType = UtilityType::where('key', 'water')->firstOrFail();
+        $this->electricType = UtilityType::where('key', 'electric')->firstOrFail();
+        $this->gasType = UtilityType::where('key', 'gas')->firstOrFail();
+        $this->garbageType = UtilityType::where('key', 'garbage')->firstOrFail();
+        $this->sewerType = UtilityType::where('key', 'sewer')->firstOrFail();
     }
 
     public function test_processes_expenses_with_matched_gl_accounts(): void
     {
         // Create a property and utility account mapping
         $property = Property::factory()->create(['external_id' => '12345']);
-        $account = UtilityAccount::factory()->create([
+        $account = UtilityAccount::factory()->forUtilityType($this->waterType)->create([
             'gl_account_number' => '6210',
-            'utility_type' => 'water',
             'is_active' => true,
         ]);
 
@@ -79,9 +96,8 @@ class UtilityExpenseServiceTest extends TestCase
     public function test_updates_existing_utility_expense(): void
     {
         $property = Property::factory()->create(['external_id' => '12345']);
-        UtilityAccount::factory()->create([
+        UtilityAccount::factory()->forUtilityType($this->electricType)->create([
             'gl_account_number' => '6220',
-            'utility_type' => 'electric',
             'is_active' => true,
         ]);
 
@@ -121,9 +137,8 @@ class UtilityExpenseServiceTest extends TestCase
 
     public function test_skips_expenses_without_property(): void
     {
-        UtilityAccount::factory()->create([
+        UtilityAccount::factory()->forUtilityType($this->waterType)->create([
             'gl_account_number' => '6210',
-            'utility_type' => 'water',
             'is_active' => true,
         ]);
 
@@ -146,9 +161,8 @@ class UtilityExpenseServiceTest extends TestCase
     public function test_ignores_inactive_utility_accounts(): void
     {
         $property = Property::factory()->create(['external_id' => '12345']);
-        UtilityAccount::factory()->create([
+        UtilityAccount::factory()->forUtilityType($this->gasType)->create([
             'gl_account_number' => '6230',
-            'utility_type' => 'gas',
             'is_active' => false, // Inactive
         ]);
 
@@ -170,9 +184,8 @@ class UtilityExpenseServiceTest extends TestCase
     public function test_parses_various_amount_formats(): void
     {
         $property = Property::factory()->create(['external_id' => '12345']);
-        $account = UtilityAccount::factory()->create([
+        $account = UtilityAccount::factory()->forUtilityType($this->garbageType)->create([
             'gl_account_number' => '6240',
-            'utility_type' => 'garbage',
             'is_active' => true,
         ]);
 
@@ -197,9 +210,8 @@ class UtilityExpenseServiceTest extends TestCase
     public function test_handles_multiple_gl_account_field_names(): void
     {
         $property = Property::factory()->create(['external_id' => '12345']);
-        $account = UtilityAccount::factory()->create([
+        $account = UtilityAccount::factory()->forUtilityType($this->sewerType)->create([
             'gl_account_number' => '6250',
-            'utility_type' => 'sewer',
             'is_active' => true,
         ]);
 
@@ -225,9 +237,8 @@ class UtilityExpenseServiceTest extends TestCase
     public function test_processes_billing_period_dates(): void
     {
         $property = Property::factory()->create(['external_id' => '12345']);
-        $account = UtilityAccount::factory()->create([
+        $account = UtilityAccount::factory()->forUtilityType($this->waterType)->create([
             'gl_account_number' => '6210',
-            'utility_type' => 'water',
             'is_active' => true,
         ]);
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     LineChart,
     Line,
@@ -8,18 +8,29 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from 'recharts';
-
-const UtilityLineColors = {
-    water: '#3B82F6',      // blue
-    electric: '#EAB308',   // yellow
-    gas: '#F97316',        // orange
-    garbage: '#6B7280',    // gray
-    sewer: '#22C55E',      // green
-    other: '#A855F7',      // purple
-};
+import { getLineColor } from './constants';
 
 export default function PropertyUtilityTrend({ data, utilityTypes }) {
-    const [selectedType, setSelectedType] = useState(Object.keys(utilityTypes)[0] || 'water');
+    // Create a map of type key to utility type object
+    const typeMap = useMemo(() => {
+        if (!Array.isArray(utilityTypes)) return {};
+        return utilityTypes.reduce((acc, type) => {
+            acc[type.key] = type;
+            return acc;
+        }, {});
+    }, [utilityTypes]);
+
+    const typeKeys = useMemo(() => {
+        return Array.isArray(utilityTypes) ? utilityTypes.map(t => t.key) : [];
+    }, [utilityTypes]);
+
+    const [selectedType, setSelectedType] = useState(typeKeys[0] || 'water');
+
+    // Get line color for selected type
+    const selectedLineColor = useMemo(() => {
+        const type = typeMap[selectedType];
+        return getLineColor(type?.color_scheme);
+    }, [selectedType, typeMap]);
 
     // Check if we have any data
     const hasData = data && Object.keys(data).some(type => data[type]?.length > 0);
@@ -53,18 +64,18 @@ export default function PropertyUtilityTrend({ data, utilityTypes }) {
             <div className="card-header flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Historical Trend</h3>
                 <div className="flex flex-wrap gap-2">
-                    {Object.entries(utilityTypes).map(([key, label]) => (
+                    {Array.isArray(utilityTypes) && utilityTypes.map((type) => (
                         <button
-                            key={key}
-                            onClick={() => setSelectedType(key)}
+                            key={type.key}
+                            onClick={() => setSelectedType(type.key)}
                             className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                                selectedType === key
+                                selectedType === type.key
                                     ? 'text-white'
                                     : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
                             }`}
-                            style={selectedType === key ? { backgroundColor: UtilityLineColors[key] } : {}}
+                            style={selectedType === type.key ? { backgroundColor: getLineColor(type.color_scheme) } : {}}
                         >
-                            {label}
+                            {type.label}
                         </button>
                     ))}
                 </div>
@@ -107,7 +118,7 @@ export default function PropertyUtilityTrend({ data, utilityTypes }) {
                                 type="monotone"
                                 dataKey="cost"
                                 name="cost"
-                                stroke={UtilityLineColors[selectedType]}
+                                stroke={selectedLineColor}
                                 strokeWidth={2}
                                 dot={false}
                                 activeDot={{ r: 4 }}
@@ -116,7 +127,7 @@ export default function PropertyUtilityTrend({ data, utilityTypes }) {
                                 type="monotone"
                                 dataKey="cost_per_unit"
                                 name="cost_per_unit"
-                                stroke={UtilityLineColors[selectedType]}
+                                stroke={selectedLineColor}
                                 strokeWidth={2}
                                 strokeDasharray="5 5"
                                 dot={false}
@@ -129,7 +140,7 @@ export default function PropertyUtilityTrend({ data, utilityTypes }) {
                     <span className="flex items-center">
                         <span
                             className="w-4 h-0.5 mr-2"
-                            style={{ backgroundColor: UtilityLineColors[selectedType] }}
+                            style={{ backgroundColor: selectedLineColor }}
                         />
                         Total Cost
                     </span>
@@ -137,8 +148,8 @@ export default function PropertyUtilityTrend({ data, utilityTypes }) {
                         <span
                             className="w-4 h-0.5 mr-2"
                             style={{
-                                backgroundColor: UtilityLineColors[selectedType],
-                                backgroundImage: `repeating-linear-gradient(90deg, ${UtilityLineColors[selectedType]} 0, ${UtilityLineColors[selectedType]} 3px, transparent 3px, transparent 6px)`,
+                                backgroundColor: selectedLineColor,
+                                backgroundImage: `repeating-linear-gradient(90deg, ${selectedLineColor} 0, ${selectedLineColor} 3px, transparent 3px, transparent 6px)`,
                             }}
                         />
                         Cost per Unit

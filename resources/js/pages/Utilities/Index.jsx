@@ -5,8 +5,8 @@ import UtilityTrendChart from '../../components/Utilities/UtilityTrendChart';
 import UtilityHeatMap from '../../components/Utilities/UtilityHeatMap';
 import AnomalyAlerts from '../../components/Utilities/AnomalyAlerts';
 import ExcludedPropertiesList from '../../components/Utilities/ExcludedPropertiesList';
-import { UtilityIcons, UtilityColors, formatCurrency } from '../../components/Utilities/constants';
-import { BoltIcon, CubeIcon } from '@heroicons/react/24/outline';
+import { formatCurrency, findUtilityType, getIconComponent, getColorScheme } from '../../components/Utilities/constants';
+import { BoltIcon } from '@heroicons/react/24/outline';
 
 export default function UtilitiesIndex({
     period,
@@ -84,8 +84,9 @@ export default function UtilitiesIndex({
                 {/* Utility Type Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     {utilitySummary.map((utility) => {
-                        const Icon = UtilityIcons[utility.type] || CubeIcon;
-                        const colors = UtilityColors[utility.type] || UtilityColors.other;
+                        const utilityType = findUtilityType(utilityTypes, utility.type);
+                        const Icon = getIconComponent(utilityType?.icon);
+                        const colors = getColorScheme(utilityType?.color_scheme);
                         return (
                             <div key={utility.type} className="card">
                                 <div className="card-body">

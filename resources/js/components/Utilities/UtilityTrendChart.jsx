@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     LineChart,
     Line,
@@ -9,23 +9,32 @@ import {
     Legend,
     ResponsiveContainer,
 } from 'recharts';
+import { getLineColor } from './constants';
 
-const UtilityLineColors = {
-    water: '#3B82F6',      // blue
-    electric: '#EAB308',   // yellow
-    gas: '#F97316',        // orange
-    garbage: '#6B7280',    // gray
-    sewer: '#22C55E',      // green
-    other: '#A855F7',      // purple
-    total: '#1F2937',      // dark gray
-};
+// Total line uses dark gray
+const TOTAL_LINE_COLOR = '#1F2937';
 
 export default function UtilityTrendChart({ data, utilityTypes }) {
+    // Create a map of type key to utility type object
+    const typeMap = useMemo(() => {
+        if (!Array.isArray(utilityTypes)) return {};
+        return utilityTypes.reduce((acc, type) => {
+            acc[type.key] = type;
+            return acc;
+        }, {});
+    }, [utilityTypes]);
+
+    const typeKeys = useMemo(() => {
+        return Array.isArray(utilityTypes) ? utilityTypes.map(t => t.key) : [];
+    }, [utilityTypes]);
+
     const [visibleTypes, setVisibleTypes] = useState(() => {
         const initial = { total: true };
-        Object.keys(utilityTypes).forEach(type => {
-            initial[type] = false;
-        });
+        if (Array.isArray(utilityTypes)) {
+            utilityTypes.forEach(type => {
+                initial[type.key] = false;
+            });
+        }
         return initial;
     });
 
@@ -58,7 +67,20 @@ export default function UtilityTrendChart({ data, utilityTypes }) {
         }));
     };
 
-    const allTypes = ['total', ...Object.keys(utilityTypes)];
+    // Get the line color for a type
+    const getTypeLineColor = (type) => {
+        if (type === 'total') return TOTAL_LINE_COLOR;
+        const utilityType = typeMap[type];
+        return getLineColor(utilityType?.color_scheme);
+    };
+
+    // Get the label for a type
+    const getTypeLabel = (type) => {
+        if (type === 'total') return 'Total';
+        return typeMap[type]?.label || type;
+    };
+
+    const allTypes = ['total', ...typeKeys];
 
     return (
         <div className="card">
@@ -74,9 +96,9 @@ export default function UtilityTrendChart({ data, utilityTypes }) {
                                     ? 'text-white'
                                     : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
                             }`}
-                            style={visibleTypes[type] ? { backgroundColor: UtilityLineColors[type] } : {}}
+                            style={visibleTypes[type] ? { backgroundColor: getTypeLineColor(type) } : {}}
                         >
-                            {type === 'total' ? 'Total' : utilityTypes[type]}
+                            {getTypeLabel(type)}
                         </button>
                     ))}
                 </div>
@@ -101,7 +123,7 @@ export default function UtilityTrendChart({ data, utilityTypes }) {
                             <Tooltip
                                 formatter={(value, name) => [
                                     `$${value.toLocaleString()}`,
-                                    name === 'total' ? 'Total' : utilityTypes[name] || name,
+                                    getTypeLabel(name),
                                 ]}
                                 contentStyle={{
                                     backgroundColor: 'white',
@@ -117,7 +139,7 @@ export default function UtilityTrendChart({ data, utilityTypes }) {
                                         type="monotone"
                                         dataKey={type}
                                         name={type}
-                                        stroke={UtilityLineColors[type]}
+                                        stroke={getTypeLineColor(type)}
                                         strokeWidth={type === 'total' ? 3 : 2}
                                         dot={false}
                                         activeDot={{ r: 4 }}

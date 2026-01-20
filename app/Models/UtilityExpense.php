@@ -64,11 +64,11 @@ class UtilityExpense extends Model
     }
 
     /**
-     * Get the utility type from the linked account.
+     * Get the utility type key from the linked account.
      */
     public function getUtilityTypeAttribute(): ?string
     {
-        return $this->utilityAccount?->utility_type;
+        return $this->utilityAccount?->utilityType?->key;
     }
 
     /**
@@ -76,24 +76,26 @@ class UtilityExpense extends Model
      */
     public function getUtilityTypeLabelAttribute(): string
     {
-        $type = $this->utility_type;
-
-        if ($type === null) {
-            return 'Unknown';
-        }
-
-        $types = UtilityAccount::getUtilityTypeOptions();
-
-        return $types[$type] ?? $type;
+        return $this->utilityAccount?->utilityType?->label ?? 'Unknown';
     }
 
     /**
-     * Scope to filter by utility type (via account relationship).
+     * Scope to filter by utility type key (via account -> utility type relationship).
      */
-    public function scopeOfType(Builder $query, string $type): Builder
+    public function scopeOfType(Builder $query, string $typeKey): Builder
     {
-        return $query->whereHas('utilityAccount', function ($q) use ($type) {
-            $q->where('utility_type', $type);
+        return $query->whereHas('utilityAccount.utilityType', function ($q) use ($typeKey) {
+            $q->where('key', $typeKey);
+        });
+    }
+
+    /**
+     * Scope to filter by utility type ID.
+     */
+    public function scopeOfTypeId(Builder $query, string $utilityTypeId): Builder
+    {
+        return $query->whereHas('utilityAccount', function ($q) use ($utilityTypeId) {
+            $q->where('utility_type_id', $utilityTypeId);
         });
     }
 

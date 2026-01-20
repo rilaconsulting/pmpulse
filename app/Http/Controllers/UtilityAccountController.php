@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreUtilityAccountRequest;
 use App\Http\Requests\UpdateUtilityAccountRequest;
 use App\Models\UtilityAccount;
+use App\Models\UtilityType;
 use App\Services\UtilityExpenseService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,12 +24,13 @@ class UtilityAccountController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
 
         $accounts = UtilityAccount::query()
+            ->with('utilityType')
             ->orderBy('gl_account_number')
             ->get();
 
         return Inertia::render('Admin/UtilityAccounts', [
             'accounts' => $accounts,
-            'utilityTypes' => UtilityAccount::getUtilityTypeOptions(),
+            'utilityTypes' => UtilityType::getAllWithMetadata(),
         ]);
     }
 
@@ -88,7 +90,7 @@ class UtilityAccountController extends Controller
 
         return Inertia::render('Admin/UtilityAccountSuggestions', [
             'unmatchedAccounts' => $unmatched,
-            'utilityTypes' => UtilityAccount::getUtilityTypeOptions(),
+            'utilityTypes' => UtilityType::getAllWithMetadata(),
         ]);
     }
 
@@ -99,24 +101,31 @@ class UtilityAccountController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        $types = UtilityAccount::getUtilityTypeOptions();
+        // Eager load accounts with expense counts to avoid N+1 queries
+        $types = UtilityType::ordered()
+            ->withCount('accounts')
+            ->with(['accounts' => fn ($query) => $query->withCount('utilityExpenses')])
+            ->get();
 
-        // Get usage counts for each type (expenses counted via account relationship)
-        $typeCounts = [];
-        foreach (array_keys($types) as $typeKey) {
-            $accounts = UtilityAccount::where('utility_type', $typeKey)->get();
-            $expenseCount = $accounts->sum(fn ($account) => $account->utilityExpenses()->count());
+        $typesWithCounts = $types->map(function (UtilityType $type) {
+            // Sum expense counts from eager loaded accounts
+            $expenseCount = $type->accounts->sum('utility_expenses_count');
 
-            $typeCounts[$typeKey] = [
-                'accounts' => $accounts->count(),
-                'expenses' => $expenseCount,
+            return [
+                'id' => $type->id,
+                'key' => $type->key,
+                'label' => $type->label,
+                'icon' => $type->icon_or_default,
+                'color_scheme' => $type->color_scheme_or_default,
+                'sort_order' => $type->sort_order,
+                'is_system' => $type->is_system,
+                'accounts_count' => $type->accounts_count,
+                'expenses_count' => $expenseCount,
             ];
-        }
+        });
 
         return Inertia::render('Admin/UtilityTypes', [
-            'utilityTypes' => $types,
-            'typeCounts' => $typeCounts,
-            'defaultTypes' => UtilityAccount::DEFAULT_UTILITY_TYPES,
+            'utilityTypes' => $typesWithCounts,
         ]);
     }
 
@@ -128,41 +137,48 @@ class UtilityAccountController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $request->validate([
-            'key' => ['required', 'string', 'max:50', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'key' => ['required', 'string', 'max:50', 'regex:/^[a-z][a-z0-9_]*$/', 'unique:utility_types,key'],
             'label' => ['required', 'string', 'max:100'],
+            'icon' => ['nullable', 'string', 'max:50'],
+            'color_scheme' => ['nullable', 'string', 'max:20'],
         ], [
             'key.regex' => 'The key must start with a letter and contain only lowercase letters, numbers, and underscores.',
+            'key.unique' => 'A utility type with this key already exists.',
         ]);
 
-        $types = UtilityAccount::getUtilityTypeOptions();
+        // Get the max sort order and add 1
+        $maxSortOrder = UtilityType::max('sort_order') ?? 0;
 
-        if (isset($types[$validated['key']])) {
-            return back()->with('error', 'A utility type with this key already exists.');
-        }
-
-        UtilityAccount::addUtilityType($validated['key'], $validated['label']);
+        UtilityType::create([
+            'key' => $validated['key'],
+            'label' => $validated['label'],
+            'icon' => $validated['icon'] ?? UtilityType::DEFAULT_ICON,
+            'color_scheme' => $validated['color_scheme'] ?? UtilityType::DEFAULT_COLOR_SCHEME,
+            'sort_order' => $maxSortOrder + 1,
+            'is_system' => false,
+        ]);
 
         return back()->with('success', 'Utility type added successfully.');
     }
 
     /**
-     * Update a utility type label.
+     * Update a utility type.
      */
-    public function updateType(Request $request, string $key): RedirectResponse
+    public function updateType(Request $request, UtilityType $utilityType): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
         $validated = $request->validate([
             'label' => ['required', 'string', 'max:100'],
+            'icon' => ['nullable', 'string', 'max:50'],
+            'color_scheme' => ['nullable', 'string', 'max:20'],
         ]);
 
-        $types = UtilityAccount::getUtilityTypeOptions();
-
-        if (! isset($types[$key])) {
-            return back()->with('error', 'Utility type not found.');
-        }
-
-        UtilityAccount::updateUtilityTypeLabel($key, $validated['label']);
+        $utilityType->update([
+            'label' => $validated['label'],
+            'icon' => $validated['icon'] ?? $utilityType->icon,
+            'color_scheme' => $validated['color_scheme'] ?? $utilityType->color_scheme,
+        ]);
 
         return back()->with('success', 'Utility type updated successfully.');
     }
@@ -170,50 +186,49 @@ class UtilityAccountController extends Controller
     /**
      * Remove a utility type.
      */
-    public function destroyType(Request $request, string $key): RedirectResponse
+    public function destroyType(Request $request, UtilityType $utilityType): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        $types = UtilityAccount::getUtilityTypeOptions();
-
-        if (! isset($types[$key])) {
-            return back()->with('error', 'Utility type not found.');
+        // Check if type is in use by any related records
+        if ($utilityType->isInUse()) {
+            return back()->with('error', "Cannot delete '{$utilityType->label}'. It is in use by account mappings, notes, formatting rules, or property exclusions.");
         }
 
-        // Check if type is in use by any accounts
-        $accountCount = UtilityAccount::where('utility_type', $key)->count();
-
-        if ($accountCount > 0) {
-            return back()->with('error', "Cannot delete '{$types[$key]}'. It is used by {$accountCount} account mapping(s). Delete or reassign those accounts first.");
+        try {
+            $utilityType->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Handle FK constraint violations that may occur due to race conditions
+            return back()->with('error', "Cannot delete '{$utilityType->label}'. It is still in use by related records.");
         }
-
-        UtilityAccount::removeUtilityType($key);
 
         return back()->with('success', 'Utility type deleted successfully.');
     }
 
     /**
-     * Reset utility types to defaults.
+     * Reset utility types to defaults (remove custom types).
      */
     public function resetTypes(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        // Check if any custom types are in use by accounts
-        $defaultKeys = array_keys(UtilityAccount::DEFAULT_UTILITY_TYPES);
-        $currentTypes = UtilityAccount::getUtilityTypeOptions();
-        $customKeys = array_diff(array_keys($currentTypes), $defaultKeys);
+        // Check if any custom types are in use by related records
+        $customTypes = UtilityType::custom()->get();
 
-        foreach ($customKeys as $key) {
-            $accountCount = UtilityAccount::where('utility_type', $key)->count();
-
-            if ($accountCount > 0) {
-                return back()->with('error', "Cannot reset to defaults. Custom type '{$currentTypes[$key]}' is used by {$accountCount} account(s).");
+        foreach ($customTypes as $type) {
+            if ($type->isInUse()) {
+                return back()->with('error', "Cannot reset to defaults. Custom type '{$type->label}' is in use by related records.");
             }
         }
 
-        UtilityAccount::setUtilityTypeOptions(UtilityAccount::DEFAULT_UTILITY_TYPES);
+        try {
+            // Delete all custom types
+            UtilityType::custom()->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Handle FK constraint violations that may occur due to race conditions
+            return back()->with('error', 'Cannot reset to defaults. Some custom types are still in use.');
+        }
 
-        return back()->with('success', 'Utility types reset to defaults.');
+        return back()->with('success', 'Custom utility types removed. Only system types remain.');
     }
 }

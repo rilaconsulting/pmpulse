@@ -7,8 +7,8 @@ namespace Tests\Feature;
 use App\Models\Property;
 use App\Models\Role;
 use App\Models\User;
-use App\Models\UtilityAccount;
 use App\Models\UtilityNote;
+use App\Models\UtilityType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -22,6 +22,10 @@ class UtilityNoteControllerTest extends TestCase
 
     private Property $property;
 
+    private UtilityType $waterType;
+
+    private UtilityType $electricType;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -33,8 +37,9 @@ class UtilityNoteControllerTest extends TestCase
         $this->adminUser = User::factory()->create(['role_id' => $adminRole->id]);
         $this->property = Property::factory()->create();
 
-        // Ensure at least one utility type exists
-        UtilityAccount::factory()->create(['utility_type' => 'water']);
+        // Get utility types (seeded by migration)
+        $this->waterType = UtilityType::where('key', 'water')->firstOrFail();
+        $this->electricType = UtilityType::where('key', 'electric')->firstOrFail();
     }
 
     // ==================== Show Tests ====================
@@ -50,7 +55,7 @@ class UtilityNoteControllerTest extends TestCase
     {
         $note = UtilityNote::factory()->create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => 'Test note content',
             'created_by' => $this->user->id,
         ]);
@@ -60,7 +65,7 @@ class UtilityNoteControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonPath('note.id', $note->id);
         $response->assertJsonPath('note.note', 'Test note content');
-        $response->assertJsonPath('note.utility_type', 'water');
+        $response->assertJsonPath('note.utility_type_key', 'water');
     }
 
     public function test_show_returns_null_for_nonexistent_note(): void
@@ -75,7 +80,7 @@ class UtilityNoteControllerTest extends TestCase
     {
         UtilityNote::factory()->create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'created_by' => $this->user->id,
         ]);
 
@@ -105,7 +110,7 @@ class UtilityNoteControllerTest extends TestCase
     public function test_guest_cannot_create_note(): void
     {
         $response = $this->postJson("/utilities/notes/{$this->property->id}", [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => 'Test note',
         ]);
 
@@ -115,18 +120,18 @@ class UtilityNoteControllerTest extends TestCase
     public function test_authenticated_user_can_create_note(): void
     {
         $response = $this->actingAs($this->user)->postJson("/utilities/notes/{$this->property->id}", [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => 'New note content',
         ]);
 
         $response->assertStatus(200);
         $response->assertJsonPath('note.note', 'New note content');
-        $response->assertJsonPath('note.utility_type', 'water');
+        $response->assertJsonPath('note.utility_type_key', 'water');
         $response->assertJsonPath('message', 'Note saved successfully.');
 
         $this->assertDatabaseHas('utility_notes', [
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => 'New note content',
             'created_by' => $this->user->id,
         ]);
@@ -136,13 +141,13 @@ class UtilityNoteControllerTest extends TestCase
     {
         UtilityNote::factory()->create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => 'Original note',
             'created_by' => $this->adminUser->id,
         ]);
 
         $response = $this->actingAs($this->user)->postJson("/utilities/notes/{$this->property->id}", [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => 'Updated note content',
         ]);
 
@@ -153,46 +158,46 @@ class UtilityNoteControllerTest extends TestCase
         $this->assertDatabaseCount('utility_notes', 1);
         $this->assertDatabaseHas('utility_notes', [
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => 'Updated note content',
         ]);
     }
 
-    public function test_store_requires_utility_type(): void
+    public function test_store_requires_utility_type_id(): void
     {
         $response = $this->actingAs($this->user)->postJson("/utilities/notes/{$this->property->id}", [
             'note' => 'Test note',
         ]);
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors('utility_type');
+        $response->assertJsonValidationErrors('utility_type_id');
     }
 
     public function test_store_requires_note(): void
     {
         $response = $this->actingAs($this->user)->postJson("/utilities/notes/{$this->property->id}", [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
         ]);
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors('note');
     }
 
-    public function test_store_validates_utility_type(): void
+    public function test_store_validates_utility_type_id_exists(): void
     {
         $response = $this->actingAs($this->user)->postJson("/utilities/notes/{$this->property->id}", [
-            'utility_type' => 'invalid_type',
+            'utility_type_id' => '00000000-0000-0000-0000-000000000000',
             'note' => 'Test note',
         ]);
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors('utility_type');
+        $response->assertJsonValidationErrors('utility_type_id');
     }
 
     public function test_store_validates_note_max_length(): void
     {
         $response = $this->actingAs($this->user)->postJson("/utilities/notes/{$this->property->id}", [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => str_repeat('a', 2001),
         ]);
 
@@ -205,7 +210,7 @@ class UtilityNoteControllerTest extends TestCase
         $maxLengthNote = str_repeat('a', 2000);
 
         $response = $this->actingAs($this->user)->postJson("/utilities/notes/{$this->property->id}", [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => $maxLengthNote,
         ]);
 
@@ -219,7 +224,7 @@ class UtilityNoteControllerTest extends TestCase
     public function test_store_returns_404_for_nonexistent_property(): void
     {
         $response = $this->actingAs($this->user)->postJson('/utilities/notes/nonexistent-id', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => 'Test note',
         ]);
 
@@ -232,7 +237,7 @@ class UtilityNoteControllerTest extends TestCase
     {
         UtilityNote::factory()->create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
         ]);
 
         $response = $this->deleteJson("/utilities/notes/{$this->property->id}/water");
@@ -244,7 +249,7 @@ class UtilityNoteControllerTest extends TestCase
     {
         UtilityNote::factory()->create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'created_by' => $this->user->id,
         ]);
 
@@ -255,7 +260,7 @@ class UtilityNoteControllerTest extends TestCase
 
         $this->assertDatabaseMissing('utility_notes', [
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
         ]);
     }
 
@@ -264,7 +269,7 @@ class UtilityNoteControllerTest extends TestCase
         // Note created by admin
         UtilityNote::factory()->create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'created_by' => $this->adminUser->id,
         ]);
 
@@ -274,7 +279,7 @@ class UtilityNoteControllerTest extends TestCase
         $response->assertStatus(200);
         $this->assertDatabaseMissing('utility_notes', [
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
         ]);
     }
 
@@ -306,26 +311,25 @@ class UtilityNoteControllerTest extends TestCase
     public function test_notes_are_property_and_utility_type_specific(): void
     {
         $property2 = Property::factory()->create();
-        UtilityAccount::factory()->create(['utility_type' => 'electric']);
 
         // Create notes for different combinations
         UtilityNote::factory()->create([
             'property_id' => $this->property->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => 'Property 1 Water',
             'created_by' => $this->user->id,
         ]);
 
         UtilityNote::factory()->create([
             'property_id' => $this->property->id,
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'note' => 'Property 1 Electric',
             'created_by' => $this->user->id,
         ]);
 
         UtilityNote::factory()->create([
             'property_id' => $property2->id,
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'note' => 'Property 2 Water',
             'created_by' => $this->user->id,
         ]);

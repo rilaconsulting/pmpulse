@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\UtilityAccount;
 use App\Models\UtilityFormattingRule;
+use App\Models\UtilityType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,6 +20,10 @@ class UtilityFormattingRuleControllerTest extends TestCase
 
     private User $adminUser;
 
+    private UtilityType $waterType;
+
+    private UtilityType $electricType;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -29,9 +34,13 @@ class UtilityFormattingRuleControllerTest extends TestCase
         $this->user = User::factory()->create(['role_id' => $role->id]);
         $this->adminUser = User::factory()->create(['role_id' => $adminRole->id]);
 
-        // Ensure at least one utility type exists
-        UtilityAccount::factory()->create(['utility_type' => 'water']);
-        UtilityAccount::factory()->create(['utility_type' => 'electric']);
+        // Get utility types (seeded by migration)
+        $this->waterType = UtilityType::where('key', 'water')->firstOrFail();
+        $this->electricType = UtilityType::where('key', 'electric')->firstOrFail();
+
+        // Ensure at least one utility account exists for each type
+        UtilityAccount::factory()->forUtilityType($this->waterType)->create();
+        UtilityAccount::factory()->forUtilityType($this->electricType)->create();
     }
 
     // ==================== Index Tests ====================
@@ -68,13 +77,13 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_index_returns_rules_grouped_by_type(): void
     {
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Water Rule 1',
             'created_by' => $this->adminUser->id,
         ]);
 
         UtilityFormattingRule::factory()->create([
-            'utility_type' => 'electric',
+            'utility_type_id' => $this->electricType->id,
             'name' => 'Electric Rule 1',
             'created_by' => $this->adminUser->id,
         ]);
@@ -106,7 +115,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_guest_cannot_create_formatting_rule(): void
     {
         $response = $this->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'threshold' => 20,
@@ -119,7 +128,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_non_admin_cannot_create_formatting_rule(): void
     {
         $response = $this->actingAs($this->user)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'threshold' => 20,
@@ -132,7 +141,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_admin_can_create_formatting_rule(): void
     {
         $response = $this->actingAs($this->adminUser)->post('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'High Increase Alert',
             'operator' => 'increase_percent',
             'threshold' => 25.5,
@@ -146,7 +155,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
         $response->assertSessionHas('success', 'Formatting rule created successfully.');
 
         $this->assertDatabaseHas('utility_formatting_rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'High Increase Alert',
             'operator' => 'increase_percent',
             'threshold' => 25.5,
@@ -158,7 +167,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
         ]);
     }
 
-    public function test_store_requires_utility_type(): void
+    public function test_store_requires_utility_type_id(): void
     {
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
             'name' => 'Test Rule',
@@ -168,13 +177,13 @@ class UtilityFormattingRuleControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors('utility_type');
+        $response->assertJsonValidationErrors('utility_type_id');
     }
 
-    public function test_store_validates_utility_type(): void
+    public function test_store_validates_utility_type_id(): void
     {
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'invalid_type',
+            'utility_type_id' => 'invalid-uuid',
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'threshold' => 20,
@@ -182,13 +191,13 @@ class UtilityFormattingRuleControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors('utility_type');
+        $response->assertJsonValidationErrors('utility_type_id');
     }
 
     public function test_store_requires_name(): void
     {
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'operator' => 'increase_percent',
             'threshold' => 20,
             'color' => '#FF0000',
@@ -201,7 +210,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_store_requires_operator(): void
     {
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'threshold' => 20,
             'color' => '#FF0000',
@@ -214,7 +223,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_store_validates_operator(): void
     {
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'invalid_operator',
             'threshold' => 20,
@@ -228,7 +237,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_store_requires_threshold(): void
     {
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'color' => '#FF0000',
@@ -241,7 +250,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_store_validates_threshold_range(): void
     {
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'threshold' => -1,
@@ -252,7 +261,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
         $response->assertJsonValidationErrors('threshold');
 
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'threshold' => 1001,
@@ -266,7 +275,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_store_requires_color(): void
     {
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'threshold' => 20,
@@ -279,7 +288,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_store_validates_color_format(): void
     {
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'threshold' => 20,
@@ -290,7 +299,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
         $response->assertJsonValidationErrors('color');
 
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'threshold' => 20,
@@ -304,7 +313,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_store_validates_background_color_format(): void
     {
         $response = $this->actingAs($this->adminUser)->postJson('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'threshold' => 20,
@@ -319,7 +328,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_store_allows_null_background_color(): void
     {
         $response = $this->actingAs($this->adminUser)->post('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'threshold' => 20,
@@ -337,7 +346,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_store_uses_default_priority(): void
     {
         $response = $this->actingAs($this->adminUser)->post('/admin/utility-formatting-rules', [
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Test Rule',
             'operator' => 'increase_percent',
             'threshold' => 20,
@@ -383,7 +392,7 @@ class UtilityFormattingRuleControllerTest extends TestCase
     public function test_admin_can_update_formatting_rule(): void
     {
         $rule = UtilityFormattingRule::factory()->create([
-            'utility_type' => 'water',
+            'utility_type_id' => $this->waterType->id,
             'name' => 'Original Name',
             'threshold' => 10,
             'created_by' => $this->adminUser->id,
