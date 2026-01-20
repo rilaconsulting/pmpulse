@@ -13,7 +13,7 @@ function SuggestionRow({ glAccount, count, utilityTypes, onMapped }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         gl_account_number: glAccount,
         gl_account_name: '',
-        utility_type: '',
+        utility_type_id: '',
         is_active: true,
     });
 
@@ -49,17 +49,17 @@ function SuggestionRow({ glAccount, count, utilityTypes, onMapped }) {
                 </td>
                 <td className="px-6 py-4">
                     <select
-                        value={data.utility_type}
-                        onChange={(e) => setData('utility_type', e.target.value)}
+                        value={data.utility_type_id}
+                        onChange={(e) => setData('utility_type_id', e.target.value)}
                         className="input w-full"
                     >
                         <option value="">Select type...</option>
-                        {Object.entries(utilityTypes).map(([value, label]) => (
-                            <option key={value} value={value}>{label}</option>
+                        {utilityTypes.map((type) => (
+                            <option key={type.id} value={type.id}>{type.label}</option>
                         ))}
                     </select>
-                    {errors.utility_type && (
-                        <p className="mt-1 text-xs text-red-600">{errors.utility_type}</p>
+                    {errors.utility_type_id && (
+                        <p className="mt-1 text-xs text-red-600">{errors.utility_type_id}</p>
                     )}
                 </td>
                 <td className="px-6 py-4 text-center text-sm text-gray-500">
@@ -69,7 +69,7 @@ function SuggestionRow({ glAccount, count, utilityTypes, onMapped }) {
                     <button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={processing || !data.utility_type || !data.gl_account_name.trim()}
+                        disabled={processing || !data.utility_type_id || !data.gl_account_name.trim()}
                         className="inline-flex items-center px-2 py-1 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
                     >
                         <CheckIcon className="w-4 h-4 mr-1" />
