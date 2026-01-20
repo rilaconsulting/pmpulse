@@ -55,7 +55,8 @@ export default function PageHeader({
 
     // Sticky wrapper - wraps the card to make it sticky
     // Note: top-16 aligns with Layout.jsx header height (h-16 = 64px)
-    const stickyWrapperClasses = sticky ? 'sticky top-16 z-20' : '';
+    // Added pt-2 pb-4 for visual separation when sticky, bg-gray-50 matches page background
+    const stickyWrapperClasses = sticky ? 'sticky top-16 z-20 pt-2 pb-4 bg-gray-50' : '';
 
     const headerContent = (
         <div className={`${cardClasses} px-6 py-4`}>
