@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rent roll data sync from AppFolio with automated lease and occupancy tracking
 - Unit occupancy status now automatically derived from active lease presence
 - Unified PageHeader component for consistent page headers across the application
+- Tabbed navigation on property detail page with Overview, Units, Utilities, Work Orders, and Settings tabs
+- Utility expenses view embedded in property detail page with cost breakdown and historical trends
+- Work order history embedded in property detail page with status summary and recent work orders
 
 ### Changed
 - Improved data validation during rent roll sync with warnings for missing dates and rent values
@@ -21,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Property detail header redesigned for better space efficiency with back navigation inline
 - All detail pages now have sticky headers that stay visible when scrolling
 - Standardized page header styling across Properties, Utilities, Vendors, and Admin sections
+- Property detail page reorganized into tabbed sections for better navigation
 
 ### Fixed
 - Active/Inactive filter now works correctly on property list
