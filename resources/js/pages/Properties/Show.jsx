@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
-import PropertyTabs, { PropertyTabPanel } from '../../components/Property/PropertyTabs';
+import { PropertyTabPanel } from '../../components/Property/PropertyTabs';
 import AdjustmentList from '../../components/Property/AdjustmentList';
 import AdjustedValue from '../../components/AdjustedValue';
 import PropertyUtilityTrend from '../../components/Utilities/PropertyUtilityTrend';
@@ -290,17 +290,11 @@ export default function PropertyShow({
                         )}
                     </>
                 }
+                tabs={tabs}
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
                 sticky
             />
-
-            {/* Tab Navigation */}
-            <div className="mt-4">
-                <PropertyTabs
-                    tabs={tabs}
-                    activeTab={activeTab}
-                    onTabChange={handleTabChange}
-                />
-            </div>
 
             {/* Tab Content */}
             <div className="space-y-6 pt-4">

@@ -19,8 +19,9 @@ import Badge from './Badge';
  * @param {string|ReactNode} secondaryInfo - Optional secondary info line
  * @param {ReactNode} actions - Optional right-side actions
  * @param {boolean} sticky - Whether header should be sticky (default: true)
- * @param {object[]} tabs - Optional tabs array { label, href, icon }
- * @param {string} activeTab - Active tab label for matching
+ * @param {object[]} tabs - Optional tabs array { label, href, icon, id, count }
+ * @param {string} activeTab - Active tab label or id for matching
+ * @param {function} onTabChange - Optional callback for in-page tab switching (renders buttons instead of links)
  */
 export default function PageHeader({
     title,
@@ -38,16 +39,18 @@ export default function PageHeader({
     sticky = true,
     tabs = [],
     activeTab,
+    onTabChange,
 }) {
     const { url: currentUrl } = usePage();
 
-    // Determine if a tab is active based on href matching or explicit activeTab
+    // Determine if a tab is active based on id, label, or href matching
     const isTabActive = (tab) => {
         if (activeTab) {
-            return tab.label === activeTab;
+            // Match by id first (for in-page tabs), then by label
+            return tab.id === activeTab || tab.label === activeTab;
         }
-        // Fallback to URL matching
-        return currentUrl.startsWith(tab.href);
+        // Fallback to URL matching (for navigation tabs)
+        return tab.href && currentUrl.startsWith(tab.href);
     };
 
     // Card styling classes (matches .card in app.css)
@@ -153,29 +156,66 @@ export default function PageHeader({
             {/* Tabs Section (if provided) - inside the card */}
             {tabs.length > 0 && (
                 <div className="border-t border-gray-200 -mx-6 px-6 mt-4">
-                    <nav className="-mb-px flex space-x-8" aria-label="Page navigation">
+                    <nav className="-mb-px flex space-x-8" aria-label="Page navigation" role={onTabChange ? 'tablist' : undefined}>
                         {tabs.map((tab) => {
                             const active = isTabActive(tab);
                             const TabIcon = tab.icon;
-                            return (
-                                <Link
-                                    key={tab.label}
-                                    href={tab.href}
-                                    className={`group flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                        active
-                                            ? 'border-blue-500 text-blue-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                    }`}
-                                    aria-current={active ? 'page' : undefined}
-                                >
+                            const tabContent = (
+                                <>
                                     {TabIcon && (
                                         <TabIcon
                                             className={`w-5 h-5 mr-2 transition-colors ${
                                                 active ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
                                             }`}
+                                            aria-hidden="true"
                                         />
                                     )}
                                     <span>{tab.label}</span>
+                                    {tab.count !== undefined && tab.count !== null && (
+                                        <span
+                                            className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${
+                                                active
+                                                    ? 'bg-blue-100 text-blue-600'
+                                                    : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            {tab.count}
+                                        </span>
+                                    )}
+                                </>
+                            );
+
+                            const tabClasses = `group flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
+                                active
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`;
+
+                            // Render button for in-page tabs, Link for navigation tabs
+                            if (onTabChange) {
+                                return (
+                                    <button
+                                        key={tab.id || tab.label}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={active}
+                                        aria-controls={tab.id ? `panel-${tab.id}` : undefined}
+                                        onClick={() => onTabChange(tab.id || tab.label)}
+                                        className={tabClasses}
+                                    >
+                                        {tabContent}
+                                    </button>
+                                );
+                            }
+
+                            return (
+                                <Link
+                                    key={tab.label}
+                                    href={tab.href}
+                                    className={tabClasses}
+                                    aria-current={active ? 'page' : undefined}
+                                >
+                                    {tabContent}
                                 </Link>
                             );
                         })}
