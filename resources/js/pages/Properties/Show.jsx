@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
@@ -894,7 +894,7 @@ export default function PropertyShow({
                                                             'bg-gray-100 text-gray-800'
                                                         }`}>
                                                             {wo.status === 'in_progress' ? 'In Progress' :
-                                                             wo.status?.charAt(0).toUpperCase() + wo.status?.slice(1)}
+                                                             wo.status ? wo.status.charAt(0).toUpperCase() + wo.status.slice(1) : '-'}
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
