@@ -153,6 +153,11 @@ class IngestionService
         // Store raw data and normalize
         $this->processItems($resourceType, $data);
 
+        // After processing rent_roll, update unit statuses based on active leases
+        if ($resourceType === 'rent_roll') {
+            $this->updateUnitStatusFromLeases();
+        }
+
         // Finish tracking and save metrics
         $this->resourceTrackers[$resourceType] = $this->currentTracker;
         $this->currentTracker->finish();
@@ -1246,6 +1251,48 @@ class IngestionService
             'emergency', 'critical', 'immediate' => 'emergency',
             default => 'normal',
         };
+    }
+
+    /**
+     * Update unit statuses based on active lease presence.
+     *
+     * Logic:
+     * - Unit is 'occupied' if it has an active lease (start_date <= today AND (end_date >= today OR end_date IS NULL))
+     * - Unit is 'vacant' if no active lease exists
+     * - Unit with 'not_ready' status is preserved (maintenance flag)
+     */
+    private function updateUnitStatusFromLeases(): void
+    {
+        $today = now()->toDateString();
+
+        // Get all units that are NOT marked as 'not_ready' (preserve maintenance status)
+        $units = Unit::where('status', '!=', 'not_ready')->get();
+
+        $updatedCount = 0;
+
+        foreach ($units as $unit) {
+            // Check if unit has an active lease
+            $hasActiveLease = Lease::where('unit_id', $unit->id)
+                ->where('start_date', '<=', $today)
+                ->where(function ($query) use ($today) {
+                    $query->where('end_date', '>=', $today)
+                        ->orWhereNull('end_date');
+                })
+                ->exists();
+
+            $newStatus = $hasActiveLease ? 'occupied' : 'vacant';
+
+            if ($unit->status !== $newStatus) {
+                $unit->status = $newStatus;
+                $unit->save();
+                $updatedCount++;
+            }
+        }
+
+        Log::info('Updated unit statuses from leases', [
+            'units_checked' => $units->count(),
+            'units_updated' => $updatedCount,
+        ]);
     }
 
     /**
