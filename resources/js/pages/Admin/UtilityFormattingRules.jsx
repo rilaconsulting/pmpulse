@@ -49,9 +49,9 @@ function ColorPicker({ value, onChange, label }) {
     );
 }
 
-function AddRuleForm({ utilityType, operators, onCancel }) {
+function AddRuleForm({ utilityTypeId, operators, onCancel }) {
     const { data, setData, post, processing, errors, reset } = useForm({
-        utility_type: utilityType,
+        utility_type_id: utilityTypeId,
         name: '',
         operator: 'increase_percent',
         threshold: '',
@@ -384,14 +384,14 @@ function RuleRow({ rule, operators, onEdit, onDelete }) {
     );
 }
 
-function UtilityTypeSection({ utilityType, utilityTypeName, rules, operators, editingId, setEditingId, addingType, setAddingType }) {
+function UtilityTypeSection({ utilityTypeId, utilityTypeKey, utilityTypeName, rules, operators, editingId, setEditingId, addingType, setAddingType }) {
     const handleDelete = (rule) => {
         if (confirm(`Are you sure you want to delete the formatting rule "${rule.name}"?`)) {
             router.delete(route('admin.utility-formatting-rules.destroy', rule.id));
         }
     };
 
-    const colorClasses = UtilityTypeColors[utilityType] || UtilityTypeColors.other;
+    const colorClasses = UtilityTypeColors[utilityTypeKey] || UtilityTypeColors.other;
 
     return (
         <div className="card overflow-hidden">
@@ -399,10 +399,10 @@ function UtilityTypeSection({ utilityType, utilityTypeName, rules, operators, ed
             <div className={`px-4 py-3 border-b ${colorClasses}`}>
                 <div className="flex items-center justify-between">
                     <h3 className="font-medium">{utilityTypeName}</h3>
-                    {addingType !== utilityType && (
+                    {addingType !== utilityTypeId && (
                         <button
                             type="button"
-                            onClick={() => setAddingType(utilityType)}
+                            onClick={() => setAddingType(utilityTypeId)}
                             className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-white rounded border border-gray-300 hover:bg-gray-50"
                         >
                             <PlusIcon className="w-3 h-3 mr-1" />
@@ -444,9 +444,9 @@ function UtilityTypeSection({ utilityType, utilityTypeName, rules, operators, ed
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {addingType === utilityType && (
+                        {addingType === utilityTypeId && (
                             <AddRuleForm
-                                utilityType={utilityType}
+                                utilityTypeId={utilityTypeId}
                                 operators={operators}
                                 onCancel={() => setAddingType(null)}
                             />
@@ -469,13 +469,13 @@ function UtilityTypeSection({ utilityType, utilityTypeName, rules, operators, ed
                                 />
                             )
                         ))}
-                        {rules.length === 0 && addingType !== utilityType && (
+                        {rules.length === 0 && addingType !== utilityTypeId && (
                             <tr>
                                 <td colSpan="8" className="px-4 py-6 text-center text-sm text-gray-500">
                                     No formatting rules configured for {utilityTypeName.toLowerCase()}.
                                     <button
                                         type="button"
-                                        onClick={() => setAddingType(utilityType)}
+                                        onClick={() => setAddingType(utilityTypeId)}
                                         className="ml-2 text-blue-600 hover:text-blue-800"
                                     >
                                         Add one
@@ -494,6 +494,9 @@ export default function UtilityFormattingRules({ rules, rulesByType, utilityType
     const [addingType, setAddingType] = useState(null);
     const [editingId, setEditingId] = useState(null);
 
+    // utilityTypes is now an array of objects with id, key, label, icon, color_scheme
+    const types = Array.isArray(utilityTypes) ? utilityTypes : [];
+
     return (
         <AdminLayout currentTab="utility-formatting-rules">
             <div className="space-y-6">
@@ -507,12 +510,13 @@ export default function UtilityFormattingRules({ rules, rulesByType, utilityType
 
                 {/* Rules by Utility Type */}
                 <div className="space-y-6">
-                    {Object.entries(utilityTypes).map(([type, label]) => (
+                    {types.map((type) => (
                         <UtilityTypeSection
-                            key={type}
-                            utilityType={type}
-                            utilityTypeName={label}
-                            rules={rulesByType[type] || []}
+                            key={type.id}
+                            utilityTypeId={type.id}
+                            utilityTypeKey={type.key}
+                            utilityTypeName={type.label}
+                            rules={rulesByType[type.key] || []}
                             operators={operators}
                             editingId={editingId}
                             setEditingId={setEditingId}

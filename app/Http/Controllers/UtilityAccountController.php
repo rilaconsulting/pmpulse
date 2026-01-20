@@ -101,12 +101,15 @@ class UtilityAccountController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        $types = UtilityType::ordered()->get();
+        // Eager load accounts with expense counts to avoid N+1 queries
+        $types = UtilityType::ordered()
+            ->withCount('accounts')
+            ->with(['accounts' => fn ($query) => $query->withCount('utilityExpenses')])
+            ->get();
 
-        // Get usage counts for each type (expenses counted via account relationship)
         $typesWithCounts = $types->map(function (UtilityType $type) {
-            $accounts = $type->accounts;
-            $expenseCount = $accounts->sum(fn ($account) => $account->utilityExpenses()->count());
+            // Sum expense counts from eager loaded accounts
+            $expenseCount = $type->accounts->sum('utility_expenses_count');
 
             return [
                 'id' => $type->id,
@@ -116,7 +119,7 @@ class UtilityAccountController extends Controller
                 'color_scheme' => $type->color_scheme_or_default,
                 'sort_order' => $type->sort_order,
                 'is_system' => $type->is_system,
-                'accounts_count' => $accounts->count(),
+                'accounts_count' => $type->accounts_count,
                 'expenses_count' => $expenseCount,
             ];
         });
@@ -187,15 +190,9 @@ class UtilityAccountController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        // Prevent deletion of system types
-        if ($utilityType->is_system) {
-            return back()->with('error', "Cannot delete '{$utilityType->label}'. System utility types cannot be deleted.");
-        }
-
-        // Check if type can be deleted (not in use)
-        if (! $utilityType->canBeDeleted()) {
-            $accountCount = $utilityType->accounts()->count();
-
+        // Check if type is in use by any accounts
+        $accountCount = $utilityType->accounts()->count();
+        if ($accountCount > 0) {
             return back()->with('error', "Cannot delete '{$utilityType->label}'. It is used by {$accountCount} account mapping(s). Delete or reassign those accounts first.");
         }
 

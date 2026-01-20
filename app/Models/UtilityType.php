@@ -179,11 +179,11 @@ class UtilityType extends Model
 
     /**
      * Check if this type can be deleted.
-     * System types and types in use cannot be deleted.
+     * Types in use by accounts cannot be deleted.
      */
     public function canBeDeleted(): bool
     {
-        return ! $this->is_system && ! $this->isInUse();
+        return ! $this->isInUse();
     }
 
     /**

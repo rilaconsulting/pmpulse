@@ -31,7 +31,7 @@ function IconSelector({ value, onChange }) {
                 <ChevronDownIcon className="h-4 w-4 text-gray-400" />
             </button>
             {isOpen && (
-                <div className="absolute z-10 mt-1 w-64 bg-white rounded-md shadow-lg border border-gray-200 max-h-60 overflow-auto">
+                <div className="absolute z-50 mt-1 w-64 bg-white rounded-md shadow-lg border border-gray-200 max-h-60 overflow-auto">
                     <div className="p-2 grid grid-cols-4 gap-1">
                         {Object.entries(AvailableUtilityIcons).map(([key, { name, component: IconComponent }]) => (
                             <button
@@ -72,7 +72,7 @@ function ColorSelector({ value, onChange }) {
                 <ChevronDownIcon className="h-4 w-4 text-gray-400" />
             </button>
             {isOpen && (
-                <div className="absolute z-10 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200">
+                <div className="absolute z-50 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200">
                     <div className="p-2 grid grid-cols-4 gap-1">
                         {Object.entries(AvailableColorSchemes).map(([key, scheme]) => (
                             <button
@@ -251,8 +251,8 @@ function EditTypeRow({ type, onCancel }) {
 }
 
 function TypeRow({ type, onEdit, onDelete }) {
-    const hasUsage = type.accounts_count > 0 || type.expenses_count > 0;
-    const canDelete = !type.is_system && !hasUsage;
+    const hasUsage = type.accounts_count > 0;
+    const canDelete = !hasUsage;
 
     return (
         <tr className="hover:bg-gray-50">
@@ -303,13 +303,7 @@ function TypeRow({ type, onEdit, onDelete }) {
                     type="button"
                     onClick={() => onDelete(type)}
                     className={`${canDelete ? 'text-red-600 hover:text-red-900' : 'text-gray-300 cursor-not-allowed'}`}
-                    title={
-                        type.is_system
-                            ? 'Cannot delete system type'
-                            : hasUsage
-                                ? 'Cannot delete - type is in use'
-                                : 'Delete'
-                    }
+                    title={hasUsage ? 'Cannot delete - type is in use' : 'Delete'}
                     disabled={!canDelete}
                 >
                     <TrashIcon className="w-4 h-4" />
@@ -372,7 +366,7 @@ export default function UtilityTypes({ utilityTypes }) {
                 </div>
 
                 {/* Types List */}
-                <div className="card overflow-hidden">
+                <div className="card overflow-visible">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
