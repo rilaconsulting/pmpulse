@@ -1,10 +1,13 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
+import PropertyTabs, { PropertyTabPanel } from '../../components/Property/PropertyTabs';
 import AdjustmentList from '../../components/Property/AdjustmentList';
 import AdjustedValue from '../../components/AdjustedValue';
+import PropertyUtilityTrend from '../../components/Utilities/PropertyUtilityTrend';
+import { formatCurrency as formatUtilityCurrency, findUtilityType, getIconComponent, getColorScheme } from '../../components/Utilities/constants';
 import {
     MapPinIcon,
     HomeModernIcon,
@@ -18,6 +21,10 @@ import {
     PlusIcon,
     XMarkIcon,
     ArrowTopRightOnSquareIcon,
+    InformationCircleIcon,
+    BoltIcon,
+    WrenchScrewdriverIcon,
+    Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
 
 export default function PropertyShow({
@@ -32,9 +39,37 @@ export default function PropertyShow({
     activeAdjustments,
     historicalAdjustments,
     effectiveValues,
+    initialTab,
+    utilityData,
+    workOrderData,
 }) {
     const { auth } = usePage().props;
     const isAdmin = auth?.user?.role?.name === 'admin';
+
+    // Tab state - initialized from URL param or default to 'overview'
+    const [activeTab, setActiveTab] = useState(initialTab || 'overview');
+
+    // Define tabs configuration
+    const tabs = [
+        { id: 'overview', label: 'Overview', icon: InformationCircleIcon },
+        { id: 'units', label: 'Units', icon: HomeModernIcon, count: stats?.total_units },
+        { id: 'utilities', label: 'Utilities', icon: BoltIcon },
+        { id: 'work-orders', label: 'Work Orders', icon: WrenchScrewdriverIcon },
+        ...(isAdmin ? [{ id: 'settings', label: 'Settings', icon: Cog6ToothIcon }] : []),
+    ];
+
+    // Handle tab change with URL persistence
+    const handleTabChange = useCallback((tabId) => {
+        setActiveTab(tabId);
+        // Update URL without full page reload
+        const url = new URL(window.location);
+        if (tabId === 'overview') {
+            url.searchParams.delete('tab');
+        } else {
+            url.searchParams.set('tab', tabId);
+        }
+        window.history.replaceState({}, '', url);
+    }, []);
 
     const [showAddFlagModal, setShowAddFlagModal] = useState(false);
     const [deletingFlagId, setDeletingFlagId] = useState(null);
@@ -258,9 +293,22 @@ export default function PropertyShow({
                 sticky
             />
 
+            {/* Tab Navigation */}
+            <div className="mt-4">
+                <PropertyTabs
+                    tabs={tabs}
+                    activeTab={activeTab}
+                    onTabChange={handleTabChange}
+                />
+            </div>
+
+            {/* Tab Content */}
             <div className="space-y-6 pt-4">
 
-                {/* Stats Grid */}
+                {/* Overview Tab */}
+                <PropertyTabPanel id="overview" isActive={activeTab === 'overview'}>
+                    <div className="space-y-6">
+                        {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Total Units */}
                     <div className="card">
@@ -488,20 +536,14 @@ export default function PropertyShow({
                         </div>
                     </div>
                 </div>
+                    </div>
+                </PropertyTabPanel>
 
-                {/* Data Adjustments */}
-                {isAdmin && (
-                    <AdjustmentList
-                        property={property}
-                        activeAdjustments={activeAdjustments || []}
-                        historicalAdjustments={historicalAdjustments || []}
-                        adjustableFields={adjustableFields || {}}
-                        effectiveValues={effectiveValues || {}}
-                    />
-                )}
-
-                {/* Units List */}
-                <div className="card">
+                {/* Units Tab */}
+                <PropertyTabPanel id="units" isActive={activeTab === 'units'}>
+                    <div className="space-y-6">
+                        {/* Units List */}
+                        <div className="card">
                     <div className="card-header flex items-center justify-between">
                         <h2 className="text-lg font-medium text-gray-900">
                             Units ({units?.total || 0})
@@ -610,6 +652,294 @@ export default function PropertyShow({
                         </div>
                     )}
                 </div>
+                    </div>
+                </PropertyTabPanel>
+
+                {/* Utilities Tab */}
+                <PropertyTabPanel id="utilities" isActive={activeTab === 'utilities'}>
+                    <div className="space-y-6">
+                        {/* Cost Breakdown */}
+                        {utilityData?.costBreakdown && (
+                            <div className="card">
+                                <div className="card-header">
+                                    <h2 className="text-lg font-medium text-gray-900">Utility Cost Breakdown</h2>
+                                </div>
+                                <div className="card-body">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div>
+                                            <p className="text-sm text-gray-500">Total Utility Costs (This Month)</p>
+                                            <p className="text-3xl font-bold text-gray-900">
+                                                {formatUtilityCurrency(utilityData.costBreakdown.total)}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {utilityData.costBreakdown.breakdown?.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {utilityData.costBreakdown.breakdown.map((item) => {
+                                                const utilityType = findUtilityType(utilityData.utilityTypes, item.type);
+                                                const Icon = getIconComponent(utilityType?.icon);
+                                                const colors = getColorScheme(utilityType?.color_scheme);
+                                                const widthPercent = utilityData.costBreakdown.total > 0
+                                                    ? Math.max((item.cost / utilityData.costBreakdown.total) * 100, 2)
+                                                    : 0;
+
+                                                return (
+                                                    <div key={item.type} className="flex items-center space-x-4">
+                                                        <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
+                                                            <Icon className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <span className="text-sm font-medium text-gray-700">
+                                                                    {utilityType?.label || item.type}
+                                                                </span>
+                                                                <span className="text-sm text-gray-900">
+                                                                    {formatUtilityCurrency(item.cost)}
+                                                                    <span className="text-gray-500 ml-1">
+                                                                        ({item.percentage}%)
+                                                                    </span>
+                                                                </span>
+                                                            </div>
+                                                            <div className="w-full bg-gray-100 rounded-full h-2">
+                                                                <div
+                                                                    className={`h-2 rounded-full ${colors.bar}`}
+                                                                    style={{ width: `${widthPercent}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8">
+                                            <BoltIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                            <p className="text-gray-500">No utility expenses recorded this month</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Historical Trend */}
+                        {utilityData?.propertyTrend && utilityData?.utilityTypes && (
+                            <PropertyUtilityTrend
+                                data={utilityData.propertyTrend}
+                                utilityTypes={utilityData.utilityTypes}
+                            />
+                        )}
+
+                        {/* Recent Expenses */}
+                        {utilityData?.recentExpenses && (
+                            <div className="card">
+                                <div className="card-header">
+                                    <h2 className="text-lg font-medium text-gray-900">Recent Expenses</h2>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Date
+                                                </th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Type
+                                                </th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Vendor
+                                                </th>
+                                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Amount
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {utilityData.recentExpenses.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+                                                        No expense records found
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                utilityData.recentExpenses.map((expense) => {
+                                                    const utilityType = findUtilityType(utilityData.utilityTypes, expense.utility_type);
+                                                    const colors = getColorScheme(utilityType?.color_scheme);
+                                                    return (
+                                                        <tr key={expense.id} className="hover:bg-gray-50">
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                {new Date(expense.expense_date).toLocaleDateString()}
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
+                                                                    {expense.utility_label}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                {expense.vendor_name || '-'}
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                                                {formatUtilityCurrency(expense.amount)}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {!utilityData && (
+                            <div className="card">
+                                <div className="card-body">
+                                    <div className="text-center py-12">
+                                        <BoltIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">Utility Expenses</h3>
+                                        <p className="text-gray-500">
+                                            No utility data available for this property.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </PropertyTabPanel>
+
+                {/* Work Orders Tab */}
+                <PropertyTabPanel id="work-orders" isActive={activeTab === 'work-orders'}>
+                    <div className="space-y-6">
+                        {/* Work Order Stats */}
+                        {workOrderData?.statusCounts && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="card">
+                                    <div className="card-body">
+                                        <p className="text-sm text-gray-500">Open</p>
+                                        <p className="text-2xl font-semibold text-yellow-600">
+                                            {workOrderData.statusCounts.open}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="card">
+                                    <div className="card-body">
+                                        <p className="text-sm text-gray-500">In Progress</p>
+                                        <p className="text-2xl font-semibold text-blue-600">
+                                            {workOrderData.statusCounts.in_progress}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="card">
+                                    <div className="card-body">
+                                        <p className="text-sm text-gray-500">Completed (All Time)</p>
+                                        <p className="text-2xl font-semibold text-green-600">
+                                            {workOrderData.statusCounts.completed}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="card">
+                                    <div className="card-body">
+                                        <p className="text-sm text-gray-500">Total Spend (12 mo)</p>
+                                        <p className="text-2xl font-semibold text-gray-900">
+                                            {formatCurrency(workOrderData.totalSpend)}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Recent Work Orders Table */}
+                        <div className="card">
+                            <div className="card-header">
+                                <h2 className="text-lg font-medium text-gray-900">Recent Work Orders</h2>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Date
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Status
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Category
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Vendor
+                                            </th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Unit
+                                            </th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Amount
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="bg-white divide-y divide-gray-200">
+                                        {!workOrderData?.recentWorkOrders?.length ? (
+                                            <tr>
+                                                <td colSpan="6" className="px-6 py-12 text-center">
+                                                    <WrenchScrewdriverIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                                                    <p className="text-gray-500">No work orders found</p>
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            workOrderData.recentWorkOrders.map((wo) => (
+                                                <tr key={wo.id} className="hover:bg-gray-50">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                        {wo.opened_at ? new Date(wo.opened_at).toLocaleDateString() : '-'}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                            wo.status === 'open' ? 'bg-yellow-100 text-yellow-800' :
+                                                            wo.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                                            wo.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                            wo.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+                                                            'bg-gray-100 text-gray-800'
+                                                        }`}>
+                                                            {wo.status === 'in_progress' ? 'In Progress' :
+                                                             wo.status?.charAt(0).toUpperCase() + wo.status?.slice(1)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                        {wo.category || '-'}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {wo.vendor_name || '-'}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {wo.unit_number || '-'}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                                                        {wo.amount ? formatCurrency(wo.amount) : '-'}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </PropertyTabPanel>
+
+                {/* Settings Tab (Admin Only) */}
+                {isAdmin && (
+                    <PropertyTabPanel id="settings" isActive={activeTab === 'settings'}>
+                        <div className="space-y-6">
+                            {/* Data Adjustments */}
+                            <AdjustmentList
+                                property={property}
+                                activeAdjustments={activeAdjustments || []}
+                                historicalAdjustments={historicalAdjustments || []}
+                                adjustableFields={adjustableFields || {}}
+                                effectiveValues={effectiveValues || {}}
+                            />
+                        </div>
+                    </PropertyTabPanel>
+                )}
             </div>
 
             {/* Add Flag Modal */}
