@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Disclosure, Transition } from '@headlessui/react';
 import {
     FunnelIcon,
