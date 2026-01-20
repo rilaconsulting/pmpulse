@@ -226,42 +226,51 @@ export default function WorkOrderHistory({
                                 ? Math.ceil((new Date(wo.closed_at) - new Date(wo.opened_at)) / (1000 * 60 * 60 * 24))
                                 : null;
 
+                            const statusLabel =
+                                wo.status === 'in_progress'
+                                    ? 'In Progress'
+                                    : wo.status
+                                        ? wo.status.charAt(0).toUpperCase() + wo.status.slice(1)
+                                        : '-';
+                            const statusVariant =
+                                wo.status === 'completed' ? 'success'
+                                : wo.status === 'open' ? 'warning'
+                                : wo.status === 'in_progress' ? 'info'
+                                : wo.status === 'cancelled' ? 'neutral'
+                                : 'default';
+                            const fields = [
+                                ...(wo.property ? [{
+                                    label: 'Property',
+                                    value: (
+                                        <Link
+                                            href={`/properties/${wo.property.id}`}
+                                            className="text-blue-600 hover:text-blue-800"
+                                        >
+                                            {wo.property.name}
+                                        </Link>
+                                    ),
+                                }] : []),
+                                { label: 'Opened', value: formatDate(wo.opened_at) || '-' },
+                                { label: 'Closed', value: formatDate(wo.closed_at) || '-' },
+                                ...(daysToComplete !== null ? [{
+                                    label: 'Days',
+                                    value: (
+                                        <span className={daysToComplete <= 7 ? 'text-green-600 font-medium' : daysToComplete <= 14 ? 'text-yellow-600 font-medium' : 'text-red-600 font-medium'}>
+                                            {daysToComplete}
+                                        </span>
+                                    ),
+                                }] : []),
+                                { label: 'Amount', value: <span className="font-medium">{formatCurrency(wo.amount)}</span> },
+                            ];
+
                             return (
-                                <MobileCard key={wo.id}>
-                                    <MobileCard.Header
-                                        title={wo.external_id || wo.id.slice(0, 8)}
-                                        subtitle={wo.description}
-                                        badge={<WorkOrderStatusBadge status={wo.status} />}
-                                    />
-                                    <MobileCard.Body>
-                                        {wo.property && (
-                                            <MobileCard.Row label="Property">
-                                                <Link
-                                                    href={`/properties/${wo.property.id}`}
-                                                    className="text-blue-600 hover:text-blue-800"
-                                                >
-                                                    {wo.property.name}
-                                                </Link>
-                                            </MobileCard.Row>
-                                        )}
-                                        <MobileCard.Row label="Opened">
-                                            {formatDate(wo.opened_at) || '-'}
-                                        </MobileCard.Row>
-                                        <MobileCard.Row label="Closed">
-                                            {formatDate(wo.closed_at) || '-'}
-                                        </MobileCard.Row>
-                                        {daysToComplete !== null && (
-                                            <MobileCard.Row label="Days">
-                                                <span className={daysToComplete <= 7 ? 'text-green-600 font-medium' : daysToComplete <= 14 ? 'text-yellow-600 font-medium' : 'text-red-600 font-medium'}>
-                                                    {daysToComplete}
-                                                </span>
-                                            </MobileCard.Row>
-                                        )}
-                                        <MobileCard.Row label="Amount">
-                                            <span className="font-medium">{formatCurrency(wo.amount)}</span>
-                                        </MobileCard.Row>
-                                    </MobileCard.Body>
-                                </MobileCard>
+                                <MobileCard
+                                    key={wo.id}
+                                    header={wo.external_id || wo.id.slice(0, 8)}
+                                    subheader={wo.description}
+                                    badges={[{ label: statusLabel, variant: statusVariant }]}
+                                    fields={fields}
+                                />
                             );
                         })}
                     </div>

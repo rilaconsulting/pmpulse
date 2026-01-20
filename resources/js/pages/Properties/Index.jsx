@@ -309,7 +309,7 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                                                 Filters
                                                 {hasActiveFilters && (
                                                     <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                                                        {[filters.portfolio, filters.property_type, filters.is_active !== '' && filters.is_active !== null && filters.is_active !== undefined].filter(Boolean).length}
+                                                        {[filters.search, filters.portfolio, filters.property_type, filters.is_active !== '' && filters.is_active !== null && filters.is_active !== undefined].filter(Boolean).length}
                                                     </span>
                                                 )}
                                             </span>

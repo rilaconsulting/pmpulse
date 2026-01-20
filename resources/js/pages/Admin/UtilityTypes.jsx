@@ -342,7 +342,7 @@ function TypeCard({ type, onEdit, onDelete }) {
                     <button
                         type="button"
                         onClick={() => onEdit(type)}
-                        className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg"
+                        className="p-3 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg"
                         title="Edit"
                     >
                         <PencilIcon className="w-5 h-5" />
@@ -350,7 +350,7 @@ function TypeCard({ type, onEdit, onDelete }) {
                     <button
                         type="button"
                         onClick={() => onDelete(type)}
-                        className={`p-2 rounded-lg ${canDelete ? 'text-red-600 hover:text-red-900 hover:bg-red-50' : 'text-gray-300 cursor-not-allowed'}`}
+                        className={`p-3 rounded-lg ${canDelete ? 'text-red-600 hover:text-red-900 hover:bg-red-50' : 'text-gray-300 cursor-not-allowed'}`}
                         title={hasUsage ? 'Cannot delete' : 'Delete'}
                         disabled={!canDelete}
                     >
