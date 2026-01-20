@@ -183,103 +183,103 @@ export default function PropertyShow({
         <Layout>
             <Head title={property.name} />
 
-            <div className="space-y-6">
-                {/* Back link */}
-                <Link
-                    href={route('properties.index')}
-                    className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-                >
-                    <ArrowLeftIcon className="w-4 h-4 mr-1" />
-                    Back to Properties
-                </Link>
-
-                {/* Property Header */}
-                <div className="card">
-                    <div className="card-body">
-                        <div className="flex items-start justify-between">
-                            <div className="flex items-start">
-                                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                                    <BuildingOfficeIcon className="w-8 h-8 text-blue-600" />
-                                </div>
-                                <div className="ml-5">
-                                    <div className="flex items-center gap-3 flex-wrap">
-                                        <h1 className="text-2xl font-semibold text-gray-900">
-                                            {property.name}
-                                        </h1>
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                            property.is_active
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-red-100 text-red-800'
-                                        }`}>
-                                            {property.is_active ? 'Active' : 'Inactive'}
-                                        </span>
-                                        {appfolioUrl && (
-                                            <a
-                                                href={appfolioUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
-                                            >
-                                                <ArrowTopRightOnSquareIcon className="w-3 h-3" />
-                                                AppFolio
-                                            </a>
-                                        )}
-                                        {/* Property Flags */}
-                                        {(property.flags || []).map((flag) => (
-                                            <span
-                                                key={flag.id}
-                                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getFlagBadgeClass(flag.flag_type)}`}
-                                                title={flag.reason || undefined}
-                                            >
-                                                <FlagIcon className="w-3 h-3" />
-                                                {flagTypes?.[flag.flag_type] || flag.flag_type}
-                                                {isAdmin && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDeleteFlag(flag.id)}
-                                                        disabled={deletingFlagId === flag.id}
-                                                        className="ml-1 hover:opacity-75 focus:outline-none"
-                                                        title="Remove flag"
-                                                    >
-                                                        <XMarkIcon className="w-3 h-3" />
-                                                    </button>
-                                                )}
-                                            </span>
-                                        ))}
-                                        {/* Add Flag Button (Admin Only) */}
-                                        {isAdmin && availableFlagTypes.length > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowAddFlagModal(true)}
-                                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-                                            >
-                                                <PlusIcon className="w-3 h-3" />
-                                                Add Flag
-                                            </button>
-                                        )}
-                                    </div>
-                                    {property.address_line1 && (
-                                        <div className="flex items-center mt-1 text-gray-500">
-                                            <MapPinIcon className="w-4 h-4 mr-1" />
-                                            <span>
-                                                {property.address_line1}
-                                                {property.address_line2 && `, ${property.address_line2}`}
-                                                {property.city && `, ${property.city}`}
-                                                {property.state && `, ${property.state}`}
-                                                {property.zip && ` ${property.zip}`}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {property.portfolio && (
-                                        <div className="mt-1 text-sm text-gray-500">
-                                            Portfolio: {property.portfolio}
-                                        </div>
-                                    )}
-                                </div>
+            {/* Sticky Property Header
+                Note: top-16 aligns with Layout.jsx header height (h-16 = 64px)
+                Note: -mx-8 px-8 extends to full width while matching Layout padding */}
+            <div className="sticky top-16 z-20 -mx-8 px-8 py-4 bg-white border-b border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                    {/* Left: Back button + Property name */}
+                    <div className="flex items-center gap-4 min-w-0">
+                        <Link
+                            href={route('properties.index')}
+                            className="flex-shrink-0 p-2 -m-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                            aria-label="Back to properties"
+                        >
+                            <ArrowLeftIcon className="w-5 h-5" aria-hidden="true" />
+                        </Link>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h1 className="text-xl font-semibold text-gray-900 truncate">
+                                    {property.name}
+                                </h1>
+                                <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    property.is_active
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-red-100 text-red-800'
+                                }`}>
+                                    {property.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
+                                {property.address_line1 && (
+                                    <span className="truncate">
+                                        {property.address_line1}
+                                        {property.city && `, ${property.city}`}
+                                        {property.state && `, ${property.state}`}
+                                        {property.zip && ` ${property.zip}`}
+                                    </span>
+                                )}
+                                {property.address_line1 && property.portfolio && (
+                                    <span className="text-gray-300">•</span>
+                                )}
+                                {property.portfolio && (
+                                    <span className="flex-shrink-0 text-gray-500">{property.portfolio}</span>
+                                )}
                             </div>
                         </div>
                     </div>
+
+                    {/* Right: AppFolio link + Flags */}
+                    <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+                        {appfolioUrl && (
+                            <a
+                                href={appfolioUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                            >
+                                <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                                AppFolio
+                            </a>
+                        )}
+                        {/* Property Flags */}
+                        {(property.flags || []).map((flag) => (
+                            <span
+                                key={flag.id}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium ${getFlagBadgeClass(flag.flag_type)}`}
+                                title={flag.reason || undefined}
+                            >
+                                <FlagIcon className="w-3 h-3" />
+                                {flagTypes?.[flag.flag_type] || flag.flag_type}
+                                {isAdmin && (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDeleteFlag(flag.id)}
+                                        disabled={deletingFlagId === flag.id}
+                                        className="ml-0.5 hover:opacity-75 focus:outline-none"
+                                        title="Remove flag"
+                                    >
+                                        <XMarkIcon className="w-3 h-3" />
+                                    </button>
+                                )}
+                            </span>
+                        ))}
+                        {/* Add Flag Button (Admin Only) */}
+                        {isAdmin && availableFlagTypes.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setShowAddFlagModal(true)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                            >
+                                <PlusIcon className="w-3 h-3" />
+                                Add Flag
+                            </button>
+                        )}
+                    </div>
                 </div>
+            </div>
+
+            <div className="space-y-6 pt-4">
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

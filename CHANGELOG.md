@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Improved data validation during rent roll sync with warnings for missing dates and rent values
+- Property detail header now stays visible when scrolling (sticky header)
+- Property detail header redesigned for better space efficiency with back navigation inline
 
 ### Fixed
 - Active/Inactive filter now works correctly on property list
