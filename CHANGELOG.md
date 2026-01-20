@@ -7,23 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
 ### Added
-New features
+- Rent roll data sync from AppFolio with automated lease and occupancy tracking
+- Unit occupancy status now automatically derived from active lease presence
 
 ### Changed
-Changes in existing functionality
-
-### Fixed
-Bug fixes
-
-### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
--->
+- Improved data validation during rent roll sync with warnings for missing dates and rent values
 
 ---
 
