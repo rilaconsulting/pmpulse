@@ -80,28 +80,28 @@ export default function VendorShow({
                         </>
                     }
                     secondaryInfo={
-                        <div className="flex flex-wrap gap-4">
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4">
                             {vendor.contact_name && (
                                 <span>{vendor.contact_name}</span>
                             )}
                             {vendor.phone && (
-                                <a href={`tel:${vendor.phone}`} className="flex items-center hover:text-gray-700">
+                                <a href={`tel:${vendor.phone}`} className="flex items-center hover:text-gray-700 min-h-[44px] sm:min-h-0">
                                     <PhoneIcon className="w-4 h-4 mr-1" />
                                     {vendor.phone}
                                 </a>
                             )}
                             {vendor.email && (
-                                <a href={`mailto:${vendor.email}`} className="flex items-center hover:text-gray-700">
-                                    <EnvelopeIcon className="w-4 h-4 mr-1" />
-                                    {vendor.email}
+                                <a href={`mailto:${vendor.email}`} className="flex items-center hover:text-gray-700 min-h-[44px] sm:min-h-0 truncate max-w-full">
+                                    <EnvelopeIcon className="w-4 h-4 mr-1 flex-shrink-0" />
+                                    <span className="truncate">{vendor.email}</span>
                                 </a>
                             )}
                             {(vendor.address_street || vendor.address_city) && (
                                 <span className="flex items-center">
-                                    <MapPinIcon className="w-4 h-4 mr-1" />
-                                    {[vendor.address_street, vendor.address_city, vendor.address_state, vendor.address_zip]
+                                    <MapPinIcon className="w-4 h-4 mr-1 flex-shrink-0" />
+                                    <span className="truncate">{[vendor.address_street, vendor.address_city, vendor.address_state, vendor.address_zip]
                                         .filter(Boolean)
-                                        .join(', ')}
+                                        .join(', ')}</span>
                                 </span>
                             )}
                         </div>
@@ -109,8 +109,8 @@ export default function VendorShow({
                     sticky
                 />
 
-                {/* Metrics Summary */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Metrics Summary - 2-col on mobile, 4-col on desktop */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                     <MetricCard
                         title="Work Orders (12 mo)"
                         value={metrics?.work_order_count || 0}

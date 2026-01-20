@@ -1,11 +1,12 @@
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { Link } from '@inertiajs/react';
-import { useMemo, useState, useCallback, useRef } from 'react';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 
-const containerStyle = {
+// Responsive container style - calculated based on screen size
+const getContainerStyle = (isMobile) => ({
     width: '100%',
-    height: '600px',
-};
+    height: isMobile ? '60vh' : '600px',
+});
 
 // Default center (San Francisco) when no properties
 const DEFAULT_CENTER = { lat: 37.7749, lng: -122.4194 };
@@ -14,7 +15,21 @@ const SINGLE_PROPERTY_ZOOM = 15;
 
 export default function PropertyMap({ properties, apiKey }) {
     const [selectedProperty, setSelectedProperty] = useState(null);
+    const [isMobile, setIsMobile] = useState(false);
     const mapRef = useRef(null);
+
+    // Detect mobile screen size
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Responsive container style
+    const containerStyle = useMemo(() => getContainerStyle(isMobile), [isMobile]);
 
     // Use the hook instead of LoadScript component (prevents multiple script loads)
     const { isLoaded, loadError } = useJsApiLoader({
@@ -135,6 +150,8 @@ export default function PropertyMap({ properties, apiKey }) {
                     streetViewControl: false,
                     mapTypeControl: false,
                     fullscreenControl: true,
+                    zoomControl: true,
+                    gestureHandling: 'greedy', // Better touch handling on mobile
                 }}
             >
                     {propertiesWithCoords.map((property) => (
@@ -157,31 +174,31 @@ export default function PropertyMap({ properties, apiKey }) {
                             }}
                             onCloseClick={onInfoWindowClose}
                         >
-                            <div className="min-w-48 p-1">
+                            <div className={`p-1 ${isMobile ? 'min-w-[200px] max-w-[250px]' : 'min-w-48'}`}>
                                 <Link
                                     href={`/properties/${selectedProperty.id}`}
-                                    className="font-medium text-blue-600 hover:text-blue-800"
+                                    className={`font-medium text-blue-600 hover:text-blue-800 block ${isMobile ? 'text-base py-1' : ''}`}
                                 >
                                     {selectedProperty.name}
                                 </Link>
                                 {selectedProperty.address_line1 && (
-                                    <p className="text-sm text-gray-600 mt-1">
+                                    <p className={`text-gray-600 mt-1 ${isMobile ? 'text-sm' : 'text-sm'}`}>
                                         {selectedProperty.address_line1}
                                     </p>
                                 )}
                                 {selectedProperty.city && (
-                                    <p className="text-sm text-gray-500">
+                                    <p className={`text-gray-500 ${isMobile ? 'text-sm' : 'text-sm'}`}>
                                         {selectedProperty.city}, {selectedProperty.state} {selectedProperty.zip}
                                     </p>
                                 )}
-                                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                <div className={`mt-2 flex flex-wrap gap-2 ${isMobile ? 'text-sm' : 'text-xs'}`}>
                                     {(selectedProperty.units_count ?? selectedProperty.unit_count) > 0 && (
-                                        <span className="bg-gray-100 px-2 py-0.5 rounded">
+                                        <span className={`bg-gray-100 rounded ${isMobile ? 'px-2.5 py-1' : 'px-2 py-0.5'}`}>
                                             {selectedProperty.units_count ?? selectedProperty.unit_count} units
                                         </span>
                                     )}
                                     {selectedProperty.occupancy_rate !== null && (
-                                        <span className={`px-2 py-0.5 rounded ${
+                                        <span className={`rounded ${isMobile ? 'px-2.5 py-1' : 'px-2 py-0.5'} ${
                                             selectedProperty.occupancy_rate >= 90
                                                 ? 'bg-green-100 text-green-800'
                                                 : selectedProperty.occupancy_rate >= 70
@@ -192,6 +209,14 @@ export default function PropertyMap({ properties, apiKey }) {
                                         </span>
                                     )}
                                 </div>
+                                {isMobile && (
+                                    <Link
+                                        href={`/properties/${selectedProperty.id}`}
+                                        className="mt-3 block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium"
+                                    >
+                                        View Details
+                                    </Link>
+                                )}
                             </div>
                         </InfoWindow>
                     )}

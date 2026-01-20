@@ -122,23 +122,21 @@ export default function UtilityHeatMap({ data, utilityTypes, selectedType, perio
 
     return (
         <div className="card">
-            <div className="card-header flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    <div>
-                        <h3 className="text-lg font-medium text-gray-900">Property Utility Comparison</h3>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Monthly costs and averages by property
-                        </p>
-                    </div>
+            <div className="card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                    <h3 className="text-lg font-medium text-gray-900">Property Utility Comparison</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                        Monthly costs and averages by property
+                    </p>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                     {/* Utility Type Selector */}
-                    <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-500">Utility:</span>
+                    <div className="flex items-center gap-2 flex-1 sm:flex-none">
+                        <span className="text-sm text-gray-500 hidden sm:inline">Utility:</span>
                         <select
                             value={selectedType}
                             onChange={(e) => handleUtilityTypeChange(e.target.value)}
-                            className="input py-1.5 pr-8"
+                            className="input py-1.5 pr-8 min-h-[44px] sm:min-h-0 flex-1 sm:flex-none"
                         >
                             {Array.isArray(utilityTypes) && utilityTypes.map((type) => (
                                 <option key={type.key} value={type.key}>{type.label}</option>
@@ -147,10 +145,11 @@ export default function UtilityHeatMap({ data, utilityTypes, selectedType, perio
                     </div>
                     <button
                         onClick={exportToCsv}
-                        className="btn-secondary text-sm"
+                        className="btn-secondary text-sm min-h-[44px] sm:min-h-0"
+                        title="Export CSV"
                     >
-                        <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
-                        Export CSV
+                        <ArrowDownTrayIcon className="w-4 h-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Export CSV</span>
                     </button>
                 </div>
             </div>

@@ -29,17 +29,17 @@ export default function ExcludedPropertiesList({ excludedProperties }) {
             <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full card-header border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors cursor-pointer"
+                className="w-full card-header border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 hover:bg-gray-100 transition-colors cursor-pointer min-h-[56px]"
             >
                 <div className="flex items-center space-x-2">
                     <EyeSlashIcon className="w-5 h-5 text-gray-500" />
-                    <h3 className="text-lg font-medium text-gray-900">Excluded Properties</h3>
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900">Excluded Properties</h3>
                     <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 text-gray-700 rounded-full">
-                        {total_count} {total_count === 1 ? 'property' : 'properties'}
+                        {total_count}
                     </span>
                 </div>
-                <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <div className="flex items-center justify-between sm:space-x-4">
+                    <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-500">
                         {flag_excluded_count > 0 && (
                             <span className="flex items-center space-x-1">
                                 <FlagIcon className="w-4 h-4" />
@@ -49,14 +49,15 @@ export default function ExcludedPropertiesList({ excludedProperties }) {
                         {utility_excluded_count > 0 && (
                             <span className="flex items-center space-x-1">
                                 <XCircleIcon className="w-4 h-4" />
-                                <span>{utility_excluded_count} utility-specific</span>
+                                <span className="hidden sm:inline">{utility_excluded_count} utility-specific</span>
+                                <span className="sm:hidden">{utility_excluded_count} specific</span>
                             </span>
                         )}
                     </div>
                     {isExpanded ? (
-                        <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+                        <ChevronUpIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />
                     ) : (
-                        <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                        <ChevronDownIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />
                     )}
                 </div>
             </button>

@@ -8,6 +8,7 @@ import {
     ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 import WorkOrderStatusBadge from './WorkOrderStatusBadge';
+import MobileCard from '../MobileCard';
 import { formatCurrency, formatDate } from './formatters';
 
 /**
@@ -115,7 +116,7 @@ export default function WorkOrderHistory({
     return (
         <div className="card">
             <div className="card-header">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                     <h2 className="text-lg font-medium text-gray-900">Work Order History</h2>
                     {workOrders.total > 0 && (
                         <span className="text-sm text-gray-500">
@@ -198,7 +199,77 @@ export default function WorkOrderHistory({
                 </div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Mobile Card View */}
+            <div className="md:hidden">
+                {workOrders.data.length === 0 ? (
+                    <div className="px-4 py-12 text-center">
+                        <ClipboardDocumentListIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-500">No work orders found</p>
+                        {hasFilters && (
+                            <button
+                                onClick={() => {
+                                    router.get(`/vendors/${vendorId}`, {}, {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    });
+                                }}
+                                className="mt-2 text-blue-600 hover:text-blue-700 text-sm min-h-[44px]"
+                            >
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <div className="divide-y divide-gray-200">
+                        {workOrders.data.map((wo) => {
+                            const daysToComplete = wo.opened_at && wo.closed_at
+                                ? Math.ceil((new Date(wo.closed_at) - new Date(wo.opened_at)) / (1000 * 60 * 60 * 24))
+                                : null;
+
+                            return (
+                                <MobileCard key={wo.id}>
+                                    <MobileCard.Header
+                                        title={wo.external_id || wo.id.slice(0, 8)}
+                                        subtitle={wo.description}
+                                        badge={<WorkOrderStatusBadge status={wo.status} />}
+                                    />
+                                    <MobileCard.Body>
+                                        {wo.property && (
+                                            <MobileCard.Row label="Property">
+                                                <Link
+                                                    href={`/properties/${wo.property.id}`}
+                                                    className="text-blue-600 hover:text-blue-800"
+                                                >
+                                                    {wo.property.name}
+                                                </Link>
+                                            </MobileCard.Row>
+                                        )}
+                                        <MobileCard.Row label="Opened">
+                                            {formatDate(wo.opened_at) || '-'}
+                                        </MobileCard.Row>
+                                        <MobileCard.Row label="Closed">
+                                            {formatDate(wo.closed_at) || '-'}
+                                        </MobileCard.Row>
+                                        {daysToComplete !== null && (
+                                            <MobileCard.Row label="Days">
+                                                <span className={daysToComplete <= 7 ? 'text-green-600 font-medium' : daysToComplete <= 14 ? 'text-yellow-600 font-medium' : 'text-red-600 font-medium'}>
+                                                    {daysToComplete}
+                                                </span>
+                                            </MobileCard.Row>
+                                        )}
+                                        <MobileCard.Row label="Amount">
+                                            <span className="font-medium">{formatCurrency(wo.amount)}</span>
+                                        </MobileCard.Row>
+                                    </MobileCard.Body>
+                                </MobileCard>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
@@ -299,32 +370,39 @@ export default function WorkOrderHistory({
                 </table>
             </div>
 
-            {/* Pagination */}
+            {/* Pagination - Responsive */}
             {workOrders.last_page > 1 && (
-                <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                    <div className="text-sm text-gray-500">
+                <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-sm text-gray-500 order-2 sm:order-1">
                         Page {workOrders.current_page} of {workOrders.last_page}
                     </div>
-                    <div className="flex gap-2">
-                        {workOrders.current_page > 1 && (
+                    <div className="flex gap-2 order-1 sm:order-2 w-full sm:w-auto justify-between sm:justify-end">
+                        {workOrders.current_page > 1 ? (
                             <button
                                 type="button"
                                 onClick={() => handlePageChange(workOrders.current_page - 1)}
-                                className="btn-secondary flex items-center"
+                                className="btn-secondary flex items-center min-h-[44px] sm:min-h-0"
                             >
-                                <ChevronLeftIcon className="w-4 h-4 mr-1" />
-                                Previous
+                                <ChevronLeftIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Previous</span>
                             </button>
+                        ) : (
+                            <div className="w-10 sm:w-auto" />
                         )}
-                        {workOrders.current_page < workOrders.last_page && (
+                        <span className="sm:hidden text-sm text-gray-500 flex items-center">
+                            {workOrders.current_page} / {workOrders.last_page}
+                        </span>
+                        {workOrders.current_page < workOrders.last_page ? (
                             <button
                                 type="button"
                                 onClick={() => handlePageChange(workOrders.current_page + 1)}
-                                className="btn-secondary flex items-center"
+                                className="btn-secondary flex items-center min-h-[44px] sm:min-h-0"
                             >
-                                Next
-                                <ChevronRightIcon className="w-4 h-4 ml-1" />
+                                <span className="hidden sm:inline">Next</span>
+                                <ChevronRightIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:ml-1" />
                             </button>
+                        ) : (
+                            <div className="w-10 sm:w-auto" />
                         )}
                     </div>
                 </div>

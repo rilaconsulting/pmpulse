@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import {
     HomeIcon,
@@ -7,11 +8,17 @@ import {
     ArrowRightOnRectangleIcon,
     WrenchScrewdriverIcon,
     DocumentTextIcon,
+    Bars3Icon,
+    MagnifyingGlassIcon,
+    XMarkIcon,
 } from '@heroicons/react/24/outline';
 import PropertySearch from './PropertySearch';
+import MobileDrawer from './MobileDrawer';
 
 export default function Layout({ children }) {
     const { auth, flash } = usePage().props;
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
     const isAdmin = auth.user?.role?.name === 'admin';
 
@@ -27,8 +34,11 @@ export default function Layout({ children }) {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Sidebar */}
-            <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200">
+            {/* Mobile Drawer */}
+            <MobileDrawer isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+
+            {/* Desktop Sidebar - hidden on mobile */}
+            <div className="hidden md:block fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200">
                 {/* Logo */}
                 <div className="flex items-center h-16 px-6 border-b border-gray-200">
                     <span className="text-xl font-bold text-blue-600">PMPulse</span>
@@ -98,30 +108,73 @@ export default function Layout({ children }) {
             </div>
 
             {/* Main content */}
-            <div className="pl-64">
+            <div className="md:pl-64">
                 {/* Header with search */}
                 <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
-                    <div className="flex items-center justify-between h-16 px-8">
-                        <div className="flex-1 max-w-md">
+                    <div className="flex items-center h-16 px-4 md:px-8 gap-4">
+                        {/* Mobile hamburger button */}
+                        <button
+                            type="button"
+                            onClick={() => setIsDrawerOpen(true)}
+                            className="md:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                            aria-label="Open menu"
+                        >
+                            <Bars3Icon className="w-6 h-6" />
+                        </button>
+
+                        {/* Mobile logo */}
+                        <span className="md:hidden text-lg font-bold text-blue-600 flex-1">PMPulse</span>
+
+                        {/* Mobile search button */}
+                        <button
+                            type="button"
+                            onClick={() => setIsMobileSearchOpen(true)}
+                            className="md:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                            aria-label="Search properties"
+                        >
+                            <MagnifyingGlassIcon className="w-6 h-6" />
+                        </button>
+
+                        {/* Desktop search - hidden on mobile */}
+                        <div className="hidden md:block flex-1 max-w-md">
                             <PropertySearch />
                         </div>
                     </div>
+
+                    {/* Mobile search overlay */}
+                    {isMobileSearchOpen && (
+                        <div className="md:hidden absolute inset-x-0 top-0 bg-white border-b border-gray-200 p-4 shadow-lg z-50">
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsMobileSearchOpen(false)}
+                                    className="p-2 -ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                                    aria-label="Close search"
+                                >
+                                    <XMarkIcon className="w-6 h-6" />
+                                </button>
+                                <div className="flex-1">
+                                    <PropertySearch autoFocus onNavigate={() => setIsMobileSearchOpen(false)} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </header>
 
                 {/* Flash messages */}
                 {flash?.success && (
-                    <div className="mx-8 mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="mx-4 md:mx-8 mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                         <p className="text-sm text-green-700">{flash.success}</p>
                     </div>
                 )}
                 {flash?.error && (
-                    <div className="mx-8 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="mx-4 md:mx-8 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                         <p className="text-sm text-red-700">{flash.error}</p>
                     </div>
                 )}
 
                 {/* Page content */}
-                <main className="p-8">{children}</main>
+                <main className="p-4 md:p-8">{children}</main>
             </div>
         </div>
     );

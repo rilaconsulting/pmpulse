@@ -70,47 +70,47 @@ export default function SyncStatus({ syncStatus }) {
     return (
         <div className="card">
             <div className="card-header">
-                <h3 className="text-lg font-medium text-gray-900">Sync Status</h3>
+                <h3 className="text-base md:text-lg font-medium text-gray-900">Sync Status</h3>
             </div>
             <div className="card-body">
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                     {/* Connection Status */}
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-500">AppFolio Connection</span>
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs md:text-sm text-gray-500">AppFolio Connection</span>
                         {getConnectionStatusBadge(connectionStatus)}
                     </div>
 
                     {/* Last Sync */}
                     {lastRun && (
                         <>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-500">Last Sync Status</span>
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs md:text-sm text-gray-500">Last Sync Status</span>
                                 <div className="flex items-center">
                                     {getStatusIcon(lastRun.status)}
-                                    <span className="ml-2 text-sm font-medium text-gray-900">
+                                    <span className="ml-2 text-xs md:text-sm font-medium text-gray-900">
                                         {getStatusText(lastRun.status)}
                                     </span>
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-500">Last Sync Time</span>
-                                <span className="text-sm text-gray-900">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
+                                <span className="text-xs md:text-sm text-gray-500">Last Sync Time</span>
+                                <span className="text-xs md:text-sm text-gray-900">
                                     {formatDate(lastRun.started_at)}
                                 </span>
                             </div>
 
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-500">Mode</span>
-                                <span className="text-sm text-gray-900 capitalize">
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs md:text-sm text-gray-500">Mode</span>
+                                <span className="text-xs md:text-sm text-gray-900 capitalize">
                                     {lastRun.mode}
                                 </span>
                             </div>
 
                             {lastRun.resources_synced > 0 && (
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-500">Resources Synced</span>
-                                    <span className="text-sm text-gray-900">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs md:text-sm text-gray-500">Resources Synced</span>
+                                    <span className="text-xs md:text-sm text-gray-900">
                                         {lastRun.resources_synced.toLocaleString()}
                                     </span>
                                 </div>
@@ -119,17 +119,17 @@ export default function SyncStatus({ syncStatus }) {
                     )}
 
                     {!lastRun && (
-                        <p className="text-sm text-gray-500 text-center py-4">
+                        <p className="text-xs md:text-sm text-gray-500 text-center py-3 md:py-4">
                             No sync runs yet. Configure your AppFolio connection in Admin settings.
                         </p>
                     )}
 
                     {/* Last Success */}
                     {lastSuccessAt && (
-                        <div className="pt-4 border-t border-gray-100">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-500">Last Successful Sync</span>
-                                <span className="text-sm text-gray-900">
+                        <div className="pt-3 md:pt-4 border-t border-gray-100">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2">
+                                <span className="text-xs md:text-sm text-gray-500">Last Successful Sync</span>
+                                <span className="text-xs md:text-sm text-gray-900">
                                     {formatDate(lastSuccessAt)}
                                 </span>
                             </div>

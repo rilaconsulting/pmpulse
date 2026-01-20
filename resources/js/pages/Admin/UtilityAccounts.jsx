@@ -237,6 +237,164 @@ function AccountRow({ account, onEdit, onDelete }) {
     );
 }
 
+// Mobile card version of account display
+function AccountCard({ account, onEdit, onDelete }) {
+    const utilityType = account.utility_type;
+    const colors = getColorScheme(utilityType?.color_scheme);
+
+    return (
+        <div className="p-4 border-b border-gray-200 last:border-b-0">
+            <div className="flex items-start justify-between">
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono font-medium text-gray-900">
+                            {account.gl_account_number}
+                        </span>
+                        {account.is_active ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                Active
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                Inactive
+                            </span>
+                        )}
+                    </div>
+                    <p className="mt-1 text-sm text-gray-700">{account.gl_account_name}</p>
+                    <span className={`mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors.badge}`}>
+                        {utilityType?.label || 'Unknown'}
+                    </span>
+                </div>
+                <div className="flex items-center gap-2 ml-4">
+                    <button
+                        type="button"
+                        onClick={() => onEdit(account)}
+                        className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg"
+                        title="Edit"
+                    >
+                        <PencilIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onDelete(account)}
+                        className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg"
+                        title="Delete"
+                    >
+                        <TrashIcon className="w-5 h-5" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Mobile form for adding/editing accounts
+function MobileAccountForm({ account, utilityTypes, onCancel, isEditing = false }) {
+    const { data, setData, post, patch, processing, errors, reset } = useForm({
+        gl_account_number: account?.gl_account_number || '',
+        gl_account_name: account?.gl_account_name || '',
+        utility_type_id: account?.utility_type_id || '',
+        is_active: account?.is_active ?? true,
+    });
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (isEditing) {
+            patch(route('admin.utility-accounts.update', account.id), {
+                onSuccess: () => onCancel(),
+            });
+        } else {
+            post(route('admin.utility-accounts.store'), {
+                onSuccess: () => {
+                    reset();
+                    onCancel();
+                },
+            });
+        }
+    };
+
+    return (
+        <div className="p-4 bg-blue-50 border-b border-blue-100">
+            <h4 className="text-sm font-medium text-gray-900 mb-3">
+                {isEditing ? 'Edit Mapping' : 'Add New Mapping'}
+            </h4>
+            <form onSubmit={handleSubmit} className="space-y-3">
+                <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">GL Account #</label>
+                    <input
+                        type="text"
+                        value={data.gl_account_number}
+                        onChange={(e) => setData('gl_account_number', e.target.value)}
+                        placeholder="e.g., 6210"
+                        className="input w-full"
+                        autoFocus={!isEditing}
+                    />
+                    {errors.gl_account_number && (
+                        <p className="mt-1 text-xs text-red-600">{errors.gl_account_number}</p>
+                    )}
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Account Name</label>
+                    <input
+                        type="text"
+                        value={data.gl_account_name}
+                        onChange={(e) => setData('gl_account_name', e.target.value)}
+                        placeholder="e.g., Water Expense"
+                        className="input w-full"
+                    />
+                    {errors.gl_account_name && (
+                        <p className="mt-1 text-xs text-red-600">{errors.gl_account_name}</p>
+                    )}
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Utility Type</label>
+                    <select
+                        value={data.utility_type_id}
+                        onChange={(e) => setData('utility_type_id', e.target.value)}
+                        className="input w-full"
+                    >
+                        <option value="">Select type...</option>
+                        {utilityTypes.map((type) => (
+                            <option key={type.id} value={type.id}>{type.label}</option>
+                        ))}
+                    </select>
+                    {errors.utility_type_id && (
+                        <p className="mt-1 text-xs text-red-600">{errors.utility_type_id}</p>
+                    )}
+                </div>
+                <div className="flex items-center">
+                    <input
+                        type="checkbox"
+                        id="is_active_mobile"
+                        checked={data.is_active}
+                        onChange={(e) => setData('is_active', e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="is_active_mobile" className="ml-2 text-sm text-gray-700">Active</label>
+                </div>
+                <div className="flex gap-2 pt-2">
+                    <button
+                        type="submit"
+                        disabled={processing}
+                        className="flex-1 btn-primary"
+                    >
+                        <CheckIcon className="w-4 h-4 mr-1 inline" />
+                        {processing ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="flex-1 btn-secondary"
+                    >
+                        <XMarkIcon className="w-4 h-4 mr-1 inline" />
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+}
+
 export default function UtilityAccounts({ accounts, utilityTypes }) {
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState(null);
@@ -251,19 +409,19 @@ export default function UtilityAccounts({ accounts, utilityTypes }) {
         <AdminLayout currentTab="utility-accounts">
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h2 className="text-lg font-medium text-gray-900">Utility Account Mappings</h2>
                         <p className="mt-1 text-sm text-gray-500">
                             Configure which GL accounts represent utility expenses for tracking and reporting.
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                         <Link
                             href={route('admin.utility-accounts.suggestions')}
-                            className="btn-secondary"
+                            className="btn-secondary text-center"
                         >
-                            <LightBulbIcon className="w-4 h-4 mr-2" />
+                            <LightBulbIcon className="w-4 h-4 mr-2 inline" />
                             View Suggestions
                         </Link>
                         {!isAdding && (
@@ -272,7 +430,7 @@ export default function UtilityAccounts({ accounts, utilityTypes }) {
                                 onClick={() => setIsAdding(true)}
                                 className="btn-primary"
                             >
-                                <PlusIcon className="w-4 h-4 mr-2" />
+                                <PlusIcon className="w-4 h-4 mr-2 inline" />
                                 Add Mapping
                             </button>
                         )}
@@ -281,73 +439,124 @@ export default function UtilityAccounts({ accounts, utilityTypes }) {
 
                 {/* Account List */}
                 <div className="card overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    GL Account #
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Account Name
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Utility Type
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {isAdding && (
-                                <AddAccountForm
-                                    utilityTypes={utilityTypes}
-                                    onCancel={() => setIsAdding(false)}
-                                />
-                            )}
-                            {accounts.map((account) => (
+                    {/* Mobile Card View */}
+                    <div className="md:hidden">
+                        {isAdding && (
+                            <MobileAccountForm
+                                utilityTypes={utilityTypes}
+                                onCancel={() => setIsAdding(false)}
+                            />
+                        )}
+                        {accounts.length === 0 && !isAdding ? (
+                            <div className="px-4 py-12 text-center">
+                                <BoltIcon className="mx-auto h-12 w-12 text-gray-400" />
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">No utility accounts configured</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Add GL account mappings to track utility expenses.
+                                </p>
+                                <div className="mt-6">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAdding(true)}
+                                        className="btn-primary"
+                                    >
+                                        <PlusIcon className="w-4 h-4 mr-2 inline" />
+                                        Add First Mapping
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            accounts.map((account) => (
                                 editingId === account.id ? (
-                                    <EditAccountRow
+                                    <MobileAccountForm
                                         key={account.id}
                                         account={account}
                                         utilityTypes={utilityTypes}
                                         onCancel={() => setEditingId(null)}
+                                        isEditing
                                     />
                                 ) : (
-                                    <AccountRow
+                                    <AccountCard
                                         key={account.id}
                                         account={account}
                                         onEdit={(account) => setEditingId(account.id)}
                                         onDelete={handleDelete}
                                     />
                                 )
-                            ))}
-                            {accounts.length === 0 && !isAdding && (
+                            ))
+                        )}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-12 text-center">
-                                        <BoltIcon className="mx-auto h-12 w-12 text-gray-400" />
-                                        <h3 className="mt-2 text-sm font-medium text-gray-900">No utility accounts configured</h3>
-                                        <p className="mt-1 text-sm text-gray-500">
-                                            Add GL account mappings to track utility expenses.
-                                        </p>
-                                        <div className="mt-6">
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsAdding(true)}
-                                                className="btn-primary"
-                                            >
-                                                <PlusIcon className="w-4 h-4 mr-2" />
-                                                Add First Mapping
-                                            </button>
-                                        </div>
-                                    </td>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        GL Account #
+                                    </th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Account Name
+                                    </th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Utility Type
+                                    </th>
+                                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Status
+                                    </th>
+                                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions
+                                    </th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {isAdding && (
+                                    <AddAccountForm
+                                        utilityTypes={utilityTypes}
+                                        onCancel={() => setIsAdding(false)}
+                                    />
+                                )}
+                                {accounts.map((account) => (
+                                    editingId === account.id ? (
+                                        <EditAccountRow
+                                            key={account.id}
+                                            account={account}
+                                            utilityTypes={utilityTypes}
+                                            onCancel={() => setEditingId(null)}
+                                        />
+                                    ) : (
+                                        <AccountRow
+                                            key={account.id}
+                                            account={account}
+                                            onEdit={(account) => setEditingId(account.id)}
+                                            onDelete={handleDelete}
+                                        />
+                                    )
+                                ))}
+                                {accounts.length === 0 && !isAdding && (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-12 text-center">
+                                            <BoltIcon className="mx-auto h-12 w-12 text-gray-400" />
+                                            <h3 className="mt-2 text-sm font-medium text-gray-900">No utility accounts configured</h3>
+                                            <p className="mt-1 text-sm text-gray-500">
+                                                Add GL account mappings to track utility expenses.
+                                            </p>
+                                            <div className="mt-6">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsAdding(true)}
+                                                    className="btn-primary"
+                                                >
+                                                    <PlusIcon className="w-4 h-4 mr-2" />
+                                                    Add First Mapping
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 {/* Help Text */}

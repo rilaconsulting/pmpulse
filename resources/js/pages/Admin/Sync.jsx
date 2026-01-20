@@ -132,7 +132,7 @@ export default function Sync({ syncHistory, hasConnection, stats, syncConfigurat
                         </p>
                     </div>
                     <div className="p-6 border-t border-gray-200">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
                                 <h4 className="font-medium text-gray-900">Reset Utility Expenses</h4>
                                 <p className="text-sm text-gray-500">
@@ -143,7 +143,7 @@ export default function Sync({ syncHistory, hasConnection, stats, syncConfigurat
                             <button
                                 onClick={handleResetUtilityExpenses}
                                 disabled={isResetting || stats.bill_details_count === 0}
-                                className="btn-secondary whitespace-nowrap"
+                                className="btn-secondary whitespace-nowrap w-full sm:w-auto"
                             >
                                 {isResetting ? 'Resetting...' : 'Reset & Rebuild'}
                             </button>
@@ -156,10 +156,149 @@ export default function Sync({ syncHistory, hasConnection, stats, syncConfigurat
                     <div className="card-header">
                         <h3 className="text-lg font-medium text-gray-900">Sync History</h3>
                         <p className="mt-1 text-sm text-gray-500">
-                            Recent sync runs with detailed metrics. Click a row to view details.
+                            Recent sync runs with detailed metrics. Tap to view details.
                         </p>
                     </div>
-                    <div className="overflow-x-auto">
+
+                    {/* Mobile Card View */}
+                    <div className="md:hidden divide-y divide-gray-200">
+                        {syncHistory.length === 0 ? (
+                            <div className="px-4 py-8 text-center text-gray-500">
+                                No sync runs yet
+                            </div>
+                        ) : (
+                            syncHistory.map((run) => (
+                                <div key={run.id}>
+                                    <div
+                                        className="p-4 cursor-pointer hover:bg-gray-50"
+                                        onClick={() => toggleRow(run.id)}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                {getStatusIcon(run.status)}
+                                                <span className="text-sm font-medium text-gray-900 capitalize">
+                                                    {run.status}
+                                                </span>
+                                                <span className="text-sm text-gray-500 capitalize">
+                                                    ({run.mode})
+                                                </span>
+                                            </div>
+                                            {expandedRow === run.id ? (
+                                                <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+                                            ) : (
+                                                <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                                            )}
+                                        </div>
+                                        <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                                            <div>
+                                                <span className="text-gray-500">Started:</span>{' '}
+                                                <span className="text-gray-900">{formatDate(run.started_at)}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-500">Duration:</span>{' '}
+                                                <span className="text-gray-900">{formatDuration(run.started_at, run.ended_at)}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-500">Resources:</span>{' '}
+                                                <span className="text-gray-900">{run.resources_synced?.toLocaleString() || 0}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-500">Errors:</span>{' '}
+                                                {run.errors_count > 0 ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                        {run.errors_count}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-500">-</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {expandedRow === run.id && (
+                                        <div className="px-4 pb-4 bg-gray-50">
+                                            <div className="space-y-4">
+                                                {/* Resource Metrics */}
+                                                {run.resource_metrics && Object.keys(run.resource_metrics).length > 0 && (
+                                                    <div>
+                                                        <h4 className="text-sm font-medium text-gray-900 mb-2">Resource Metrics</h4>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            {Object.entries(run.resource_metrics).map(([resource, metrics]) => (
+                                                                <div key={resource} className="bg-white rounded p-2 border border-gray-200">
+                                                                    <div className="text-xs font-medium text-gray-500 uppercase">{resource}</div>
+                                                                    <div className="mt-1 text-sm">
+                                                                        <span className="text-green-600">+{metrics.created || 0}</span>
+                                                                        <span className="mx-1 text-gray-400">|</span>
+                                                                        <span className="text-blue-600">~{metrics.updated || 0}</span>
+                                                                        {metrics.errors > 0 && (
+                                                                            <>
+                                                                                <span className="mx-1 text-gray-400">|</span>
+                                                                                <span className="text-red-600">!{metrics.errors}</span>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Errors */}
+                                                {run.resource_errors && Object.keys(run.resource_errors).length > 0 && (
+                                                    <div>
+                                                        <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center">
+                                                            <ExclamationTriangleIcon className="w-4 h-4 text-red-500 mr-1" />
+                                                            Errors
+                                                        </h4>
+                                                        <div className="space-y-2">
+                                                            {Object.entries(run.resource_errors).map(([resource, errors]) => (
+                                                                <div key={resource}>
+                                                                    <div className="text-xs font-medium text-gray-500 uppercase">{resource}</div>
+                                                                    <div className="mt-1 space-y-1">
+                                                                        {(errors || []).slice(0, 3).map((error, idx) => (
+                                                                            <div key={idx} className="text-sm text-red-600 bg-red-50 rounded px-2 py-1">
+                                                                                {error.message}
+                                                                            </div>
+                                                                        ))}
+                                                                        {(errors || []).length > 3 && (
+                                                                            <div className="text-xs text-gray-500">
+                                                                                ... and {errors.length - 3} more
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Error Summary */}
+                                                {run.error_summary && (
+                                                    <div>
+                                                        <h4 className="text-sm font-medium text-gray-900 mb-2">Error Summary</h4>
+                                                        <pre className="text-xs bg-red-50 text-red-700 p-2 rounded overflow-x-auto">
+                                                            {run.error_summary}
+                                                        </pre>
+                                                    </div>
+                                                )}
+
+                                                {/* No details */}
+                                                {(!run.resource_metrics || Object.keys(run.resource_metrics).length === 0) &&
+                                                 (!run.resource_errors || Object.keys(run.resource_errors).length === 0) &&
+                                                 !run.error_summary && (
+                                                    <div className="text-sm text-gray-500">
+                                                        No detailed metrics available.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>

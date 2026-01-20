@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from './formatters';
@@ -8,6 +9,15 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'
  * Spend by property pie chart and table
  */
 export default function SpendByPropertyChart({ spendByProperty }) {
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     if (!spendByProperty || spendByProperty.length === 0) {
         return null;
     }
@@ -19,7 +29,7 @@ export default function SpendByPropertyChart({ spendByProperty }) {
             </div>
             <div className="card-body">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="h-72">
+                    <div className="h-56 md:h-72">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -28,11 +38,11 @@ export default function SpendByPropertyChart({ spendByProperty }) {
                                     nameKey="property_name"
                                     cx="50%"
                                     cy="50%"
-                                    outerRadius={100}
-                                    label={({ property_name, percent }) =>
+                                    outerRadius={isMobile ? 70 : 100}
+                                    label={isMobile ? false : ({ property_name, percent }) =>
                                         `${property_name.substring(0, 15)}${property_name.length > 15 ? '...' : ''} (${(percent * 100).toFixed(0)}%)`
                                     }
-                                    labelLine={false}
+                                    labelLine={!isMobile}
                                 >
                                     {spendByProperty.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

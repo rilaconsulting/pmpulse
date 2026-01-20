@@ -79,7 +79,7 @@ export default function AdjustmentsReport({
         <AdminLayout currentTab="adjustments">
             <div className="space-y-6">
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                     <div className="card">
                         <div className="card-body">
                             <div className="flex items-center">
@@ -108,7 +108,7 @@ export default function AdjustmentsReport({
                         </div>
                     </div>
 
-                    <div className="card">
+                    <div className="card col-span-2 md:col-span-1">
                         <div className="card-body">
                             <p className="text-sm text-gray-500 mb-2">By Field Type</p>
                             <div className="flex flex-wrap gap-2">
@@ -129,8 +129,8 @@ export default function AdjustmentsReport({
                 </div>
 
                 {/* Toolbar */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                         {/* Status Tabs */}
                         <div className="flex rounded-lg border border-gray-200 bg-white p-1">
                             {['active', 'historical', 'all'].map((status) => (
@@ -141,7 +141,7 @@ export default function AdjustmentsReport({
                                         handleFilterChange('status', status);
                                         router.get(route('admin.adjustments.index'), { ...localFilters, status }, { preserveState: true });
                                     }}
-                                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                    className={`flex-1 sm:flex-initial px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                                         filters.status === status
                                             ? 'bg-blue-100 text-blue-700'
                                             : 'text-gray-500 hover:text-gray-700'
@@ -156,7 +156,7 @@ export default function AdjustmentsReport({
                         <button
                             type="button"
                             onClick={() => setShowFilters(!showFilters)}
-                            className={`inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                            className={`inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
                                 hasActiveFilters
                                     ? 'border-blue-300 bg-blue-50 text-blue-700'
                                     : 'border-gray-200 text-gray-700 hover:bg-gray-50'
@@ -174,7 +174,7 @@ export default function AdjustmentsReport({
                     <button
                         type="button"
                         onClick={handleExport}
-                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 w-full sm:w-auto"
                     >
                         <ArrowDownTrayIcon className="w-4 h-4" />
                         Export CSV
@@ -185,11 +185,11 @@ export default function AdjustmentsReport({
                 {showFilters && (
                     <div className="card">
                         <div className="card-body">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Field</label>
                                     <select
-                                        className="input"
+                                        className="input min-h-[44px] sm:min-h-0"
                                         value={localFilters.field}
                                         onChange={(e) => handleFilterChange('field', e.target.value)}
                                     >
@@ -202,7 +202,7 @@ export default function AdjustmentsReport({
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Created By</label>
                                     <select
-                                        className="input"
+                                        className="input min-h-[44px] sm:min-h-0"
                                         value={localFilters.creator}
                                         onChange={(e) => handleFilterChange('creator', e.target.value)}
                                     >
@@ -216,7 +216,7 @@ export default function AdjustmentsReport({
                                     <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
                                     <input
                                         type="date"
-                                        className="input"
+                                        className="input min-h-[44px] sm:min-h-0"
                                         value={localFilters.from}
                                         onChange={(e) => handleFilterChange('from', e.target.value)}
                                     />
@@ -225,24 +225,24 @@ export default function AdjustmentsReport({
                                     <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
                                     <input
                                         type="date"
-                                        className="input"
+                                        className="input min-h-[44px] sm:min-h-0"
                                         value={localFilters.to}
                                         onChange={(e) => handleFilterChange('to', e.target.value)}
                                     />
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-3 mt-4">
+                            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-4">
                                 <button
                                     type="button"
                                     onClick={clearFilters}
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 text-center"
                                 >
                                     Clear Filters
                                 </button>
                                 <button
                                     type="button"
                                     onClick={applyFilters}
-                                    className="btn btn-primary"
+                                    className="btn-primary w-full sm:w-auto"
                                 >
                                     Apply Filters
                                 </button>
@@ -340,11 +340,11 @@ export default function AdjustmentsReport({
 
                     {/* Pagination */}
                     {adjustments.last_page > 1 && (
-                        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                            <div className="text-sm text-gray-500">
+                        <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="text-sm text-gray-500 text-center sm:text-left">
                                 Showing {adjustments.from} to {adjustments.to} of {adjustments.total} adjustments
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap justify-center gap-2">
                                 {adjustments.links.map((link, index) => (
                                     <Link
                                         key={index}

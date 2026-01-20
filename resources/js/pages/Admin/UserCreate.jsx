@@ -192,14 +192,14 @@ export default function UserCreate({ roles }) {
                             )}
 
                             {/* Actions */}
-                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                                <Link href={route('admin.users.index')} className="btn-secondary">
+                            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-4 border-t border-gray-200">
+                                <Link href={route('admin.users.index')} className="btn-secondary w-full sm:w-auto text-center">
                                     Cancel
                                 </Link>
                                 <button
                                     type="submit"
                                     disabled={processing}
-                                    className="btn-primary"
+                                    className="btn-primary w-full sm:w-auto"
                                 >
                                     {processing ? 'Creating...' : 'Create User'}
                                 </button>

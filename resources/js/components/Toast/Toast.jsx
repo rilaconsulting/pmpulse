@@ -61,7 +61,7 @@ export default function Toast({ toast, onDismiss }) {
                         <div className="ml-4 flex flex-shrink-0">
                             <button
                                 type="button"
-                                className="inline-flex rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 hover:opacity-70"
+                                className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -m-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 hover:opacity-70"
                                 onClick={() => onDismiss(toast.id)}
                             >
                                 <span className="sr-only">Close</span>

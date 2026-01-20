@@ -102,9 +102,9 @@ export default function VendorsCompliance({
         <button
             type="button"
             onClick={() => toggleSection(sectionKey)}
-            className="w-full flex items-center justify-between px-6 py-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+            className="w-full flex items-center justify-between px-4 sm:px-6 py-4 bg-gray-50 hover:bg-gray-100 transition-colors min-h-[56px]"
         >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 <Icon className={`w-5 h-5 ${color}`} />
                 <span className="text-sm font-medium text-gray-900">{title}</span>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -116,9 +116,9 @@ export default function VendorsCompliance({
                 </span>
             </div>
             {expandedSections[sectionKey] ? (
-                <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+                <ChevronUpIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />
             ) : (
-                <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                <ChevronDownIcon className="w-5 h-5 text-gray-400 flex-shrink-0" />
             )}
         </button>
     );
@@ -129,16 +129,16 @@ export default function VendorsCompliance({
 
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <div className="flex items-center gap-2">
-                            <Link href={route('vendors.index')} className="text-sm text-gray-500 hover:text-gray-700">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <Link href={route('vendors.index')} className="text-sm text-gray-500 hover:text-gray-700 min-h-[44px] sm:min-h-0 flex items-center">
                                 Vendors
                             </Link>
                             <span className="text-gray-400">/</span>
                             <span className="text-sm text-gray-900">Compliance Report</span>
                         </div>
-                        <h1 className="mt-2 text-2xl font-semibold text-gray-900">Insurance Compliance</h1>
+                        <h1 className="mt-2 text-xl sm:text-2xl font-semibold text-gray-900">Insurance Compliance</h1>
                         <p className="mt-1 text-sm text-gray-500">
                             Track vendor insurance status and compliance issues
                         </p>
@@ -147,10 +147,11 @@ export default function VendorsCompliance({
                         <button
                             type="button"
                             onClick={() => window.print()}
-                            className="btn-secondary flex items-center"
+                            className="btn-secondary flex items-center min-h-[44px] sm:min-h-0"
+                            title="Print report"
                         >
-                            <PrinterIcon className="w-4 h-4 mr-2" />
-                            Print
+                            <PrinterIcon className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Print</span>
                         </button>
                     </div>
                 </div>
@@ -201,14 +202,14 @@ export default function VendorsCompliance({
                     </div>
                 </div>
 
-                {/* Tabs */}
-                <div className="border-b border-gray-200">
-                    <nav className="-mb-px flex space-x-8">
+                {/* Tabs - Horizontally scrollable on mobile */}
+                <div className="border-b border-gray-200 -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
+                    <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                                className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 min-h-[44px] ${
                                     activeTab === tab.id
                                         ? 'border-blue-500 text-blue-600'
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'

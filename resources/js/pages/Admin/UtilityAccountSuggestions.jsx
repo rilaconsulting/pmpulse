@@ -8,6 +8,7 @@ import {
     ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 
+// Desktop table row for suggestions
 function SuggestionRow({ glAccount, count, utilityTypes, onMapped }) {
     const [isMapping, setIsMapping] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -121,6 +122,116 @@ function SuggestionRow({ glAccount, count, utilityTypes, onMapped }) {
     );
 }
 
+// Mobile card for suggestion
+function SuggestionCard({ glAccount, count, utilityTypes, onMapped }) {
+    const [isMapping, setIsMapping] = useState(false);
+    const { data, setData, post, processing, errors, reset } = useForm({
+        gl_account_number: glAccount,
+        gl_account_name: '',
+        utility_type_id: '',
+        is_active: true,
+    });
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        post(route('admin.utility-accounts.store'), {
+            onSuccess: () => {
+                reset();
+                setIsMapping(false);
+                onMapped(glAccount);
+            },
+        });
+    };
+
+    if (isMapping) {
+        return (
+            <div className="p-4 bg-blue-50 border-b border-blue-100">
+                <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-mono font-medium text-gray-900">{glAccount}</span>
+                    <span className="text-xs text-gray-500">{count} expenses</span>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-3">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Account Name</label>
+                        <input
+                            type="text"
+                            value={data.gl_account_name}
+                            onChange={(e) => setData('gl_account_name', e.target.value)}
+                            placeholder="e.g., Water Expense"
+                            className="input w-full"
+                            autoFocus
+                        />
+                        {errors.gl_account_name && (
+                            <p className="mt-1 text-xs text-red-600">{errors.gl_account_name}</p>
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Utility Type</label>
+                        <select
+                            value={data.utility_type_id}
+                            onChange={(e) => setData('utility_type_id', e.target.value)}
+                            className="input w-full"
+                        >
+                            <option value="">Select type...</option>
+                            {utilityTypes.map((type) => (
+                                <option key={type.id} value={type.id}>{type.label}</option>
+                            ))}
+                        </select>
+                        {errors.utility_type_id && (
+                            <p className="mt-1 text-xs text-red-600">{errors.utility_type_id}</p>
+                        )}
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            type="submit"
+                            disabled={processing || !data.utility_type_id || !data.gl_account_name.trim()}
+                            className="flex-1 btn-primary"
+                        >
+                            <CheckIcon className="w-4 h-4 mr-1 inline" />
+                            Save
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                reset();
+                                setIsMapping(false);
+                            }}
+                            className="flex-1 btn-secondary"
+                        >
+                            <XMarkIcon className="w-4 h-4 mr-1 inline" />
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-4 border-b border-gray-200 last:border-b-0">
+            <div className="flex items-start justify-between">
+                <div>
+                    <span className="text-sm font-mono font-medium text-gray-900">{glAccount}</span>
+                    <div className="mt-1 flex items-center gap-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Unmapped
+                        </span>
+                        <span className="text-xs text-gray-500">{count} expenses</span>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setIsMapping(true)}
+                    className="btn-primary text-sm"
+                >
+                    Map
+                    <ArrowRightIcon className="w-4 h-4 ml-1 inline" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
 export default function UtilityAccountSuggestions({ unmatchedAccounts, utilityTypes }) {
     const [mappedAccounts, setMappedAccounts] = useState([]);
 
@@ -137,7 +248,7 @@ export default function UtilityAccountSuggestions({ unmatchedAccounts, utilityTy
         <AdminLayout currentTab="utility-accounts">
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h2 className="text-lg font-medium text-gray-900">Unmapped GL Accounts</h2>
                         <p className="mt-1 text-sm text-gray-500">
@@ -147,7 +258,7 @@ export default function UtilityAccountSuggestions({ unmatchedAccounts, utilityTy
                     </div>
                     <Link
                         href={route('admin.utility-accounts.index')}
-                        className="btn-secondary"
+                        className="btn-secondary w-full sm:w-auto text-center"
                     >
                         View All Mappings
                     </Link>
@@ -156,38 +267,54 @@ export default function UtilityAccountSuggestions({ unmatchedAccounts, utilityTy
                 {/* Account List */}
                 {visibleAccounts.length > 0 ? (
                     <div className="card overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        GL Account #
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Account Name
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Expense Count
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {visibleAccounts.map(([glAccount, count]) => (
-                                    <SuggestionRow
-                                        key={glAccount}
-                                        glAccount={glAccount}
-                                        count={count}
-                                        utilityTypes={utilityTypes}
-                                        onMapped={handleMapped}
-                                    />
-                                ))}
-                            </tbody>
-                        </table>
+                        {/* Mobile Card View */}
+                        <div className="md:hidden">
+                            {visibleAccounts.map(([glAccount, count]) => (
+                                <SuggestionCard
+                                    key={glAccount}
+                                    glAccount={glAccount}
+                                    count={count}
+                                    utilityTypes={utilityTypes}
+                                    onMapped={handleMapped}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            GL Account #
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Account Name
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Status
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Expense Count
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {visibleAccounts.map(([glAccount, count]) => (
+                                        <SuggestionRow
+                                            key={glAccount}
+                                            glAccount={glAccount}
+                                            count={count}
+                                            utilityTypes={utilityTypes}
+                                            onMapped={handleMapped}
+                                        />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 ) : (
                     <div className="card">

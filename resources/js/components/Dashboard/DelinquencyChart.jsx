@@ -13,10 +13,10 @@ export default function DelinquencyChart({ data }) {
         return (
             <div className="card">
                 <div className="card-header">
-                    <h3 className="text-lg font-medium text-gray-900">Delinquency Trend</h3>
+                    <h3 className="text-base md:text-lg font-medium text-gray-900">Delinquency Trend</h3>
                 </div>
                 <div className="card-body">
-                    <div className="h-64 flex items-center justify-center text-gray-500">
+                    <div className="h-48 md:h-64 flex items-center justify-center text-gray-500">
                         No data available
                     </div>
                 </div>
@@ -38,27 +38,37 @@ export default function DelinquencyChart({ data }) {
         }).format(value);
     };
 
+    // Shorter format for mobile Y-axis
+    const formatCurrencyShort = (value) => {
+        if (value >= 1000) {
+            return `$${(value / 1000).toFixed(0)}k`;
+        }
+        return `$${value}`;
+    };
+
     return (
         <div className="card">
             <div className="card-header">
-                <h3 className="text-lg font-medium text-gray-900">Delinquency Trend</h3>
+                <h3 className="text-base md:text-lg font-medium text-gray-900">Delinquency Trend</h3>
             </div>
             <div className="card-body">
-                <div className="h-64">
+                <div className="h-48 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData}>
+                        <BarChart data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                             <XAxis
                                 dataKey="date"
-                                tick={{ fontSize: 12, fill: '#6B7280' }}
+                                tick={{ fontSize: 10, fill: '#6B7280' }}
                                 tickLine={false}
                                 axisLine={{ stroke: '#E5E7EB' }}
+                                interval="preserveStartEnd"
                             />
                             <YAxis
-                                tick={{ fontSize: 12, fill: '#6B7280' }}
+                                tick={{ fontSize: 10, fill: '#6B7280' }}
                                 tickLine={false}
                                 axisLine={{ stroke: '#E5E7EB' }}
-                                tickFormatter={formatCurrency}
+                                tickFormatter={formatCurrencyShort}
+                                width={40}
                             />
                             <Tooltip
                                 formatter={(value) => [formatCurrency(value), 'Delinquency']}
@@ -67,6 +77,7 @@ export default function DelinquencyChart({ data }) {
                                     border: '1px solid #E5E7EB',
                                     borderRadius: '8px',
                                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                    fontSize: '12px',
                                 }}
                             />
                             <Bar

@@ -13,10 +13,10 @@ export default function OccupancyChart({ data }) {
         return (
             <div className="card">
                 <div className="card-header">
-                    <h3 className="text-lg font-medium text-gray-900">Occupancy Rate Trend</h3>
+                    <h3 className="text-base md:text-lg font-medium text-gray-900">Occupancy Rate Trend</h3>
                 </div>
                 <div className="card-body">
-                    <div className="h-64 flex items-center justify-center text-gray-500">
+                    <div className="h-48 md:h-64 flex items-center justify-center text-gray-500">
                         No data available
                     </div>
                 </div>
@@ -32,25 +32,27 @@ export default function OccupancyChart({ data }) {
     return (
         <div className="card">
             <div className="card-header">
-                <h3 className="text-lg font-medium text-gray-900">Occupancy Rate Trend</h3>
+                <h3 className="text-base md:text-lg font-medium text-gray-900">Occupancy Rate Trend</h3>
             </div>
             <div className="card-body">
-                <div className="h-64">
+                <div className="h-48 md:h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData}>
+                        <LineChart data={chartData} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                             <XAxis
                                 dataKey="date"
-                                tick={{ fontSize: 12, fill: '#6B7280' }}
+                                tick={{ fontSize: 10, fill: '#6B7280' }}
                                 tickLine={false}
                                 axisLine={{ stroke: '#E5E7EB' }}
+                                interval="preserveStartEnd"
                             />
                             <YAxis
                                 domain={[0, 100]}
-                                tick={{ fontSize: 12, fill: '#6B7280' }}
+                                tick={{ fontSize: 10, fill: '#6B7280' }}
                                 tickLine={false}
                                 axisLine={{ stroke: '#E5E7EB' }}
                                 tickFormatter={(value) => `${value}%`}
+                                width={35}
                             />
                             <Tooltip
                                 formatter={(value) => [`${value.toFixed(1)}%`, 'Occupancy']}
@@ -59,6 +61,7 @@ export default function OccupancyChart({ data }) {
                                     border: '1px solid #E5E7EB',
                                     borderRadius: '8px',
                                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                    fontSize: '12px',
                                 }}
                             />
                             <Line
