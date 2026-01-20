@@ -183,6 +183,7 @@ export default function PropertyShow({
         <Layout>
             <Head title={property.name} />
 
+<<<<<<< HEAD
             {/* Sticky Property Header */}
             <PageHeader
                 title={property.name}
@@ -198,6 +199,7 @@ export default function PropertyShow({
                                 {property.address_line1}
                                 {property.city && `, ${property.city}`}
                                 {property.state && `, ${property.state}`}
+                                {property.zip && ` ${property.zip}`}
                             </span>
                         )}
                         {property.address_line1 && property.portfolio && (
@@ -251,7 +253,7 @@ export default function PropertyShow({
                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
                             >
                                 <PlusIcon className="w-3 h-3" />
-                                Flag
+                                Add Flag
                             </button>
                         )}
                     </>
