@@ -181,7 +181,6 @@ export default function PropertyShow({
         <Layout>
             <Head title={property.name} />
 
-<<<<<<< HEAD
             {/* Sticky Property Header */}
             <PageHeader
                 title={property.name}
