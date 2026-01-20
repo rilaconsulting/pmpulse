@@ -389,4 +389,26 @@ class AnalyticsService
             'excluded_from_utility_reports' => $excludedFromUtility,
         ];
     }
+
+    /**
+     * Recalculate unit statuses based on active lease presence.
+     *
+     * This is a data repair method that can be called manually to ensure
+     * unit statuses are consistent with lease data. Useful for:
+     * - Initial data migration
+     * - Data repair after sync issues
+     * - Manual recalculation without full sync
+     *
+     * Delegates to IngestionService::updateUnitStatusFromLeases() which is
+     * the authoritative source for unit/lease status derivation logic.
+     *
+     * @return array{units_checked: int, units_updated: int, changes: array}
+     */
+    public function recalculateUnitStatusesFromLeases(): array
+    {
+        /** @var IngestionService $ingestionService */
+        $ingestionService = app(IngestionService::class);
+
+        return $ingestionService->updateUnitStatusFromLeases(returnChanges: true);
+    }
 }

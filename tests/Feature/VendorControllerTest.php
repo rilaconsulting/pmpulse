@@ -241,9 +241,11 @@ class VendorControllerTest extends TestCase
             'company_name' => 'Current Vendor',
             'workers_comp_expires' => now()->addMonths(6),
             'liability_ins_expires' => now()->addMonths(6),
+            'auto_ins_expires' => null,
         ]);
         Vendor::factory()->withExpiredInsurance()->create([
             'company_name' => 'Expired Vendor',
+            'auto_ins_expires' => null,
         ]);
 
         $response = $this->actingAs($this->user)->get('/vendors?insurance_status=expired');
@@ -265,11 +267,13 @@ class VendorControllerTest extends TestCase
             'company_name' => 'Current Vendor',
             'workers_comp_expires' => $today->copy()->addMonths(6),
             'liability_ins_expires' => $today->copy()->addMonths(6),
+            'auto_ins_expires' => null,
         ]);
         Vendor::factory()->create([
             'company_name' => 'Expiring Vendor',
             'workers_comp_expires' => $today->copy()->addDays(15),
             'liability_ins_expires' => $today->copy()->addMonths(6),
+            'auto_ins_expires' => null,
         ]);
 
         $response = $this->actingAs($this->user)->get('/vendors?insurance_status=expiring_soon');
@@ -548,6 +552,7 @@ class VendorControllerTest extends TestCase
             'company_name' => 'Expired Vendor',
             'workers_comp_expires' => now()->subDays(10),
             'liability_ins_expires' => now()->addMonths(6),
+            'auto_ins_expires' => null,
             'is_active' => true,
             'do_not_use' => false,
         ]);
@@ -578,6 +583,7 @@ class VendorControllerTest extends TestCase
             'company_name' => 'Expiring Vendor',
             'workers_comp_expires' => $today->copy()->addDays(15),
             'liability_ins_expires' => $today->copy()->addMonths(6),
+            'auto_ins_expires' => null,
             'is_active' => true,
             'do_not_use' => false,
         ]);
@@ -599,6 +605,7 @@ class VendorControllerTest extends TestCase
             'company_name' => 'Quarter Expiring',
             'workers_comp_expires' => $today->copy()->addDays(60),
             'liability_ins_expires' => $today->copy()->addMonths(6),
+            'auto_ins_expires' => null,
             'is_active' => true,
             'do_not_use' => false,
         ]);
@@ -636,6 +643,7 @@ class VendorControllerTest extends TestCase
             'company_name' => 'WC Expired',
             'workers_comp_expires' => $today->copy()->subDays(10),
             'liability_ins_expires' => $today->copy()->addMonths(6),
+            'auto_ins_expires' => null,
             'is_active' => true,
             'do_not_use' => false,
         ]);
@@ -644,6 +652,7 @@ class VendorControllerTest extends TestCase
             'company_name' => 'WC Expiring',
             'workers_comp_expires' => $today->copy()->addDays(15),
             'liability_ins_expires' => $today->copy()->addMonths(6),
+            'auto_ins_expires' => null,
             'is_active' => true,
             'do_not_use' => false,
         ]);
@@ -652,6 +661,7 @@ class VendorControllerTest extends TestCase
             'company_name' => 'WC Missing',
             'workers_comp_expires' => null,
             'liability_ins_expires' => $today->copy()->addMonths(6),
+            'auto_ins_expires' => null,
             'is_active' => true,
             'do_not_use' => false,
         ]);
@@ -674,12 +684,14 @@ class VendorControllerTest extends TestCase
             'do_not_use' => false,
             'workers_comp_expires' => now()->addMonths(6),
             'liability_ins_expires' => now()->addMonths(6),
+            'auto_ins_expires' => null,
         ]);
         Vendor::factory()->withExpiredInsurance()->create([
             'is_active' => true,
             'do_not_use' => false,
+            'auto_ins_expires' => null,
         ]);
-        Vendor::factory()->doNotUse()->create();
+        Vendor::factory()->doNotUse()->create(['auto_ins_expires' => null]);
 
         $response = $this->actingAs($this->user)->get('/vendors/compliance');
 
@@ -849,6 +861,7 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->inactive()->create([
             'company_name' => 'Inactive Vendor',
             'workers_comp_expires' => now()->subDays(10),
+            'auto_ins_expires' => null,
         ]);
 
         $response = $this->actingAs($this->user)->get('/vendors/compliance');
@@ -864,6 +877,7 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->doNotUse()->create([
             'company_name' => 'Banned with Expired',
             'workers_comp_expires' => now()->subDays(10),
+            'auto_ins_expires' => null,
             'is_active' => true,
         ]);
 

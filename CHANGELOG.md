@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Page size selector on property list (15, 50, 100, or "Show All" options)
 - Page size preference now persists across browser sessions
 - Sticky filter bar on property list that stays visible when scrolling
+- Rent roll data sync from AppFolio with automated lease and occupancy tracking
+- Unit occupancy status now automatically derived from active lease presence
+
+### Changed
+- Improved data validation during rent roll sync with warnings for missing dates and rent values
 
 ### Fixed
 - Active/Inactive filter now works correctly on property list
