@@ -19,8 +19,19 @@ import {
 const PropertyMap = lazy(() => import('../../components/PropertyMap'));
 
 const VIEW_MODE_STORAGE_KEY = 'pmpulse-properties-view-mode';
+const PAGE_SIZE_STORAGE_KEY = 'pmpulse-properties-page-size';
 
-export default function PropertiesIndex({ properties, portfolios, propertyTypes, filters, googleMapsApiKey }) {
+/**
+ * Normalize is_active filter value to a string for the select element.
+ * Handles both boolean values from Inertia and string values from URL params.
+ */
+const normalizeIsActive = (value) => {
+    if (value === true || value === '1') return '1';
+    if (value === false || value === '0') return '0';
+    return '';
+};
+
+export default function PropertiesIndex({ properties, portfolios, propertyTypes, filters, perPage, allowedPageSizes, googleMapsApiKey }) {
     const [search, setSearch] = useState(filters.search || '');
     const [viewMode, setViewMode] = useState(() => {
         // Initialize from localStorage, defaulting to 'table'
@@ -30,15 +41,49 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
         return 'table';
     });
 
+    // Initialize page size from props (which came from URL) or localStorage
+    const [pageSize, setPageSize] = useState(() => {
+        // URL parameter takes precedence (perPage from server)
+        if (perPage !== undefined && perPage !== null) {
+            return perPage;
+        }
+        // Fall back to localStorage
+        if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem(PAGE_SIZE_STORAGE_KEY);
+            if (stored) {
+                return stored === 'all' ? 'all' : parseInt(stored, 10);
+            }
+        }
+        return 15;
+    });
+
     // Persist view mode preference to localStorage
     useEffect(() => {
         localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
     }, [viewMode]);
 
+    // Persist page size preference to localStorage
+    useEffect(() => {
+        localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize));
+    }, [pageSize]);
+
     const handleFilter = (key, value) => {
         router.get(route('properties.index'), {
             ...filters,
+            per_page: pageSize,
             [key]: value,
+            page: 1,
+        }, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
+
+    const handlePageSizeChange = (newSize) => {
+        setPageSize(newSize);
+        router.get(route('properties.index'), {
+            ...filters,
+            per_page: newSize,
             page: 1,
         }, {
             preserveState: true,
@@ -55,6 +100,7 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
         const direction = filters.sort === field && filters.direction === 'asc' ? 'desc' : 'asc';
         router.get(route('properties.index'), {
             ...filters,
+            per_page: pageSize,
             sort: field,
             direction: direction,
             page: 1,
@@ -65,7 +111,9 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
     };
 
     const clearFilters = () => {
-        router.get(route('properties.index'), {}, {
+        router.get(route('properties.index'), {
+            per_page: pageSize,
+        }, {
             preserveState: true,
             preserveScroll: true,
         });
@@ -149,7 +197,7 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                 </div>
 
                 {/* Filters */}
-                <div className="card">
+                <div className="card sticky top-16 z-10 shadow-sm">
                     <div className="card-body">
                         <div className="flex flex-wrap gap-4 items-end">
                             {/* Search */}
@@ -227,12 +275,12 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                                 <select
                                     id="is_active"
                                     className="input"
-                                    value={filters.is_active}
+                                    value={normalizeIsActive(filters.is_active)}
                                     onChange={(e) => handleFilter('is_active', e.target.value)}
                                 >
                                     <option value="">All Statuses</option>
-                                    <option value="true">Active</option>
-                                    <option value="false">Inactive</option>
+                                    <option value="1">Active</option>
+                                    <option value="0">Inactive</option>
                                 </select>
                             </div>
 
@@ -407,12 +455,30 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                         </table>
                     </div>
 
-                    {/* Pagination */}
-                    {properties.last_page > 1 && (
-                        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                    {/* Pagination and Page Size */}
+                    <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
                             <div className="text-sm text-gray-500">
-                                Showing {properties.from} to {properties.to} of {properties.total} properties
+                                Showing {properties.from || 0} to {properties.to || 0} of {properties.total} properties
                             </div>
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="page-size" className="text-sm text-gray-500">
+                                    Show:
+                                </label>
+                                <select
+                                    id="page-size"
+                                    value={pageSize}
+                                    onChange={(e) => handlePageSizeChange(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))}
+                                    className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                >
+                                    {(allowedPageSizes || [15, 50, 100]).map((size) => (
+                                        <option key={size} value={size}>{size}</option>
+                                    ))}
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+                        </div>
+                        {properties.last_page > 1 && (
                             <div className="flex gap-2">
                                 {properties.prev_page_url && (
                                     <Link
@@ -435,8 +501,8 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                                     </Link>
                                 )}
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
                 )}
             </div>
