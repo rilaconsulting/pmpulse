@@ -7,23 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
 ### Added
-New features
-
-### Changed
-Changes in existing functionality
+- Page size selector on property list (15, 50, 100, or "Show All" options)
+- Page size preference now persists across browser sessions
+- Sticky filter bar on property list that stays visible when scrolling
 
 ### Fixed
-Bug fixes
-
-### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
--->
+- Active/Inactive filter now works correctly on property list
+- Clear Filters now preserves page size preference
 
 ---
 

@@ -187,7 +187,7 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                 </div>
 
                 {/* Filters */}
-                <div className="card sticky top-0 z-10 shadow-sm">
+                <div className="card sticky top-16 z-10 shadow-sm">
                     <div className="card-body">
                         <div className="flex flex-wrap gap-4 items-end">
                             {/* Search */}
