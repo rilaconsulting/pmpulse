@@ -183,7 +183,9 @@ export default function PropertyShow({
         <Layout>
             <Head title={property.name} />
 
-            {/* Sticky Property Header */}
+            {/* Sticky Property Header
+                Note: top-16 aligns with Layout.jsx header height (h-16 = 64px)
+                Note: -mx-8 px-8 extends to full width while matching Layout padding */}
             <div className="sticky top-16 z-20 -mx-8 px-8 py-4 bg-white border-b border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between gap-4">
                     {/* Left: Back button + Property name */}
@@ -191,9 +193,9 @@ export default function PropertyShow({
                         <Link
                             href={route('properties.index')}
                             className="flex-shrink-0 p-2 -m-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                            title="Back to Properties"
+                            aria-label="Back to properties"
                         >
-                            <ArrowLeftIcon className="w-5 h-5" />
+                            <ArrowLeftIcon className="w-5 h-5" aria-hidden="true" />
                         </Link>
                         <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -214,6 +216,7 @@ export default function PropertyShow({
                                         {property.address_line1}
                                         {property.city && `, ${property.city}`}
                                         {property.state && `, ${property.state}`}
+                                        {property.zip && ` ${property.zip}`}
                                     </span>
                                 )}
                                 {property.address_line1 && property.portfolio && (
@@ -269,7 +272,7 @@ export default function PropertyShow({
                                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
                             >
                                 <PlusIcon className="w-3 h-3" />
-                                Flag
+                                Add Flag
                             </button>
                         )}
                     </div>
