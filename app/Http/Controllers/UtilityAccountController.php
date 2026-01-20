@@ -190,13 +190,17 @@ class UtilityAccountController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        // Check if type is in use by any accounts
-        $accountCount = $utilityType->accounts()->count();
-        if ($accountCount > 0) {
-            return back()->with('error', "Cannot delete '{$utilityType->label}'. It is used by {$accountCount} account mapping(s). Delete or reassign those accounts first.");
+        // Check if type is in use by any related records
+        if ($utilityType->isInUse()) {
+            return back()->with('error', "Cannot delete '{$utilityType->label}'. It is in use by account mappings, notes, formatting rules, or property exclusions.");
         }
 
-        $utilityType->delete();
+        try {
+            $utilityType->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Handle FK constraint violations that may occur due to race conditions
+            return back()->with('error', "Cannot delete '{$utilityType->label}'. It is still in use by related records.");
+        }
 
         return back()->with('success', 'Utility type deleted successfully.');
     }
@@ -208,17 +212,22 @@ class UtilityAccountController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        // Check if any custom types are in use by accounts
+        // Check if any custom types are in use by related records
         $customTypes = UtilityType::custom()->get();
 
         foreach ($customTypes as $type) {
             if ($type->isInUse()) {
-                return back()->with('error', "Cannot reset to defaults. Custom type '{$type->label}' is used by account mapping(s).");
+                return back()->with('error', "Cannot reset to defaults. Custom type '{$type->label}' is in use by related records.");
             }
         }
 
-        // Delete all custom types
-        UtilityType::custom()->delete();
+        try {
+            // Delete all custom types
+            UtilityType::custom()->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Handle FK constraint violations that may occur due to race conditions
+            return back()->with('error', 'Cannot reset to defaults. Some custom types are still in use.');
+        }
 
         return back()->with('success', 'Custom utility types removed. Only system types remain.');
     }

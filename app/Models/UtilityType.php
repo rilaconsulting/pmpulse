@@ -170,11 +170,14 @@ class UtilityType extends Model
     }
 
     /**
-     * Check if this type is in use by any accounts.
+     * Check if this type is in use by any related records.
      */
     public function isInUse(): bool
     {
-        return $this->accounts()->exists();
+        return $this->accounts()->exists()
+            || $this->notes()->exists()
+            || $this->formattingRules()->exists()
+            || $this->exclusions()->exists();
     }
 
     /**
