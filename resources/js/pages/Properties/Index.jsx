@@ -21,6 +21,16 @@ const PropertyMap = lazy(() => import('../../components/PropertyMap'));
 const VIEW_MODE_STORAGE_KEY = 'pmpulse-properties-view-mode';
 const PAGE_SIZE_STORAGE_KEY = 'pmpulse-properties-page-size';
 
+/**
+ * Normalize is_active filter value to a string for the select element.
+ * Handles both boolean values from Inertia and string values from URL params.
+ */
+const normalizeIsActive = (value) => {
+    if (value === true || value === '1') return '1';
+    if (value === false || value === '0') return '0';
+    return '';
+};
+
 export default function PropertiesIndex({ properties, portfolios, propertyTypes, filters, perPage, allowedPageSizes, googleMapsApiKey }) {
     const [search, setSearch] = useState(filters.search || '');
     const [viewMode, setViewMode] = useState(() => {
@@ -34,7 +44,7 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
     // Initialize page size from props (which came from URL) or localStorage
     const [pageSize, setPageSize] = useState(() => {
         // URL parameter takes precedence (perPage from server)
-        if (perPage) {
+        if (perPage !== undefined && perPage !== null) {
             return perPage;
         }
         // Fall back to localStorage
@@ -265,7 +275,7 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                                 <select
                                     id="is_active"
                                     className="input"
-                                    value={filters.is_active === true || filters.is_active === '1' ? '1' : filters.is_active === false || filters.is_active === '0' ? '0' : ''}
+                                    value={normalizeIsActive(filters.is_active)}
                                     onChange={(e) => handleFilter('is_active', e.target.value)}
                                 >
                                     <option value="">All Statuses</option>

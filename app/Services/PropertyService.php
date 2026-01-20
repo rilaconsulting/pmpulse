@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Property;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Pagination\LengthAwarePaginator as Paginator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator as LengthAwarePaginatorContract;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 /**
@@ -29,11 +29,14 @@ class PropertyService
     /**
      * Get a filtered, paginated list of properties.
      *
+     * When $perPage is 'all', returns all matching properties in a single page
+     * within a LengthAwarePaginator instance (useful for map view or exports).
+     *
      * @param  array<string, mixed>  $filters
-     * @param  int|string  $perPage  Number of items per page or 'all' for unpaginated
-     * @return LengthAwarePaginator<Property>
+     * @param  int|string  $perPage  Number of items per page (15, 50, 100), or 'all' to return all results
+     * @return LengthAwarePaginatorContract<Property>
      */
-    public function getFilteredProperties(array $filters, int|string $perPage = 15): LengthAwarePaginator
+    public function getFilteredProperties(array $filters, int|string $perPage = 15): LengthAwarePaginatorContract
     {
         // Validate and normalize perPage
         $showAll = $perPage === 'all';
@@ -90,7 +93,7 @@ class PropertyService
         // Handle 'all' case - return all results in a paginator-like structure
         if ($showAll) {
             $allProperties = $query->get();
-            $properties = new Paginator(
+            $properties = new LengthAwarePaginator(
                 $allProperties,
                 $allProperties->count(),
                 $allProperties->count() ?: 1, // Avoid division by zero
