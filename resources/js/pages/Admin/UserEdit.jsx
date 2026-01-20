@@ -42,7 +42,7 @@ export default function UserEdit({ user, roles, canDeactivate }) {
         <AdminLayout currentTab="users">
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <Link
                             href={route('admin.users.index')}
@@ -59,7 +59,7 @@ export default function UserEdit({ user, roles, canDeactivate }) {
                     </div>
 
                     {/* Status Badge */}
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium self-start sm:self-auto ${
                         user.is_active
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
@@ -232,8 +232,8 @@ export default function UserEdit({ user, roles, canDeactivate }) {
                             </div>
 
                             {/* Actions */}
-                            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                                <div>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-gray-200">
+                                <div className="order-2 sm:order-1">
                                     {canDeactivate && user.is_active && (
                                         <button
                                             type="button"
@@ -244,14 +244,14 @@ export default function UserEdit({ user, roles, canDeactivate }) {
                                         </button>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <Link href={route('admin.users.index')} className="btn-secondary">
+                                <div className="flex flex-col-reverse sm:flex-row sm:items-center gap-3 order-1 sm:order-2">
+                                    <Link href={route('admin.users.index')} className="btn-secondary w-full sm:w-auto text-center">
                                         Cancel
                                     </Link>
                                     <button
                                         type="submit"
                                         disabled={processing}
-                                        className="btn-primary"
+                                        className="btn-primary w-full sm:w-auto"
                                     >
                                         {processing ? 'Saving...' : 'Save Changes'}
                                     </button>
@@ -267,7 +267,7 @@ export default function UserEdit({ user, roles, canDeactivate }) {
                         <h3 className="text-lg font-medium text-gray-900">Account Information</h3>
                     </div>
                     <div className="card-body">
-                        <dl className="grid grid-cols-2 gap-4 text-sm">
+                        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                             <div>
                                 <dt className="text-gray-500">Created</dt>
                                 <dd className="text-gray-900">
@@ -293,7 +293,7 @@ export default function UserEdit({ user, roles, canDeactivate }) {
                                 </dd>
                             </div>
                             {user.google_id && (
-                                <div className="col-span-2">
+                                <div className="sm:col-span-2">
                                     <dt className="text-gray-500">Google Account Linked</dt>
                                     <dd className="text-green-600">Yes</dd>
                                 </div>
@@ -334,18 +334,18 @@ export default function UserEdit({ user, roles, canDeactivate }) {
                                 </p>
                             </div>
                         </div>
-                        <div className="mt-6 flex justify-end gap-3">
+                        <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
                             <button
                                 type="button"
                                 onClick={() => setShowDeactivateModal(false)}
-                                className="btn-secondary"
+                                className="btn-secondary w-full sm:w-auto"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="button"
                                 onClick={handleDeactivate}
-                                className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                             >
                                 Deactivate
                             </button>

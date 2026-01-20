@@ -112,10 +112,10 @@ export default function SyncHealthWidget({ initialData }) {
         return (
             <div className="card">
                 <div className="card-header">
-                    <h3 className="text-lg font-medium text-gray-900">Sync Health</h3>
+                    <h3 className="text-base md:text-lg font-medium text-gray-900">Sync Health</h3>
                 </div>
-                <div className="card-body flex items-center justify-center py-12">
-                    <ArrowPathIcon className="w-8 h-8 text-gray-400 animate-spin" />
+                <div className="card-body flex items-center justify-center py-8 md:py-12">
+                    <ArrowPathIcon className="w-6 h-6 md:w-8 md:h-8 text-gray-400 animate-spin" />
                 </div>
             </div>
         );
@@ -125,10 +125,10 @@ export default function SyncHealthWidget({ initialData }) {
         return (
             <div className="card">
                 <div className="card-header">
-                    <h3 className="text-lg font-medium text-gray-900">Sync Health</h3>
+                    <h3 className="text-base md:text-lg font-medium text-gray-900">Sync Health</h3>
                 </div>
                 <div className="card-body">
-                    <p className="text-sm text-gray-500 text-center py-8">
+                    <p className="text-sm text-gray-500 text-center py-6 md:py-8">
                         Unable to load sync health data
                     </p>
                 </div>
@@ -141,17 +141,17 @@ export default function SyncHealthWidget({ initialData }) {
     return (
         <div className="card">
             <div className="card-header flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900">Sync Health</h3>
+                <h3 className="text-base md:text-lg font-medium text-gray-900">Sync Health</h3>
                 <button
                     onClick={fetchHealthData}
-                    className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="p-2 -mr-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors touch-target"
                     title="Refresh"
                 >
                     <ArrowPathIcon className="w-5 h-5" />
                 </button>
             </div>
             <div className="card-body">
-                <div className="space-y-6">
+                <div className="space-y-4 md:space-y-6">
                     {/* Connection & Last Sync Status */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -209,21 +209,21 @@ export default function SyncHealthWidget({ initialData }) {
                                     {lastRun.mode}
                                 </span>
                             </div>
-                            <div className="grid grid-cols-3 gap-2 text-center">
-                                <div className="bg-gray-50 rounded p-2">
-                                    <div className="text-lg font-semibold text-gray-900">
+                            <div className="grid grid-cols-3 gap-1.5 md:gap-2 text-center">
+                                <div className="bg-gray-50 rounded p-1.5 md:p-2">
+                                    <div className="text-base md:text-lg font-semibold text-gray-900">
                                         {lastRun.resources_synced?.toLocaleString() || 0}
                                     </div>
                                     <div className="text-xs text-gray-500">Synced</div>
                                 </div>
-                                <div className="bg-gray-50 rounded p-2">
-                                    <div className="text-lg font-semibold text-gray-900">
+                                <div className="bg-gray-50 rounded p-1.5 md:p-2">
+                                    <div className="text-base md:text-lg font-semibold text-gray-900">
                                         {formatDuration(lastRun.duration)}
                                     </div>
                                     <div className="text-xs text-gray-500">Duration</div>
                                 </div>
-                                <div className="bg-gray-50 rounded p-2">
-                                    <div className={`text-lg font-semibold ${
+                                <div className="bg-gray-50 rounded p-1.5 md:p-2">
+                                    <div className={`text-base md:text-lg font-semibold ${
                                         lastRun.errors_count > 0 ? 'text-red-600' : 'text-gray-900'
                                     }`}>
                                         {lastRun.errors_count || 0}

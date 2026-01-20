@@ -62,23 +62,24 @@ export default function SpendTrendChart({ spendTrend, vendorName }) {
 
     return (
         <div className="card">
-            <div className="card-header flex items-center justify-between">
+            <div className="card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h2 className="text-lg font-medium text-gray-900">Spending Trend (12 Months)</h2>
                 <div className="flex items-center gap-2">
                     <select
                         value={chartType}
                         onChange={(e) => setChartType(e.target.value)}
-                        className="input text-sm py-1"
+                        className="input text-sm py-1 min-h-[44px] sm:min-h-0"
                     >
                         <option value="line">Line Chart</option>
                         <option value="bar">Bar Chart</option>
                     </select>
                     <button
                         onClick={exportSpendDataToCSV}
-                        className="btn-secondary flex items-center text-sm py-1 px-2"
+                        className="btn-secondary flex items-center text-sm py-1 px-2 min-h-[44px] sm:min-h-0"
+                        title="Export CSV"
                     >
-                        <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
-                        Export CSV
+                        <ArrowDownTrayIcon className="w-4 h-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Export CSV</span>
                     </button>
                 </div>
             </div>

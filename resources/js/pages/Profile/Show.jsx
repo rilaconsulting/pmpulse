@@ -51,8 +51,8 @@ export default function Show({ user }) {
                 {/* Profile Overview Card */}
                 <div className="card">
                     <div className="card-body">
-                        <div className="flex items-center gap-6">
-                            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
+                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
+                            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                                 <span className="text-2xl font-bold text-blue-700">
                                     {user.name?.charAt(0)?.toUpperCase() || 'U'}
                                 </span>
@@ -60,7 +60,7 @@ export default function Show({ user }) {
                             <div>
                                 <h2 className="text-xl font-semibold text-gray-900">{user.name}</h2>
                                 <p className="text-gray-500">{user.email}</p>
-                                <div className="mt-2 flex items-center gap-2">
+                                <div className="mt-2 flex flex-wrap justify-center sm:justify-start items-center gap-2">
                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                         user.role?.name === 'admin'
                                             ? 'bg-purple-100 text-purple-800'
@@ -102,7 +102,7 @@ export default function Show({ user }) {
                                     <input
                                         type="text"
                                         id="name"
-                                        className="input"
+                                        className="input min-h-[44px]"
                                         value={profileForm.data.name}
                                         onChange={(e) => profileForm.setData('name', e.target.value)}
                                         required
@@ -119,7 +119,7 @@ export default function Show({ user }) {
                                     <input
                                         type="email"
                                         id="email"
-                                        className="input bg-gray-50"
+                                        className="input min-h-[44px] bg-gray-50"
                                         value={user.email}
                                         disabled
                                     />
@@ -132,7 +132,7 @@ export default function Show({ user }) {
                                     <button
                                         type="submit"
                                         disabled={profileForm.processing}
-                                        className="btn-primary"
+                                        className="btn-primary min-h-[44px] w-full sm:w-auto"
                                     >
                                         {profileForm.processing ? 'Saving...' : 'Save Changes'}
                                     </button>
@@ -165,7 +165,7 @@ export default function Show({ user }) {
                                             <input
                                                 type={showCurrentPassword ? 'text' : 'password'}
                                                 id="current_password"
-                                                className="input pr-10"
+                                                className="input min-h-[44px] pr-10"
                                                 value={passwordForm.data.current_password}
                                                 onChange={(e) => passwordForm.setData('current_password', e.target.value)}
                                                 required
@@ -196,7 +196,7 @@ export default function Show({ user }) {
                                             <input
                                                 type={showNewPassword ? 'text' : 'password'}
                                                 id="password"
-                                                className="input pr-10"
+                                                className="input min-h-[44px] pr-10"
                                                 value={passwordForm.data.password}
                                                 onChange={(e) => passwordForm.setData('password', e.target.value)}
                                                 required
@@ -229,7 +229,7 @@ export default function Show({ user }) {
                                         <input
                                             type="password"
                                             id="password_confirmation"
-                                            className="input"
+                                            className="input min-h-[44px]"
                                             value={passwordForm.data.password_confirmation}
                                             onChange={(e) => passwordForm.setData('password_confirmation', e.target.value)}
                                             required
@@ -240,7 +240,7 @@ export default function Show({ user }) {
                                         <button
                                             type="submit"
                                             disabled={passwordForm.processing}
-                                            className="btn-primary"
+                                            className="btn-primary min-h-[44px] w-full sm:w-auto"
                                         >
                                             {passwordForm.processing ? 'Updating...' : 'Update Password'}
                                         </button>

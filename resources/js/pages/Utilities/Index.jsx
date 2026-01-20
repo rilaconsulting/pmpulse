@@ -39,11 +39,11 @@ export default function UtilitiesIndex({
                     subtitle="Portfolio utility expense tracking and analysis"
                     actions={
                         <div className="flex items-center space-x-2">
-                            <span className="text-sm text-gray-500">Period:</span>
+                            <span className="text-sm text-gray-500 hidden sm:inline">Period:</span>
                             <select
                                 value={selectedPeriod}
                                 onChange={(e) => handlePeriodChange(e.target.value)}
-                                className="input py-1.5 pr-8"
+                                className="input py-1.5 pr-8 min-h-[44px] sm:min-h-0"
                             >
                                 <option value="month">This Month</option>
                                 <option value="last_month">Last Month</option>
@@ -86,7 +86,7 @@ export default function UtilitiesIndex({
                 </div>
 
                 {/* Utility Type Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
                     {utilitySummary.map((utility) => {
                         const utilityType = findUtilityType(utilityTypes, utility.type);
                         const Icon = getIconComponent(utilityType?.icon);

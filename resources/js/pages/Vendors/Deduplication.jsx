@@ -268,14 +268,14 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
 
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-semibold text-gray-900">Vendor Deduplication</h1>
+                        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Vendor Deduplication</h1>
                         <p className="mt-1 text-sm text-gray-500">
                             Manage duplicate vendor records and canonical groupings
                         </p>
                     </div>
-                    <Link href={route('vendors.index')} className="btn-secondary">
+                    <Link href={route('vendors.index')} className="btn-secondary min-h-[44px] sm:min-h-0 text-center">
                         Back to Vendors
                     </Link>
                 </div>
@@ -283,8 +283,8 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                 {/* Potential Duplicates Settings */}
                 <div className="card">
                     <div className="card-body">
-                        <div className="flex flex-wrap items-end gap-4">
-                            <div className="flex-1 min-w-[200px]">
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
+                            <div className="flex-1 min-w-0 sm:min-w-[200px]">
                                 <label htmlFor="similarity-threshold" className="block text-sm font-medium text-gray-700 mb-1">
                                     Similarity Threshold: {Math.round(similarityThreshold * 100)}%
                                 </label>
@@ -304,36 +304,41 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                     <span>Higher accuracy</span>
                                 </div>
                             </div>
-                            <div className="w-32">
-                                <label htmlFor="result-limit" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Max Results
-                                </label>
-                                <select
-                                    id="result-limit"
-                                    value={resultLimit}
-                                    onChange={(e) => setResultLimit(parseInt(e.target.value))}
-                                    className="input"
-                                    disabled={loadingPotential}
-                                >
-                                    <option value="10">10</option>
-                                    <option value="20">20</option>
-                                    <option value="50">50</option>
-                                    <option value="100">100</option>
-                                </select>
+                            <div className="flex gap-3 sm:gap-4">
+                                <div className="w-28 sm:w-32">
+                                    <label htmlFor="result-limit" className="block text-sm font-medium text-gray-700 mb-1">
+                                        Max Results
+                                    </label>
+                                    <select
+                                        id="result-limit"
+                                        value={resultLimit}
+                                        onChange={(e) => setResultLimit(parseInt(e.target.value))}
+                                        className="input min-h-[44px] sm:min-h-0"
+                                        disabled={loadingPotential}
+                                    >
+                                        <option value="10">10</option>
+                                        <option value="20">20</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                                <div className="flex items-end">
+                                    <button
+                                        type="button"
+                                        onClick={loadPotentialDuplicates}
+                                        disabled={loadingPotential}
+                                        className="btn-primary flex items-center min-h-[44px] sm:min-h-0 whitespace-nowrap"
+                                    >
+                                        {loadingPotential ? (
+                                            <ArrowPathIcon className="w-4 h-4 sm:mr-2 animate-spin" />
+                                        ) : (
+                                            <MagnifyingGlassIcon className="w-4 h-4 sm:mr-2" />
+                                        )}
+                                        <span className="hidden sm:inline">{loadingPotential ? 'Analyzing...' : 'Find Duplicates'}</span>
+                                        <span className="sm:hidden">{loadingPotential ? '...' : 'Find'}</span>
+                                    </button>
+                                </div>
                             </div>
-                            <button
-                                type="button"
-                                onClick={loadPotentialDuplicates}
-                                disabled={loadingPotential}
-                                className="btn-primary flex items-center"
-                            >
-                                {loadingPotential ? (
-                                    <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" />
-                                ) : (
-                                    <MagnifyingGlassIcon className="w-4 h-4 mr-2" />
-                                )}
-                                {loadingPotential ? 'Analyzing...' : 'Find Duplicates'}
-                            </button>
                         </div>
 
                         {/* Analysis Progress */}
@@ -359,7 +364,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                     <div className="card">
                         <div className="card-body">
                             <p className="text-sm font-medium text-gray-500">Total Vendors</p>
@@ -412,8 +417,8 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                             ) : (
                                 potentialDuplicates.map((pair) => (
                                     <div key={`${pair.vendor1.id}-${pair.vendor2.id}`} className="p-4 hover:bg-gray-50">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex-1 grid grid-cols-2 gap-4">
+                                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                                 <div>
                                                     <Link
                                                         href={route('vendors.show', pair.vendor1.id)}
@@ -425,7 +430,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                                         <p className="text-sm text-gray-500">{pair.vendor1.contact_name}</p>
                                                     )}
                                                     {pair.vendor1.email && (
-                                                        <p className="text-xs text-gray-400">{pair.vendor1.email}</p>
+                                                        <p className="text-xs text-gray-400 truncate">{pair.vendor1.email}</p>
                                                     )}
                                                 </div>
                                                 <div>
@@ -439,19 +444,19 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                                         <p className="text-sm text-gray-500">{pair.vendor2.contact_name}</p>
                                                     )}
                                                     {pair.vendor2.email && (
-                                                        <p className="text-xs text-gray-400">{pair.vendor2.email}</p>
+                                                        <p className="text-xs text-gray-400 truncate">{pair.vendor2.email}</p>
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="ml-4 flex flex-col items-end gap-2">
+                                            <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:ml-4">
                                                 <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                                                     {Math.round(pair.similarity * 100)}% match
                                                 </span>
-                                                <div className="flex gap-2">
+                                                <div className="flex flex-wrap gap-2">
                                                     <button
                                                         type="button"
                                                         onClick={(e) => openLinkModal(pair.vendor2, e.currentTarget)}
-                                                        className="text-sm text-blue-600 hover:text-blue-700"
+                                                        className="text-sm text-blue-600 hover:text-blue-700 min-h-[44px] sm:min-h-0 flex items-center"
                                                         title={`Mark ${pair.vendor2.company_name} as duplicate of ${pair.vendor1.company_name}`}
                                                     >
                                                         Link to {pair.vendor1.company_name?.substring(0, 15)}{pair.vendor1.company_name?.length > 15 ? '...' : ''}
@@ -459,7 +464,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                                                     <button
                                                         type="button"
                                                         onClick={(e) => openLinkModal(pair.vendor1, e.currentTarget)}
-                                                        className="text-sm text-blue-600 hover:text-blue-700"
+                                                        className="text-sm text-blue-600 hover:text-blue-700 min-h-[44px] sm:min-h-0 flex items-center"
                                                         title={`Mark ${pair.vendor1.company_name} as duplicate of ${pair.vendor2.company_name}`}
                                                     >
                                                         Link to {pair.vendor2.company_name?.substring(0, 15)}{pair.vendor2.company_name?.length > 15 ? '...' : ''}

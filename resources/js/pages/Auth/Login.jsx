@@ -44,7 +44,7 @@ export default function Login({ googleSsoEnabled }) {
                                     <input
                                         type="email"
                                         id="email"
-                                        className="input"
+                                        className="input min-h-[44px]"
                                         value={data.email}
                                         onChange={(e) => setData('email', e.target.value)}
                                         required
@@ -63,7 +63,7 @@ export default function Login({ googleSsoEnabled }) {
                                     <input
                                         type="password"
                                         id="password"
-                                        className="input"
+                                        className="input min-h-[44px]"
                                         value={data.password}
                                         onChange={(e) => setData('password', e.target.value)}
                                         required
@@ -74,23 +74,23 @@ export default function Login({ googleSsoEnabled }) {
                                     )}
                                 </div>
 
-                                <div className="flex items-center">
+                                <label className="flex items-center min-h-[44px] cursor-pointer">
                                     <input
                                         type="checkbox"
                                         id="remember"
-                                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                         checked={data.remember}
                                         onChange={(e) => setData('remember', e.target.checked)}
                                     />
-                                    <label htmlFor="remember" className="ml-2 text-sm text-gray-600">
+                                    <span className="ml-2 text-sm text-gray-600">
                                         Remember me
-                                    </label>
-                                </div>
+                                    </span>
+                                </label>
 
                                 <button
                                     type="submit"
                                     disabled={processing}
-                                    className="btn-primary w-full"
+                                    className="btn-primary w-full min-h-[44px]"
                                 >
                                     {processing ? 'Signing in...' : 'Sign in'}
                                 </button>
@@ -110,7 +110,7 @@ export default function Login({ googleSsoEnabled }) {
 
                                     <Link
                                         href={route('auth.google')}
-                                        className="w-full inline-flex justify-center items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                        className="w-full inline-flex justify-center items-center px-4 py-2 min-h-[44px] border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                     >
                                         <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

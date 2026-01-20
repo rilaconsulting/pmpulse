@@ -63,7 +63,7 @@ export default function SyncConfigurationForm({ syncConfiguration, syncStatus, t
                 {syncStatus && (
                     <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                         <h4 className="text-sm font-medium text-gray-700 mb-2">Current Status</h4>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                             <div>
                                 <span className="text-gray-500">Mode:</span>{' '}
                                 <span className={`font-medium ${syncStatus.current_mode === 'business_hours' ? 'text-green-600' : 'text-blue-600'}`}>
@@ -74,7 +74,7 @@ export default function SyncConfigurationForm({ syncConfiguration, syncStatus, t
                                 <span className="text-gray-500">Interval:</span>{' '}
                                 <span className="font-medium">Every {syncStatus.current_interval} minutes</span>
                             </div>
-                            <div className="col-span-2">
+                            <div className="sm:col-span-2">
                                 <span className="text-gray-500">Next sync:</span>{' '}
                                 <span className="font-medium">{new Date(syncStatus.next_sync).toLocaleString()}</span>
                             </div>
@@ -84,7 +84,7 @@ export default function SyncConfigurationForm({ syncConfiguration, syncStatus, t
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Business Hours Toggle */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
                             <label htmlFor="business_hours_enabled" className="label mb-0">
                                 Business Hours Mode
@@ -133,7 +133,7 @@ export default function SyncConfigurationForm({ syncConfiguration, syncStatus, t
                             </div>
 
                             {/* Business Hours Range */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label htmlFor="start_hour" className="label">
                                         Business Hours Start
@@ -191,7 +191,7 @@ export default function SyncConfigurationForm({ syncConfiguration, syncStatus, t
                             </div>
 
                             {/* Sync Intervals */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label htmlFor="business_hours_interval" className="label">
                                         Business Hours Interval
@@ -264,7 +264,7 @@ export default function SyncConfigurationForm({ syncConfiguration, syncStatus, t
                         <button
                             type="submit"
                             disabled={processing}
-                            className="btn-primary"
+                            className="btn-primary w-full sm:w-auto"
                         >
                             {processing ? 'Saving...' : 'Save Configuration'}
                         </button>

@@ -45,7 +45,7 @@ export default function UtilityTrendChart({ data, utilityTypes }) {
                     <h3 className="text-lg font-medium text-gray-900">Utility Cost Trend</h3>
                 </div>
                 <div className="card-body">
-                    <div className="h-80 flex items-center justify-center text-gray-500">
+                    <div className="h-56 sm:h-80 flex items-center justify-center text-gray-500">
                         No trend data available
                     </div>
                 </div>
@@ -84,14 +84,14 @@ export default function UtilityTrendChart({ data, utilityTypes }) {
 
     return (
         <div className="card">
-            <div className="card-header flex items-center justify-between">
+            <div className="card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <h3 className="text-lg font-medium text-gray-900">Utility Cost Trend</h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {allTypes.map(type => (
                         <button
                             key={type}
                             onClick={() => toggleType(type)}
-                            className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                            className={`px-2 py-1 text-xs font-medium rounded transition-colors min-h-[32px] sm:min-h-0 ${
                                 visibleTypes[type]
                                     ? 'text-white'
                                     : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
@@ -104,7 +104,7 @@ export default function UtilityTrendChart({ data, utilityTypes }) {
                 </div>
             </div>
             <div className="card-body">
-                <div className="h-80">
+                <div className="h-56 sm:h-80">
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={data}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />

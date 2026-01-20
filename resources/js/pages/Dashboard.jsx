@@ -47,7 +47,7 @@ export default function Dashboard({ syncStatus, syncHealth, kpis, propertyRollup
                 </div>
 
                 {/* KPI Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                     <KpiCard
                         title="Occupancy Rate"
                         value={formatPercent(currentKpis?.occupancy_rate)}
@@ -73,13 +73,13 @@ export default function Dashboard({ syncStatus, syncHealth, kpis, propertyRollup
                 </div>
 
                 {/* Charts Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                     <OccupancyChart data={kpis?.trend} />
                     <DelinquencyChart data={kpis?.trend} />
                 </div>
 
                 {/* Bottom Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                     {/* Sync Health Widget */}
                     <SyncHealthWidget initialData={syncHealth} />
 
@@ -88,7 +88,9 @@ export default function Dashboard({ syncStatus, syncHealth, kpis, propertyRollup
                         <div className="card-header">
                             <h3 className="text-lg font-medium text-gray-900">Property Summary</h3>
                         </div>
-                        <div className="overflow-x-auto">
+
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
@@ -133,6 +135,37 @@ export default function Dashboard({ syncStatus, syncHealth, kpis, propertyRollup
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+
+                        {/* Mobile Cards */}
+                        <div className="md:hidden divide-y divide-gray-200">
+                            {(!propertyRollups || propertyRollups.length === 0) ? (
+                                <div className="p-4 text-center text-gray-500">
+                                    No property data available
+                                </div>
+                            ) : (
+                                propertyRollups.map((property) => (
+                                    <div key={property.property_id} className="p-4">
+                                        <div className="font-medium text-gray-900 mb-2">
+                                            {property.property_name}
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2 text-sm">
+                                            <div>
+                                                <div className="text-gray-500 text-xs">Vacancies</div>
+                                                <div className="text-gray-900">{property.vacancy_count}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-gray-500 text-xs">Delinquency</div>
+                                                <div className="text-gray-900">{formatCurrency(property.delinquency_amount)}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-gray-500 text-xs">Work Orders</div>
+                                                <div className="text-gray-900">{property.open_work_orders}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>

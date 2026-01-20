@@ -160,11 +160,11 @@ export default function SyncControls({ hasConnection }) {
                 </div>
 
                 {/* Submit Button */}
-                <div className="flex justify-end pt-4">
+                <div className="pt-4">
                     <button
                         type="submit"
                         disabled={isSubmitting || !hasConnection || (showCustomDateInputs && !fromDate)}
-                        className="btn-primary"
+                        className="btn-primary w-full sm:w-auto"
                     >
                         {isSubmitting ? 'Starting Sync...' : 'Run Sync'}
                     </button>

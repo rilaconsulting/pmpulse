@@ -60,11 +60,11 @@ export default function UtilitiesShow({
                     }
                     actions={
                         <div className="flex items-center space-x-2">
-                            <span className="text-sm text-gray-500">Period:</span>
+                            <span className="text-sm text-gray-500 hidden sm:inline">Period:</span>
                             <select
                                 value={selectedPeriod}
                                 onChange={(e) => handlePeriodChange(e.target.value)}
-                                className="input py-1.5 pr-8"
+                                className="input py-1.5 pr-8 min-h-[44px] sm:min-h-0"
                             >
                                 <option value="month">This Month</option>
                                 <option value="quarter">This Quarter</option>
@@ -90,7 +90,7 @@ export default function UtilitiesShow({
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <p className="text-sm text-gray-500">Total Utility Costs</p>
-                                <p className="text-3xl font-bold text-gray-900">
+                                <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                                     {formatCurrency(costBreakdown.total)}
                                 </p>
                             </div>

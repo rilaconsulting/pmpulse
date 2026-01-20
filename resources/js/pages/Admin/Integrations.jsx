@@ -104,21 +104,21 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
 
                 {/* AppFolio Integration */}
                 <div className="card">
-                    <div className="card-header flex items-center justify-between">
+                    <div className="card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-3">
-                            <AppFolioLogo className="w-10 h-10" />
+                            <AppFolioLogo className="w-10 h-10 flex-shrink-0" />
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900">AppFolio</h3>
                                 <p className="text-sm text-gray-500">Property management data sync</p>
                             </div>
                         </div>
                         {appfolio?.client_id ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 self-start sm:self-auto">
                                 <CheckCircleIcon className="w-4 h-4" />
                                 Connected
                             </span>
                         ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 self-start sm:self-auto">
                                 <XCircleIcon className="w-4 h-4" />
                                 Not Connected
                             </span>
@@ -202,9 +202,9 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
 
                 {/* Google Maps Integration */}
                 <div className="card">
-                    <div className="card-header flex items-center justify-between">
+                    <div className="card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
                                 <GoogleMapsLogo className="w-6 h-6" />
                             </div>
                             <div>
@@ -213,12 +213,12 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
                             </div>
                         </div>
                         {googleMaps?.has_api_key ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 self-start sm:self-auto">
                                 <CheckCircleIcon className="w-4 h-4" />
                                 Configured
                             </span>
                         ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 self-start sm:self-auto">
                                 <ExclamationCircleIcon className="w-4 h-4" />
                                 Not Configured
                             </span>
@@ -261,11 +261,11 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
                                     . Enable the Geocoding API.
                                 </p>
                             </div>
-                            <div className="pt-2 flex gap-3">
+                            <div className="pt-2 flex flex-col sm:flex-row gap-3">
                                 <button
                                     type="submit"
                                     disabled={mapsForm.processing || (!mapsForm.data.maps_api_key && !googleMaps?.has_api_key)}
-                                    className="btn-primary"
+                                    className="btn-primary w-full sm:w-auto"
                                 >
                                     {mapsForm.processing ? 'Saving...' : 'Save API Key'}
                                 </button>
@@ -280,7 +280,7 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
                                                 });
                                             }
                                         }}
-                                        className="btn-secondary text-red-600 hover:text-red-700"
+                                        className="btn-secondary text-red-600 hover:text-red-700 w-full sm:w-auto"
                                     >
                                         Remove Key
                                     </button>
@@ -292,9 +292,9 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
 
                 {/* Google SSO Integration */}
                 <div className="card">
-                    <div className="card-header flex items-center justify-between">
+                    <div className="card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
                                 <GoogleLogo className="w-6 h-6" />
                             </div>
                             <div>
@@ -303,12 +303,12 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
                             </div>
                         </div>
                         {googleSso?.configured ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 self-start sm:self-auto">
                                 <CheckCircleIcon className="w-4 h-4" />
                                 {googleSso?.enabled ? 'Enabled' : 'Configured'}
                             </span>
                         ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 self-start sm:self-auto">
                                 <XCircleIcon className="w-4 h-4" />
                                 Not Configured
                             </span>
@@ -403,12 +403,12 @@ export default function Integrations({ appfolio, googleMaps, googleSso }) {
                                 </div>
                             </div>
 
-                            <div className="pt-2 flex items-center gap-3">
-                                <button type="submit" disabled={ssoForm.processing} className="btn-primary">
+                            <div className="pt-2 flex flex-col sm:flex-row sm:items-center gap-3">
+                                <button type="submit" disabled={ssoForm.processing} className="btn-primary w-full sm:w-auto">
                                     {ssoForm.processing ? 'Saving...' : 'Save Settings'}
                                 </button>
                                 {ssoForm.recentlySuccessful && (
-                                    <span className="text-sm text-green-600">Saved!</span>
+                                    <span className="text-sm text-green-600 text-center sm:text-left">Saved!</span>
                                 )}
                             </div>
                         </form>

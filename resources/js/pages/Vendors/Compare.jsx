@@ -43,17 +43,17 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
                 {/* Back Button */}
                 <Link
                     href={route('vendors.index')}
-                    className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+                    className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 min-h-[44px] sm:min-h-0"
                 >
                     <ArrowLeftIcon className="w-4 h-4 mr-1" />
                     Back to Vendors
                 </Link>
 
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
-                        <h1 className="text-2xl font-semibold text-gray-900 flex items-center gap-2">
-                            <ScaleIcon className="w-7 h-7 text-blue-600" />
+                        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 flex items-center gap-2">
+                            <ScaleIcon className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
                             Compare Vendors
                         </h1>
                         <p className="mt-1 text-sm text-gray-500">
@@ -65,14 +65,14 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
                 {/* Trade Selector */}
                 <div className="card">
                     <div className="card-body">
-                        <div className="flex flex-wrap gap-4 items-end">
-                            <div>
+                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-end">
+                            <div className="flex-1 sm:flex-none">
                                 <label htmlFor="trade" className="label">
                                     Select Trade to Compare
                                 </label>
                                 <select
                                     id="trade"
-                                    className="input"
+                                    className="input w-full sm:w-auto min-h-[44px] sm:min-h-0"
                                     value={selectedTrade || ''}
                                     onChange={(e) => handleTradeChange(e.target.value)}
                                 >

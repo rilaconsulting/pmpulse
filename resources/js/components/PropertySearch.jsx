@@ -6,7 +6,7 @@ import {
     XMarkIcon,
 } from '@heroicons/react/24/outline';
 
-export default function PropertySearch() {
+export default function PropertySearch({ autoFocus = false, onNavigate }) {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -18,6 +18,13 @@ export default function PropertySearch() {
     const containerRef = useRef(null);
     const debounceRef = useRef(null);
     const listboxId = useRef(`property-search-listbox-${Math.random().toString(36).substr(2, 9)}`).current;
+
+    // Auto-focus on mount if requested (for mobile overlay)
+    useEffect(() => {
+        if (autoFocus && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [autoFocus]);
 
     // Load recent searches from localStorage
     useEffect(() => {
@@ -94,6 +101,7 @@ export default function PropertySearch() {
         setQuery('');
         setResults([]);
         setIsOpen(false);
+        onNavigate?.(); // Close mobile search overlay if provided
         router.visit(`/properties/${property.id}`);
     };
 
@@ -222,14 +230,14 @@ export default function PropertySearch() {
                             type="button"
                             role="option"
                             aria-selected={index === selectedIndex}
-                            className={`w-full px-4 py-3 text-left flex items-center hover:bg-gray-50 ${
+                            className={`w-full px-4 py-3 min-h-[44px] text-left flex items-center hover:bg-gray-50 active:bg-gray-100 ${
                                 index === selectedIndex ? 'bg-blue-50' : ''
                             }`}
                             onClick={() => navigateToProperty(property)}
                             onMouseEnter={() => setSelectedIndex(index)}
                         >
-                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <BuildingOfficeIcon className="w-4 h-4 text-blue-600" />
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <BuildingOfficeIcon className="w-5 h-5 text-blue-600" />
                             </div>
                             <div className="ml-3 overflow-hidden">
                                 <div className="text-sm font-medium text-gray-900 truncate">
@@ -244,8 +252,9 @@ export default function PropertySearch() {
                         </button>
                     ))}
 
+                    {/* Keyboard hints - hidden on mobile */}
                     {!isLoading && !error && displayItems.length > 0 && (
-                        <div className="px-3 py-2 text-xs text-gray-400 bg-gray-50 border-t border-gray-100">
+                        <div className="hidden md:block px-3 py-2 text-xs text-gray-400 bg-gray-50 border-t border-gray-100">
                             Press <kbd className="px-1 py-0.5 bg-gray-200 rounded text-gray-600">↑</kbd> <kbd className="px-1 py-0.5 bg-gray-200 rounded text-gray-600">↓</kbd> to navigate, <kbd className="px-1 py-0.5 bg-gray-200 rounded text-gray-600">Enter</kbd> to select
                         </div>
                     )}

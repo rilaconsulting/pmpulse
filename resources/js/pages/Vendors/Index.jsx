@@ -1,7 +1,9 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import React, { useState } from 'react';
+import { Disclosure, Transition } from '@headlessui/react';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
+import MobileCard from '../../components/MobileCard';
 import { InsuranceStatusBadge, formatCurrency } from '../../components/Vendor';
 import {
     MagnifyingGlassIcon,
@@ -14,6 +16,7 @@ import {
     ExclamationTriangleIcon,
     LinkIcon,
     UsersIcon,
+    AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline';
 
 export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filters }) {
@@ -132,55 +135,59 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                             {isAdmin && (
                                 <Link
                                     href={route('vendors.deduplication')}
-                                    className="btn-secondary flex items-center"
+                                    className="btn-secondary flex items-center min-h-[44px] sm:min-h-0 px-2 sm:px-3"
+                                    title="Deduplication"
                                 >
-                                    <LinkIcon className="w-4 h-4 mr-2" />
-                                    Deduplication
+                                    <LinkIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">Deduplication</span>
                                 </Link>
                             )}
                             <Link
                                 href={route('vendors.compare')}
-                                className="btn-secondary flex items-center"
+                                className="btn-secondary flex items-center min-h-[44px] sm:min-h-0 px-2 sm:px-3"
+                                title="Compare Vendors"
                             >
-                                Compare Vendors
+                                <UsersIcon className="w-5 h-5 sm:hidden" />
+                                <span className="hidden sm:inline">Compare Vendors</span>
                             </Link>
                             <Link
                                 href={route('vendors.compliance')}
-                                className="btn-primary flex items-center"
+                                className="btn-primary flex items-center min-h-[44px] sm:min-h-0 px-2 sm:px-3"
+                                title="Compliance Report"
                             >
-                                <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
-                                Compliance Report
+                                <ExclamationTriangleIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Compliance</span>
                             </Link>
                         </div>
                     }
                 />
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                     <div className="card">
                         <div className="card-body">
-                            <p className="text-sm font-medium text-gray-500">Total Vendors</p>
-                            <p className="text-2xl font-semibold text-gray-900">{stats.total_vendors}</p>
+                            <p className="text-xs md:text-sm font-medium text-gray-500 truncate">Total Vendors</p>
+                            <p className="text-xl md:text-2xl font-semibold text-gray-900">{stats.total_vendors}</p>
                         </div>
                     </div>
                     <div className="card">
                         <div className="card-body">
-                            <p className="text-sm font-medium text-gray-500">Active Vendors</p>
-                            <p className="text-2xl font-semibold text-gray-900">{stats.active_vendors}</p>
+                            <p className="text-xs md:text-sm font-medium text-gray-500 truncate">Active Vendors</p>
+                            <p className="text-xl md:text-2xl font-semibold text-gray-900">{stats.active_vendors}</p>
                         </div>
                     </div>
                     <div className="card">
                         <div className="card-body">
-                            <p className="text-sm font-medium text-gray-500">Expired Insurance</p>
-                            <p className={`text-2xl font-semibold ${stats.expired_insurance > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                            <p className="text-xs md:text-sm font-medium text-gray-500 truncate">Expired Insurance</p>
+                            <p className={`text-xl md:text-2xl font-semibold ${stats.expired_insurance > 0 ? 'text-red-600' : 'text-gray-900'}`}>
                                 {stats.expired_insurance}
                             </p>
                         </div>
                     </div>
                     <div className="card">
                         <div className="card-body">
-                            <p className="text-sm font-medium text-gray-500">Total Spend (12 mo)</p>
-                            <p className="text-2xl font-semibold text-gray-900">
+                            <p className="text-xs md:text-sm font-medium text-gray-500 truncate">Spend (12 mo)</p>
+                            <p className="text-xl md:text-2xl font-semibold text-gray-900">
                                 {formatCurrency(stats.portfolio_stats?.total_spend)}
                             </p>
                         </div>
@@ -190,38 +197,34 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                 {/* Filters */}
                 <div className="card">
                     <div className="card-body">
-                        <div className="flex flex-wrap gap-4 items-end">
-                            {/* Search */}
-                            <div className="flex-1 min-w-64">
-                                <label htmlFor="search" className="label">
-                                    Search
-                                </label>
-                                <form onSubmit={handleSearch} className="flex gap-2">
-                                    <div className="relative flex-1">
-                                        <input
-                                            type="text"
-                                            id="search"
-                                            className="input pl-10"
-                                            placeholder="Search by name, contact, or email..."
-                                            value={search}
-                                            onChange={(e) => setSearch(e.target.value)}
-                                        />
-                                        <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                                    </div>
-                                    <button type="submit" className="btn-secondary">
-                                        Search
-                                    </button>
-                                </form>
+                        {/* Search - Always visible */}
+                        <form onSubmit={handleSearch} className="flex gap-2">
+                            <div className="relative flex-1">
+                                <input
+                                    type="text"
+                                    id="search"
+                                    className="input pl-10 min-h-[44px]"
+                                    placeholder="Search by name, contact, or email..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                />
+                                <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                             </div>
+                            <button type="submit" className="btn-secondary min-h-[44px]">
+                                Search
+                            </button>
+                        </form>
 
+                        {/* Desktop Filters - Hidden on mobile */}
+                        <div className="hidden md:flex flex-wrap gap-4 items-end mt-4">
                             {/* Trade Filter */}
                             {trades.length > 0 && (
                                 <div>
-                                    <label htmlFor="trade" className="label">
+                                    <label htmlFor="trade-desktop" className="label">
                                         Trade
                                     </label>
                                     <select
-                                        id="trade"
+                                        id="trade-desktop"
                                         className="input"
                                         value={filters.trade}
                                         onChange={(e) => handleFilter('trade', e.target.value)}
@@ -238,11 +241,11 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
 
                             {/* Insurance Status Filter */}
                             <div>
-                                <label htmlFor="insurance_status" className="label">
+                                <label htmlFor="insurance_status-desktop" className="label">
                                     Insurance Status
                                 </label>
                                 <select
-                                    id="insurance_status"
+                                    id="insurance_status-desktop"
                                     className="input"
                                     value={filters.insurance_status}
                                     onChange={(e) => handleFilter('insurance_status', e.target.value)}
@@ -256,11 +259,11 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
 
                             {/* Active Status Filter */}
                             <div>
-                                <label htmlFor="is_active" className="label">
+                                <label htmlFor="is_active-desktop" className="label">
                                     Status
                                 </label>
                                 <select
-                                    id="is_active"
+                                    id="is_active-desktop"
                                     className="input"
                                     value={filters.is_active}
                                     onChange={(e) => handleFilter('is_active', e.target.value)}
@@ -273,11 +276,11 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
 
                             {/* Canonical Filter */}
                             <div>
-                                <label htmlFor="canonical_filter" className="label">
+                                <label htmlFor="canonical_filter-desktop" className="label">
                                     Grouping
                                 </label>
                                 <select
-                                    id="canonical_filter"
+                                    id="canonical_filter-desktop"
                                     className="input"
                                     value={filters.canonical_filter || 'canonical_only'}
                                     onChange={(e) => handleFilter('canonical_filter', e.target.value)}
@@ -300,12 +303,201 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                                 </button>
                             )}
                         </div>
+
+                        {/* Mobile Filters - Collapsible */}
+                        <div className="md:hidden mt-3">
+                            <Disclosure>
+                                {({ open }) => (
+                                    <>
+                                        <Disclosure.Button className="flex items-center justify-between w-full py-2 text-sm font-medium text-gray-700 touch-target">
+                                            <span className="flex items-center gap-2">
+                                                <AdjustmentsHorizontalIcon className="w-5 h-5" />
+                                                Filters
+                                                {hasActiveFilters && (
+                                                    <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                                        {[filters.trade, filters.insurance_status, filters.is_active, filters.canonical_filter && filters.canonical_filter !== 'canonical_only'].filter(Boolean).length}
+                                                    </span>
+                                                )}
+                                            </span>
+                                            <ChevronDownIcon className={`w-5 h-5 transition-transform ${open ? 'rotate-180' : ''}`} />
+                                        </Disclosure.Button>
+                                        <Transition
+                                            enter="transition duration-100 ease-out"
+                                            enterFrom="transform opacity-0 -translate-y-2"
+                                            enterTo="transform opacity-100 translate-y-0"
+                                            leave="transition duration-75 ease-out"
+                                            leaveFrom="transform opacity-100 translate-y-0"
+                                            leaveTo="transform opacity-0 -translate-y-2"
+                                        >
+                                            <Disclosure.Panel className="pt-3 pb-1 space-y-3">
+                                                {/* Trade Filter */}
+                                                {trades.length > 0 && (
+                                                    <div>
+                                                        <label htmlFor="trade-mobile" className="label">
+                                                            Trade
+                                                        </label>
+                                                        <select
+                                                            id="trade-mobile"
+                                                            className="input w-full min-h-[44px]"
+                                                            value={filters.trade}
+                                                            onChange={(e) => handleFilter('trade', e.target.value)}
+                                                        >
+                                                            <option value="">All Trades</option>
+                                                            {trades.map((trade) => (
+                                                                <option key={trade} value={trade}>
+                                                                    {trade}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                {/* Insurance Status Filter */}
+                                                <div>
+                                                    <label htmlFor="insurance_status-mobile" className="label">
+                                                        Insurance Status
+                                                    </label>
+                                                    <select
+                                                        id="insurance_status-mobile"
+                                                        className="input w-full min-h-[44px]"
+                                                        value={filters.insurance_status}
+                                                        onChange={(e) => handleFilter('insurance_status', e.target.value)}
+                                                    >
+                                                        <option value="">All Statuses</option>
+                                                        <option value="current">Current</option>
+                                                        <option value="expiring_soon">Expiring Soon</option>
+                                                        <option value="expired">Expired</option>
+                                                    </select>
+                                                </div>
+
+                                                {/* Active Status Filter */}
+                                                <div>
+                                                    <label htmlFor="is_active-mobile" className="label">
+                                                        Status
+                                                    </label>
+                                                    <select
+                                                        id="is_active-mobile"
+                                                        className="input w-full min-h-[44px]"
+                                                        value={filters.is_active}
+                                                        onChange={(e) => handleFilter('is_active', e.target.value)}
+                                                    >
+                                                        <option value="">All</option>
+                                                        <option value="true">Active</option>
+                                                        <option value="false">Inactive</option>
+                                                    </select>
+                                                </div>
+
+                                                {/* Canonical Filter */}
+                                                <div>
+                                                    <label htmlFor="canonical_filter-mobile" className="label">
+                                                        Grouping
+                                                    </label>
+                                                    <select
+                                                        id="canonical_filter-mobile"
+                                                        className="input w-full min-h-[44px]"
+                                                        value={filters.canonical_filter || 'canonical_only'}
+                                                        onChange={(e) => handleFilter('canonical_filter', e.target.value)}
+                                                    >
+                                                        <option value="canonical_only">Canonical Only</option>
+                                                        <option value="all">Show All</option>
+                                                        <option value="duplicates_only">Duplicates Only</option>
+                                                    </select>
+                                                </div>
+
+                                                {/* Clear Filters */}
+                                                {hasActiveFilters && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={clearFilters}
+                                                        className="btn-secondary flex items-center w-full justify-center min-h-[44px]"
+                                                    >
+                                                        <XMarkIcon className="w-4 h-4 mr-1" />
+                                                        Clear Filters
+                                                    </button>
+                                                )}
+                                            </Disclosure.Panel>
+                                        </Transition>
+                                    </>
+                                )}
+                            </Disclosure>
+                        </div>
                     </div>
                 </div>
 
                 {/* Vendors Table */}
                 <div className="card">
-                    <div className="overflow-x-auto">
+                    {/* Mobile Card View */}
+                    <div className="md:hidden divide-y divide-gray-200">
+                        {vendors.data.length === 0 ? (
+                            <div className="px-4 py-12 text-center">
+                                <WrenchScrewdriverIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                                <p className="text-gray-500">No vendors found</p>
+                                {hasActiveFilters && (
+                                    <button
+                                        onClick={clearFilters}
+                                        className="mt-2 text-blue-600 hover:text-blue-700 text-sm"
+                                    >
+                                        Clear filters
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            vendors.data.map((vendor) => {
+                                const isDuplicate = vendor.canonical_vendor_id !== null;
+                                const insuranceVariant = vendor.insurance_status === 'current' ? 'success' :
+                                                        vendor.insurance_status === 'expiring_soon' ? 'warning' :
+                                                        vendor.insurance_status === 'expired' ? 'danger' : 'neutral';
+                                return (
+                                    <Link key={vendor.id} href={route('vendors.show', vendor.id)} className="block">
+                                        <MobileCard
+                                            header={vendor.company_name}
+                                            subheader={vendor.contact_name || null}
+                                            icon={
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                                    isDuplicate ? 'bg-gray-100' : 'bg-blue-100'
+                                                }`}>
+                                                    {isDuplicate ? (
+                                                        <LinkIcon className="w-5 h-5 text-gray-500" />
+                                                    ) : (
+                                                        <WrenchScrewdriverIcon className="w-5 h-5 text-blue-600" />
+                                                    )}
+                                                </div>
+                                            }
+                                            badges={[
+                                                {
+                                                    label: vendor.is_active ? 'Active' : 'Inactive',
+                                                    variant: vendor.is_active ? 'success' : 'danger',
+                                                },
+                                                {
+                                                    label: vendor.insurance_status === 'current' ? 'Insured' :
+                                                           vendor.insurance_status === 'expiring_soon' ? 'Expiring' :
+                                                           vendor.insurance_status === 'expired' ? 'Expired' : 'Unknown',
+                                                    variant: insuranceVariant,
+                                                },
+                                            ]}
+                                            fields={[
+                                                {
+                                                    label: 'Work Orders',
+                                                    value: vendor.metrics?.work_order_count ?? 0,
+                                                },
+                                                {
+                                                    label: 'Total Spend',
+                                                    value: formatCurrency(vendor.metrics?.total_spend),
+                                                },
+                                                ...(vendor.vendor_trades ? [{
+                                                    label: 'Trade',
+                                                    value: vendor.vendor_trades.split(',')[0]?.trim() || '-',
+                                                }] : []),
+                                            ]}
+                                        />
+                                    </Link>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -498,32 +690,39 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                         </table>
                     </div>
 
-                    {/* Pagination */}
+                    {/* Pagination - Responsive */}
                     {vendors.last_page > 1 && (
-                        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                            <div className="text-sm text-gray-500">
+                        <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <div className="text-sm text-gray-500 order-2 sm:order-1">
                                 Showing {vendors.from} to {vendors.to} of {vendors.total} vendors
                             </div>
-                            <div className="flex gap-2">
-                                {vendors.prev_page_url && (
+                            <div className="flex gap-2 order-1 sm:order-2 w-full sm:w-auto justify-between sm:justify-end">
+                                {vendors.prev_page_url ? (
                                     <Link
                                         href={vendors.prev_page_url}
-                                        className="btn-secondary flex items-center"
+                                        className="btn-secondary flex items-center min-h-[44px] sm:min-h-0"
                                         preserveScroll
                                     >
-                                        <ChevronLeftIcon className="w-4 h-4 mr-1" />
-                                        Previous
+                                        <ChevronLeftIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
+                                        <span className="hidden sm:inline">Previous</span>
                                     </Link>
+                                ) : (
+                                    <div className="w-10 sm:w-auto" />
                                 )}
-                                {vendors.next_page_url && (
+                                <span className="sm:hidden text-sm text-gray-500 flex items-center">
+                                    Page {vendors.current_page} of {vendors.last_page}
+                                </span>
+                                {vendors.next_page_url ? (
                                     <Link
                                         href={vendors.next_page_url}
-                                        className="btn-secondary flex items-center"
+                                        className="btn-secondary flex items-center min-h-[44px] sm:min-h-0"
                                         preserveScroll
                                     >
-                                        Next
-                                        <ChevronRightIcon className="w-4 h-4 ml-1" />
+                                        <span className="hidden sm:inline">Next</span>
+                                        <ChevronRightIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:ml-1" />
                                     </Link>
+                                ) : (
+                                    <div className="w-10 sm:w-auto" />
                                 )}
                             </div>
                         </div>

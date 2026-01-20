@@ -27,7 +27,7 @@ export default function Changelog({ releases, error }) {
                         {releases.map((release, index) => (
                             <div key={release.version} className="card">
                                 <div className="card-header">
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                         <div className="flex items-center gap-3">
                                             <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 text-blue-800">
                                                 v{release.version}

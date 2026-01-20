@@ -7,23 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
 ### Added
-New features
+- Full mobile responsive design across all pages
+- Mobile navigation drawer with hamburger menu for easy access on small screens
+- Touch-friendly tap targets (44px minimum) on all buttons, links, and form controls
+- Mobile card view for data tables showing key information in a scannable format
+- Collapsible filter panels on mobile to save screen space
+- Safe area support for devices with notched displays (iPhone X and newer)
 
 ### Changed
-Changes in existing functionality
-
-### Fixed
-Bug fixes
-
-### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
--->
+- Page headers now stack vertically on mobile with title prominently displayed first
+- Form inputs and buttons resize appropriately for mobile devices
+- Charts and graphs adjust height for better mobile viewing
+- Tables convert to card-based layouts on small screens
+- Navigation adapts between desktop sidebar and mobile drawer
 
 ---
 

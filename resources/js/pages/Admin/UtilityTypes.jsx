@@ -313,6 +313,155 @@ function TypeRow({ type, onEdit, onDelete }) {
     );
 }
 
+// Mobile card component
+function TypeCard({ type, onEdit, onDelete }) {
+    const hasUsage = type.accounts_count > 0;
+    const canDelete = !hasUsage;
+
+    return (
+        <div className="p-4 border-b border-gray-200 last:border-b-0">
+            <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                    <UtilityTypeIcon utilityType={type} size="md" />
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="font-mono font-medium text-gray-900">{type.key}</span>
+                            {type.is_system && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                    system
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-sm text-gray-700">{type.label}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                            {type.accounts_count} accounts • {type.expenses_count?.toLocaleString() || 0} expenses
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => onEdit(type)}
+                        className="p-3 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg"
+                        title="Edit"
+                    >
+                        <PencilIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onDelete(type)}
+                        className={`p-3 rounded-lg ${canDelete ? 'text-red-600 hover:text-red-900 hover:bg-red-50' : 'text-gray-300 cursor-not-allowed'}`}
+                        title={hasUsage ? 'Cannot delete' : 'Delete'}
+                        disabled={!canDelete}
+                    >
+                        <TrashIcon className="w-5 h-5" />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Mobile form for adding/editing types
+function MobileTypeForm({ type, onCancel, isEditing = false }) {
+    const { data, setData, post, patch, processing, errors, reset } = useForm({
+        key: type?.key || '',
+        label: type?.label || '',
+        icon: type?.icon || 'CubeIcon',
+        color_scheme: type?.color_scheme || 'slate',
+    });
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (isEditing) {
+            patch(route('admin.utility-types.update', type.id), {
+                onSuccess: () => onCancel(),
+            });
+        } else {
+            post(route('admin.utility-types.store'), {
+                onSuccess: () => {
+                    reset();
+                    onCancel();
+                },
+            });
+        }
+    };
+
+    return (
+        <div className="p-4 bg-blue-50 border-b border-blue-100">
+            <div className="flex items-center gap-3 mb-3">
+                <UtilityTypeIcon
+                    utilityType={{ icon: data.icon, color_scheme: data.color_scheme }}
+                    size="md"
+                />
+                <h4 className="text-sm font-medium text-gray-900">
+                    {isEditing ? `Edit ${type.label}` : 'Add New Type'}
+                </h4>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-3">
+                {!isEditing && (
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Key</label>
+                        <input
+                            type="text"
+                            value={data.key}
+                            onChange={(e) => setData('key', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                            placeholder="e.g., stormwater"
+                            className="input w-full font-mono"
+                            autoFocus
+                        />
+                        {errors.key && (
+                            <p className="mt-1 text-xs text-red-600">{errors.key}</p>
+                        )}
+                    </div>
+                )}
+                <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Label</label>
+                    <input
+                        type="text"
+                        value={data.label}
+                        onChange={(e) => setData('label', e.target.value)}
+                        placeholder="e.g., Stormwater"
+                        className="input w-full"
+                        autoFocus={isEditing}
+                    />
+                    {errors.label && (
+                        <p className="mt-1 text-xs text-red-600">{errors.label}</p>
+                    )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Icon</label>
+                        <IconSelector value={data.icon} onChange={(v) => setData('icon', v)} />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Color</label>
+                        <ColorSelector value={data.color_scheme} onChange={(v) => setData('color_scheme', v)} />
+                    </div>
+                </div>
+                <div className="flex gap-2 pt-2">
+                    <button
+                        type="submit"
+                        disabled={processing}
+                        className="flex-1 btn-primary"
+                    >
+                        <CheckIcon className="w-4 h-4 mr-1 inline" />
+                        {processing ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="flex-1 btn-secondary"
+                    >
+                        <XMarkIcon className="w-4 h-4 mr-1 inline" />
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    );
+}
+
 export default function UtilityTypes({ utilityTypes }) {
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState(null);
@@ -336,21 +485,21 @@ export default function UtilityTypes({ utilityTypes }) {
         <AdminLayout currentTab="utility-types">
             <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <h2 className="text-lg font-medium text-gray-900">Utility Types</h2>
                         <p className="mt-1 text-sm text-gray-500">
                             Configure utility categories with custom icons and colors.
                         </p>
                     </div>
-                    <div className="flex space-x-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
                         <button
                             type="button"
                             onClick={handleReset}
                             className="btn-secondary"
                         >
-                            <ArrowPathIcon className="w-4 h-4 mr-2" />
-                            Remove Custom Types
+                            <ArrowPathIcon className="w-4 h-4 mr-2 inline" />
+                            Remove Custom
                         </button>
                         {!isAdding && (
                             <button
@@ -358,7 +507,7 @@ export default function UtilityTypes({ utilityTypes }) {
                                 onClick={() => setIsAdding(true)}
                                 className="btn-primary"
                             >
-                                <PlusIcon className="w-4 h-4 mr-2" />
+                                <PlusIcon className="w-4 h-4 mr-2 inline" />
                                 Add Type
                             </button>
                         )}
@@ -367,72 +516,119 @@ export default function UtilityTypes({ utilityTypes }) {
 
                 {/* Types List */}
                 <div className="card overflow-visible">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Key
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Label
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Icon
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Color
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Accounts / Expenses
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {isAdding && (
-                                <AddTypeForm onCancel={() => setIsAdding(false)} />
-                            )}
-                            {types.map((type) => (
+                    {/* Mobile Card View */}
+                    <div className="md:hidden">
+                        {isAdding && (
+                            <MobileTypeForm onCancel={() => setIsAdding(false)} />
+                        )}
+                        {types.length === 0 && !isAdding ? (
+                            <div className="px-4 py-12 text-center">
+                                <TagIcon className="mx-auto h-12 w-12 text-gray-400" />
+                                <h3 className="mt-2 text-sm font-medium text-gray-900">No utility types configured</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Add utility types to categorize expense accounts.
+                                </p>
+                                <div className="mt-6">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAdding(true)}
+                                        className="btn-primary"
+                                    >
+                                        <PlusIcon className="w-4 h-4 mr-2 inline" />
+                                        Add First Type
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            types.map((type) => (
                                 editingId === type.id ? (
-                                    <EditTypeRow
+                                    <MobileTypeForm
                                         key={type.id}
                                         type={type}
                                         onCancel={() => setEditingId(null)}
+                                        isEditing
                                     />
                                 ) : (
-                                    <TypeRow
+                                    <TypeCard
                                         key={type.id}
                                         type={type}
                                         onEdit={(t) => setEditingId(t.id)}
                                         onDelete={handleDelete}
                                     />
                                 )
-                            ))}
-                            {types.length === 0 && !isAdding && (
+                            ))
+                        )}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-12 text-center">
-                                        <TagIcon className="mx-auto h-12 w-12 text-gray-400" />
-                                        <h3 className="mt-2 text-sm font-medium text-gray-900">No utility types configured</h3>
-                                        <p className="mt-1 text-sm text-gray-500">
-                                            Add utility types to categorize expense accounts.
-                                        </p>
-                                        <div className="mt-6">
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsAdding(true)}
-                                                className="btn-primary"
-                                            >
-                                                <PlusIcon className="w-4 h-4 mr-2" />
-                                                Add First Type
-                                            </button>
-                                        </div>
-                                    </td>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Key
+                                    </th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Label
+                                    </th>
+                                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Icon
+                                    </th>
+                                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Color
+                                    </th>
+                                    <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Accounts / Expenses
+                                    </th>
+                                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions
+                                    </th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {isAdding && (
+                                    <AddTypeForm onCancel={() => setIsAdding(false)} />
+                                )}
+                                {types.map((type) => (
+                                    editingId === type.id ? (
+                                        <EditTypeRow
+                                            key={type.id}
+                                            type={type}
+                                            onCancel={() => setEditingId(null)}
+                                        />
+                                    ) : (
+                                        <TypeRow
+                                            key={type.id}
+                                            type={type}
+                                            onEdit={(t) => setEditingId(t.id)}
+                                            onDelete={handleDelete}
+                                        />
+                                    )
+                                ))}
+                                {types.length === 0 && !isAdding && (
+                                    <tr>
+                                        <td colSpan="6" className="px-6 py-12 text-center">
+                                            <TagIcon className="mx-auto h-12 w-12 text-gray-400" />
+                                            <h3 className="mt-2 text-sm font-medium text-gray-900">No utility types configured</h3>
+                                            <p className="mt-1 text-sm text-gray-500">
+                                                Add utility types to categorize expense accounts.
+                                            </p>
+                                            <div className="mt-6">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsAdding(true)}
+                                                    className="btn-primary"
+                                                >
+                                                    <PlusIcon className="w-4 h-4 mr-2" />
+                                                    Add First Type
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 {/* Help Text */}

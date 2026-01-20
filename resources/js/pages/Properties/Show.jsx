@@ -6,6 +6,7 @@ import PageHeader from '../../components/PageHeader';
 import { PropertyTabPanel } from '../../components/Property/PropertyTabs';
 import AdjustmentList from '../../components/Property/AdjustmentList';
 import AdjustedValue from '../../components/AdjustedValue';
+import MobileCard from '../../components/MobileCard';
 import PropertyUtilityTrend from '../../components/Utilities/PropertyUtilityTrend';
 import { formatCurrency as formatUtilityCurrency, findUtilityType, getIconComponent, getColorScheme } from '../../components/Utilities/constants';
 import {
@@ -303,17 +304,17 @@ export default function PropertyShow({
                 <PropertyTabPanel id="overview" isActive={activeTab === 'overview'}>
                     <div className="space-y-6">
                         {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                     {/* Total Units */}
                     <div className="card">
                         <div className="card-body">
                             <div className="flex items-center">
-                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                    <HomeModernIcon className="w-5 h-5 text-blue-600" />
+                                <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <HomeModernIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                                 </div>
-                                <div className="ml-4">
-                                    <p className="text-sm text-gray-500">Total Units</p>
-                                    <p className="text-2xl font-semibold text-gray-900">
+                                <div className="ml-3 md:ml-4 min-w-0">
+                                    <p className="text-xs md:text-sm text-gray-500 truncate">Total Units</p>
+                                    <p className="text-xl md:text-2xl font-semibold text-gray-900">
                                         <AdjustedValue
                                             value={effectiveValues?.unit_count?.value ?? stats.total_units}
                                             isAdjusted={effectiveValues?.unit_count?.is_adjusted}
@@ -332,14 +333,14 @@ export default function PropertyShow({
                     <div className="card">
                         <div className="card-body">
                             <div className="flex items-center">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                                     stats.occupancy_rate >= 90
                                         ? 'bg-green-100'
                                         : stats.occupancy_rate >= 70
                                             ? 'bg-yellow-100'
                                             : 'bg-red-100'
                                 }`}>
-                                    <Square3Stack3DIcon className={`w-5 h-5 ${
+                                    <Square3Stack3DIcon className={`w-4 h-4 md:w-5 md:h-5 ${
                                         stats.occupancy_rate >= 90
                                             ? 'text-green-600'
                                             : stats.occupancy_rate >= 70
@@ -347,12 +348,12 @@ export default function PropertyShow({
                                                 : 'text-red-600'
                                     }`} />
                                 </div>
-                                <div className="ml-4">
-                                    <p className="text-sm text-gray-500">Occupancy Rate</p>
-                                    <p className="text-2xl font-semibold text-gray-900">{stats.occupancy_rate}%</p>
+                                <div className="ml-3 md:ml-4 min-w-0">
+                                    <p className="text-xs md:text-sm text-gray-500 truncate">Occupancy</p>
+                                    <p className="text-xl md:text-2xl font-semibold text-gray-900">{stats.occupancy_rate}%</p>
                                 </div>
                             </div>
-                            <div className="mt-3">
+                            <div className="mt-2 md:mt-3">
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
                                         className={`h-2 rounded-full ${
@@ -373,12 +374,12 @@ export default function PropertyShow({
                     <div className="card">
                         <div className="card-body">
                             <div className="flex items-center">
-                                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                                    <HomeModernIcon className="w-5 h-5 text-yellow-600" />
+                                <div className="w-8 h-8 md:w-10 md:h-10 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <HomeModernIcon className="w-4 h-4 md:w-5 md:h-5 text-yellow-600" />
                                 </div>
-                                <div className="ml-4">
-                                    <p className="text-sm text-gray-500">Vacant Units</p>
-                                    <p className="text-2xl font-semibold text-gray-900">{stats.vacant_units}</p>
+                                <div className="ml-3 md:ml-4 min-w-0">
+                                    <p className="text-xs md:text-sm text-gray-500 truncate">Vacant</p>
+                                    <p className="text-xl md:text-2xl font-semibold text-gray-900">{stats.vacant_units}</p>
                                 </div>
                             </div>
                         </div>
@@ -388,12 +389,12 @@ export default function PropertyShow({
                     <div className="card">
                         <div className="card-body">
                             <div className="flex items-center">
-                                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                    <CurrencyDollarIcon className="w-5 h-5 text-green-600" />
+                                <div className="w-8 h-8 md:w-10 md:h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <CurrencyDollarIcon className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
                                 </div>
-                                <div className="ml-4">
-                                    <p className="text-sm text-gray-500">Total Market Rent</p>
-                                    <p className="text-2xl font-semibold text-gray-900">
+                                <div className="ml-3 md:ml-4 min-w-0">
+                                    <p className="text-xs md:text-sm text-gray-500 truncate">Market Rent</p>
+                                    <p className="text-xl md:text-2xl font-semibold text-gray-900">
                                         {formatCurrency(stats.total_market_rent)}
                                     </p>
                                 </div>
@@ -538,13 +539,13 @@ export default function PropertyShow({
                     <div className="space-y-6">
                         {/* Units List */}
                         <div className="card">
-                    <div className="card-header flex items-center justify-between">
-                        <h2 className="text-lg font-medium text-gray-900">
+                    <div className="card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <h2 className="text-base md:text-lg font-medium text-gray-900">
                             Units ({units?.total || 0})
                         </h2>
                         <div className="flex items-center gap-2">
                             <select
-                                className="input text-sm"
+                                className="input text-sm min-h-[44px] sm:min-h-0 w-full sm:w-auto"
                                 value={unitFilters.status || 'all'}
                                 onChange={(e) => handleUnitStatusFilter(e.target.value)}
                             >
@@ -555,7 +556,57 @@ export default function PropertyShow({
                             </select>
                         </div>
                     </div>
-                    <div className="overflow-x-auto">
+
+                    {/* Mobile Card View for Units */}
+                    <div className="md:hidden divide-y divide-gray-200">
+                        {units?.data?.length === 0 ? (
+                            <div className="px-4 py-12 text-center">
+                                <HomeModernIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                                <p className="text-gray-500">
+                                    {stats.total_units === 0
+                                        ? 'No units found for this property'
+                                        : 'No units match the selected filter'}
+                                </p>
+                            </div>
+                        ) : (
+                            units?.data?.map((unit) => (
+                                <MobileCard
+                                    key={unit.id}
+                                    header={`Unit ${unit.unit_number}`}
+                                    badges={[
+                                        {
+                                            label: getStatusLabel(unit.status),
+                                            variant: unit.status === 'occupied' ? 'success' :
+                                                     unit.status === 'vacant' ? 'warning' : 'danger',
+                                        },
+                                    ]}
+                                    fields={[
+                                        {
+                                            label: 'Bed/Bath',
+                                            value: unit.bedrooms !== null || unit.bathrooms !== null
+                                                ? `${unit.bedrooms ?? '-'} / ${unit.bathrooms ?? '-'}`
+                                                : '-',
+                                        },
+                                        {
+                                            label: 'Sqft',
+                                            value: unit.sqft ? unit.sqft.toLocaleString() : '-',
+                                        },
+                                        {
+                                            label: 'Market Rent',
+                                            value: formatCurrency(unit.market_rent),
+                                        },
+                                        ...(unit.unit_type ? [{
+                                            label: 'Type',
+                                            value: unit.unit_type,
+                                        }] : []),
+                                    ]}
+                                />
+                            ))
+                        )}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -617,31 +668,46 @@ export default function PropertyShow({
 
                     {/* Pagination */}
                     {units?.last_page > 1 && (
-                        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                            <div className="text-sm text-gray-500">
-                                Showing {units.from} to {units.to} of {units.total} units
+                        <div className="px-4 md:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div className="text-xs sm:text-sm text-gray-500 text-center sm:text-left">
+                                {units.from}-{units.to} of {units.total} units
                             </div>
-                            <div className="flex gap-2">
-                                {units.prev_page_url && (
-                                    <Link
-                                        href={units.prev_page_url}
-                                        className="btn-secondary flex items-center text-sm"
-                                        preserveScroll
-                                    >
-                                        <ChevronLeftIcon className="w-4 h-4 mr-1" />
-                                        Previous
-                                    </Link>
-                                )}
-                                {units.next_page_url && (
-                                    <Link
-                                        href={units.next_page_url}
-                                        className="btn-secondary flex items-center text-sm"
-                                        preserveScroll
-                                    >
-                                        Next
-                                        <ChevronRightIcon className="w-4 h-4 ml-1" />
-                                    </Link>
-                                )}
+                            <div className="flex items-center justify-between sm:justify-end gap-2">
+                                <span className="text-sm text-gray-500 sm:hidden">
+                                    {units.current_page} / {units.last_page}
+                                </span>
+                                <div className="flex gap-2">
+                                    {units.prev_page_url ? (
+                                        <Link
+                                            href={units.prev_page_url}
+                                            className="btn-secondary flex items-center text-sm min-h-[44px] sm:min-h-0"
+                                            preserveScroll
+                                        >
+                                            <ChevronLeftIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
+                                            <span className="hidden sm:inline">Previous</span>
+                                        </Link>
+                                    ) : (
+                                        <span className="btn-secondary flex items-center text-sm min-h-[44px] sm:min-h-0 opacity-50 cursor-not-allowed">
+                                            <ChevronLeftIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
+                                            <span className="hidden sm:inline">Previous</span>
+                                        </span>
+                                    )}
+                                    {units.next_page_url ? (
+                                        <Link
+                                            href={units.next_page_url}
+                                            className="btn-secondary flex items-center text-sm min-h-[44px] sm:min-h-0"
+                                            preserveScroll
+                                        >
+                                            <span className="hidden sm:inline">Next</span>
+                                            <ChevronRightIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:ml-1" />
+                                        </Link>
+                                    ) : (
+                                        <span className="btn-secondary flex items-center text-sm min-h-[44px] sm:min-h-0 opacity-50 cursor-not-allowed">
+                                            <span className="hidden sm:inline">Next</span>
+                                            <ChevronRightIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:ml-1" />
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -656,13 +722,13 @@ export default function PropertyShow({
                         {utilityData?.costBreakdown && (
                             <div className="card">
                                 <div className="card-header">
-                                    <h2 className="text-lg font-medium text-gray-900">Utility Cost Breakdown</h2>
+                                    <h2 className="text-base md:text-lg font-medium text-gray-900">Utility Cost Breakdown</h2>
                                 </div>
                                 <div className="card-body">
-                                    <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center justify-between mb-4 md:mb-6">
                                         <div>
-                                            <p className="text-sm text-gray-500">Total Utility Costs (This Month)</p>
-                                            <p className="text-3xl font-bold text-gray-900">
+                                            <p className="text-xs md:text-sm text-gray-500">Total Utility Costs (This Month)</p>
+                                            <p className="text-2xl md:text-3xl font-bold text-gray-900">
                                                 {formatUtilityCurrency(utilityData.costBreakdown.total)}
                                             </p>
                                         </div>
@@ -806,35 +872,35 @@ export default function PropertyShow({
                     <div className="space-y-6">
                         {/* Work Order Stats */}
                         {workOrderData?.statusCounts && (
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                                 <div className="card">
                                     <div className="card-body">
-                                        <p className="text-sm text-gray-500">Open</p>
-                                        <p className="text-2xl font-semibold text-yellow-600">
+                                        <p className="text-xs md:text-sm text-gray-500">Open</p>
+                                        <p className="text-xl md:text-2xl font-semibold text-yellow-600">
                                             {workOrderData.statusCounts.open}
                                         </p>
                                     </div>
                                 </div>
                                 <div className="card">
                                     <div className="card-body">
-                                        <p className="text-sm text-gray-500">In Progress</p>
-                                        <p className="text-2xl font-semibold text-blue-600">
+                                        <p className="text-xs md:text-sm text-gray-500">In Progress</p>
+                                        <p className="text-xl md:text-2xl font-semibold text-blue-600">
                                             {workOrderData.statusCounts.in_progress}
                                         </p>
                                     </div>
                                 </div>
                                 <div className="card">
                                     <div className="card-body">
-                                        <p className="text-sm text-gray-500">Completed (All Time)</p>
-                                        <p className="text-2xl font-semibold text-green-600">
+                                        <p className="text-xs md:text-sm text-gray-500 truncate">Completed</p>
+                                        <p className="text-xl md:text-2xl font-semibold text-green-600">
                                             {workOrderData.statusCounts.completed}
                                         </p>
                                     </div>
                                 </div>
                                 <div className="card">
                                     <div className="card-body">
-                                        <p className="text-sm text-gray-500">Total Spend (12 mo)</p>
-                                        <p className="text-2xl font-semibold text-gray-900">
+                                        <p className="text-xs md:text-sm text-gray-500 truncate">Spend (12 mo)</p>
+                                        <p className="text-xl md:text-2xl font-semibold text-gray-900">
                                             {formatCurrency(workOrderData.totalSpend)}
                                         </p>
                                     </div>
@@ -842,12 +908,46 @@ export default function PropertyShow({
                             </div>
                         )}
 
-                        {/* Recent Work Orders Table */}
+                        {/* Recent Work Orders */}
                         <div className="card">
                             <div className="card-header">
-                                <h2 className="text-lg font-medium text-gray-900">Recent Work Orders</h2>
+                                <h2 className="text-base md:text-lg font-medium text-gray-900">Recent Work Orders</h2>
                             </div>
-                            <div className="overflow-x-auto">
+
+                            {/* Mobile Card View */}
+                            <div className="md:hidden divide-y divide-gray-200">
+                                {!workOrderData?.recentWorkOrders?.length ? (
+                                    <div className="px-4 py-12 text-center">
+                                        <WrenchScrewdriverIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                                        <p className="text-gray-500">No work orders found</p>
+                                    </div>
+                                ) : (
+                                    workOrderData.recentWorkOrders.map((wo) => (
+                                        <MobileCard
+                                            key={wo.id}
+                                            header={wo.category || 'Work Order'}
+                                            subheader={wo.opened_at ? new Date(wo.opened_at).toLocaleDateString() : '-'}
+                                            badges={[
+                                                {
+                                                    label: wo.status === 'in_progress' ? 'In Progress' :
+                                                           wo.status ? wo.status.charAt(0).toUpperCase() + wo.status.slice(1) : '-',
+                                                    variant: wo.status === 'open' ? 'warning' :
+                                                             wo.status === 'in_progress' ? 'info' :
+                                                             wo.status === 'completed' ? 'success' : 'neutral',
+                                                },
+                                            ]}
+                                            fields={[
+                                                { label: 'Vendor', value: wo.vendor_name || '-' },
+                                                { label: 'Unit', value: wo.unit_number || '-' },
+                                                { label: 'Amount', value: wo.amount ? formatCurrency(wo.amount) : '-' },
+                                            ]}
+                                        />
+                                    ))
+                                )}
+                            </div>
+
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
