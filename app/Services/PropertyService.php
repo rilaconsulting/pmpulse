@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Property;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
 
 /**
@@ -21,13 +22,27 @@ class PropertyService
     ) {}
 
     /**
+     * Allowed page size values.
+     */
+    public const ALLOWED_PAGE_SIZES = [15, 50, 100];
+
+    /**
      * Get a filtered, paginated list of properties.
      *
      * @param  array<string, mixed>  $filters
+     * @param  int|string  $perPage  Number of items per page or 'all' for unpaginated
      * @return LengthAwarePaginator<Property>
      */
-    public function getFilteredProperties(array $filters, int $perPage = 15): LengthAwarePaginator
+    public function getFilteredProperties(array $filters, int|string $perPage = 15): LengthAwarePaginator
     {
+        // Validate and normalize perPage
+        $showAll = $perPage === 'all';
+        if (! $showAll) {
+            $perPage = in_array((int) $perPage, self::ALLOWED_PAGE_SIZES, true)
+                ? (int) $perPage
+                : 15;
+        }
+
         $query = Property::query()
             ->with(['adjustments' => function ($query) {
                 $query->activeOn(now()->startOfDay());
@@ -72,7 +87,19 @@ class PropertyService
             $query->orderBy($sortField, $sortDirection === 'desc' ? 'desc' : 'asc');
         }
 
-        $properties = $query->paginate($perPage)->withQueryString();
+        // Handle 'all' case - return all results in a paginator-like structure
+        if ($showAll) {
+            $allProperties = $query->get();
+            $properties = new Paginator(
+                $allProperties,
+                $allProperties->count(),
+                $allProperties->count() ?: 1, // Avoid division by zero
+                1,
+                ['path' => request()->url(), 'query' => request()->query()]
+            );
+        } else {
+            $properties = $query->paginate($perPage)->withQueryString();
+        }
 
         // Calculate stats and effective values for each property
         $properties->getCollection()->transform(function ($property) {

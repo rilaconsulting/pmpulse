@@ -39,15 +39,24 @@ class PropertyController extends Controller
             'direction' => $request->get('direction', 'asc'),
         ];
 
-        $properties = $this->propertyService->getFilteredProperties($filters);
+        // Extract and validate perPage from request
+        $perPageInput = $request->get('per_page', 15);
+        $perPage = $perPageInput === 'all' ? 'all' : (int) $perPageInput;
+
+        $properties = $this->propertyService->getFilteredProperties($filters, $perPage);
         $portfolios = $this->propertyService->getPortfolios();
         $propertyTypes = $this->propertyService->getPropertyTypes();
+
+        // Normalize perPage for frontend (if invalid, service returns 15)
+        $effectivePerPage = $perPageInput === 'all' ? 'all' : $properties->perPage();
 
         return Inertia::render('Properties/Index', [
             'properties' => $properties,
             'portfolios' => $portfolios,
             'propertyTypes' => $propertyTypes,
             'filters' => $filters,
+            'perPage' => $effectivePerPage,
+            'allowedPageSizes' => PropertyService::ALLOWED_PAGE_SIZES,
             'googleMapsApiKey' => Setting::get('google', 'maps_api_key'),
         ]);
     }
