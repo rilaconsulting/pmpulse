@@ -119,6 +119,7 @@ return [
         'vendors',
         'work_orders',
         'bill_details',
+        'rent_roll',
     ],
 
     /*
