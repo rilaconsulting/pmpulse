@@ -206,6 +206,29 @@ class UtilityAccountController extends Controller
     }
 
     /**
+     * Reprocess all utility expenses with current account mappings.
+     *
+     * This should be called after changing account mappings to apply
+     * the changes retroactively to all existing data.
+     */
+    public function reprocess(Request $request, UtilityExpenseService $utilityExpenseService): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $stats = $utilityExpenseService->reprocessAllWithCurrentMappings();
+
+        $message = sprintf(
+            'Reprocessing complete: %d created, %d updated, %d skipped, %d deleted.',
+            $stats['created'],
+            $stats['updated'],
+            $stats['skipped'],
+            $stats['deleted'] ?? 0
+        );
+
+        return back()->with('success', $message);
+    }
+
+    /**
      * Reset utility types to defaults (remove custom types).
      */
     public function resetTypes(Request $request): RedirectResponse

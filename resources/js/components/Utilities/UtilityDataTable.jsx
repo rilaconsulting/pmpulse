@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback } from 'react';
-import { Link } from '@inertiajs/react';
-import { ArrowDownTrayIcon, ChevronUpIcon, ChevronDownIcon, ChatBubbleLeftIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { Link, router } from '@inertiajs/react';
+import { ArrowDownTrayIcon, ChevronUpIcon, ChevronDownIcon, ChatBubbleLeftIcon, PlusIcon, FunnelIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import ColumnVisibilityDropdown from './ColumnVisibilityDropdown';
 import NoteModal from './NoteModal';
 import { findUtilityType, getIconComponent, getColorScheme, formatCurrency, getHeatMapStyle, calculateHeatMapStats } from './constants';
@@ -20,7 +20,7 @@ const COLUMNS = [
     { key: 'note', label: 'Notes', sortable: false, align: 'left' },
 ];
 
-export default function UtilityDataTable({ data, utilityTypes = {}, selectedType }) {
+export default function UtilityDataTable({ data, utilityTypes = {}, selectedType, filters = {}, propertyTypeOptions = {} }) {
     const [sortField, setSortField] = useState('property_name');
     const [sortDirection, setSortDirection] = useState('asc');
     const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -37,6 +37,61 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
     const [selectedProperty, setSelectedProperty] = useState(null);
     // Local notes state to track updates without page reload
     const [localNotes, setLocalNotes] = useState({});
+
+    // Filter state
+    const [unitCountMin, setUnitCountMin] = useState(filters?.unit_count_min ?? '');
+    const [unitCountMax, setUnitCountMax] = useState(filters?.unit_count_max ?? '');
+    const [selectedPropertyTypes, setSelectedPropertyTypes] = useState(filters?.property_types ?? []);
+    const [propertyTypeDropdownOpen, setPropertyTypeDropdownOpen] = useState(false);
+    const propertyTypeRef = useRef(null);
+
+    // Sync filter state when filters prop changes
+    useEffect(() => {
+        setUnitCountMin(filters?.unit_count_min ?? '');
+        setUnitCountMax(filters?.unit_count_max ?? '');
+        setSelectedPropertyTypes(filters?.property_types ?? []);
+    }, [filters]);
+
+    // Close property type dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (propertyTypeRef.current && !propertyTypeRef.current.contains(event.target)) {
+                setPropertyTypeDropdownOpen(false);
+            }
+        };
+
+        if (propertyTypeDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [propertyTypeDropdownOpen]);
+
+    // Close property type dropdown on Escape key
+    useEffect(() => {
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                setPropertyTypeDropdownOpen(false);
+            }
+        };
+
+        if (propertyTypeDropdownOpen) {
+            document.addEventListener('keydown', handleEscape);
+        }
+
+        return () => {
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [propertyTypeDropdownOpen]);
+
+    // Calculate active filter count
+    const activeFilterCount = [
+        filters?.unit_count_min != null,
+        filters?.unit_count_max != null,
+        (filters?.property_types?.length ?? 0) > 0,
+    ].filter(Boolean).length;
 
     const selectedUtilityType = findUtilityType(utilityTypes, selectedType);
     const Icon = getIconComponent(selectedUtilityType?.icon);
@@ -62,6 +117,31 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
         return {
             avg_per_unit: calculateHeatMapStats(unitValues),
             avg_per_sqft: calculateHeatMapStats(sqftValues),
+        };
+    }, [data?.properties]);
+
+    // Calculate true averages (total spend / total units, not average of averages)
+    const trueAverages = useMemo(() => {
+        if (!data?.properties) return { avg_per_unit: null, avg_per_sqft: null };
+
+        let totalSpend = 0;
+        let totalUnits = 0;
+        let totalSqft = 0;
+
+        data.properties.forEach((p) => {
+            // Use 12-month average spend as the representative spend value
+            const spend = p.prev_12_months || 0;
+            const units = p.unit_count || 0;
+            const sqft = p.total_sqft || 0;
+
+            totalSpend += spend;
+            totalUnits += units;
+            totalSqft += sqft;
+        });
+
+        return {
+            avg_per_unit: totalUnits > 0 ? totalSpend / totalUnits : null,
+            avg_per_sqft: totalSqft > 0 ? totalSpend / totalSqft : null,
         };
     }, [data?.properties]);
 
@@ -161,6 +241,64 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
         return text.substring(0, maxLength) + '...';
     };
 
+    // Filter handlers
+    const applyFilters = () => {
+        const newFilters = {
+            utility_type: selectedType,
+        };
+
+        const parsedMin = Number(unitCountMin);
+        if (unitCountMin !== '' && unitCountMin != null && !Number.isNaN(parsedMin)) {
+            newFilters.unit_count_min = parsedMin;
+        }
+        const parsedMax = Number(unitCountMax);
+        if (unitCountMax !== '' && unitCountMax != null && !Number.isNaN(parsedMax)) {
+            newFilters.unit_count_max = parsedMax;
+        }
+        if (selectedPropertyTypes.length > 0) {
+            newFilters.property_types = selectedPropertyTypes;
+        }
+
+        router.get(route('utilities.data'), newFilters, { preserveState: true });
+    };
+
+    const clearFilters = () => {
+        setUnitCountMin('');
+        setUnitCountMax('');
+        setSelectedPropertyTypes([]);
+
+        router.get(route('utilities.data'), { utility_type: selectedType }, { preserveState: true });
+    };
+
+    const handleUtilityTypeChange = (newType) => {
+        const newFilters = {
+            utility_type: newType,
+        };
+
+        const parsedMin = Number(unitCountMin);
+        if (unitCountMin !== '' && unitCountMin != null && !Number.isNaN(parsedMin)) {
+            newFilters.unit_count_min = parsedMin;
+        }
+        const parsedMax = Number(unitCountMax);
+        if (unitCountMax !== '' && unitCountMax != null && !Number.isNaN(parsedMax)) {
+            newFilters.unit_count_max = parsedMax;
+        }
+        if (selectedPropertyTypes.length > 0) {
+            newFilters.property_types = selectedPropertyTypes;
+        }
+
+        router.get(route('utilities.data'), newFilters, { preserveState: true });
+    };
+
+    const togglePropertyType = (type) => {
+        setSelectedPropertyTypes((prev) => {
+            if (prev.includes(type)) {
+                return prev.filter((t) => t !== type);
+            }
+            return [...prev, type];
+        });
+    };
+
     const formatValue = (value, format) => {
         if (value === null || value === undefined) return '-';
 
@@ -239,48 +377,187 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
     }
 
     return (
-        <div className="card">
-            {/* Header */}
-            <div className="card-header flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
-                        <Icon className="w-5 h-5" />
+        <div className="card overflow-visible">
+            {/* Header with integrated filters */}
+            <div className="card-header sticky top-16 z-30 bg-white border-b border-gray-200">
+                {/* Title Row */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
+                            <Icon className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-medium text-gray-900">
+                                {selectedUtilityType?.label || selectedType} Data
+                            </h3>
+                            <p className="text-sm text-gray-500">
+                                {data.property_count} properties
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="text-lg font-medium text-gray-900">
-                            {selectedUtilityType?.label || selectedType} Data
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                            {data.property_count} properties
-                        </p>
+                    <div className="flex items-center space-x-3">
+                        <ColumnVisibilityDropdown
+                            columns={COLUMNS}
+                            visibleColumns={visibleColumns}
+                            onChange={handleColumnVisibilityChange}
+                            onBatchChange={handleBatchColumnVisibilityChange}
+                        />
+                        <button onClick={exportToCsv} className="btn-secondary text-sm">
+                            <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
+                            Export CSV
+                        </button>
                     </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                    <ColumnVisibilityDropdown
-                        columns={COLUMNS}
-                        visibleColumns={visibleColumns}
-                        onChange={handleColumnVisibilityChange}
-                        onBatchChange={handleBatchColumnVisibilityChange}
-                    />
-                    <button onClick={exportToCsv} className="btn-secondary text-sm">
-                        <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
-                        Export CSV
-                    </button>
+
+                {/* Filters Row */}
+                <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-gray-100">
+                    {/* Filter Icon & Label */}
+                    <div className="flex items-center text-gray-600">
+                        <FunnelIcon className="w-5 h-5 mr-2" />
+                        <span className="font-medium text-sm">Filters</span>
+                        {activeFilterCount > 0 && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {activeFilterCount} active
+                            </span>
+                        )}
+                    </div>
+
+                    {/* Utility Type Selector */}
+                    <div className="flex items-center space-x-2">
+                        <label className="text-sm text-gray-500">Utility:</label>
+                        <div className="relative">
+                            <select
+                                value={selectedType}
+                                onChange={(e) => handleUtilityTypeChange(e.target.value)}
+                                className="input py-1.5 pl-9 pr-8 text-sm"
+                            >
+                                {Array.isArray(utilityTypes) && utilityTypes.map((type) => (
+                                    <option key={type.key} value={type.key}>{type.label}</option>
+                                ))}
+                            </select>
+                            <div className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${colors.text}`}>
+                                <Icon className="w-4 h-4" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Unit Count Range */}
+                    <div className="flex items-center space-x-2">
+                        <label className="text-sm text-gray-500">Units:</label>
+                        <input
+                            type="number"
+                            min="0"
+                            placeholder="Min"
+                            value={unitCountMin}
+                            onChange={(e) => setUnitCountMin(e.target.value)}
+                            className="input py-1.5 w-20 text-sm"
+                        />
+                        <span className="text-gray-400">-</span>
+                        <input
+                            type="number"
+                            min="0"
+                            placeholder="Max"
+                            value={unitCountMax}
+                            onChange={(e) => setUnitCountMax(e.target.value)}
+                            className="input py-1.5 w-20 text-sm"
+                        />
+                    </div>
+
+                    {/* Property Type Multiselect */}
+                    <div className="relative" ref={propertyTypeRef}>
+                        <button
+                            type="button"
+                            onClick={() => setPropertyTypeDropdownOpen(!propertyTypeDropdownOpen)}
+                            className="input py-1.5 pr-8 text-sm text-left min-w-[160px] flex items-center justify-between"
+                            aria-expanded={propertyTypeDropdownOpen}
+                            aria-haspopup="listbox"
+                        >
+                            <span className={selectedPropertyTypes.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
+                                {selectedPropertyTypes.length > 0
+                                    ? `${selectedPropertyTypes.length} type${selectedPropertyTypes.length > 1 ? 's' : ''} selected`
+                                    : 'Property types'
+                                }
+                            </span>
+                            <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform ${propertyTypeDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {propertyTypeDropdownOpen && (
+                            <div className="absolute z-40 mt-1 w-64 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5">
+                                <div className="p-2 max-h-60 overflow-y-auto">
+                                    {Object.entries(propertyTypeOptions || {}).length === 0 ? (
+                                        <div className="px-3 py-2 text-sm text-gray-500">
+                                            No property types available
+                                        </div>
+                                    ) : (
+                                        Object.entries(propertyTypeOptions).map(([type, count]) => (
+                                            <label
+                                                key={type}
+                                                className="flex items-center px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 rounded"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedPropertyTypes.includes(type)}
+                                                    onChange={() => togglePropertyType(type)}
+                                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <span className="ml-2 text-gray-700">{type}</span>
+                                                <span className="ml-auto text-xs text-gray-400">{count}</span>
+                                            </label>
+                                        ))
+                                    )}
+                                </div>
+                                {selectedPropertyTypes.length > 0 && (
+                                    <div className="py-2 px-3 border-t border-gray-100">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedPropertyTypes([])}
+                                            className="text-xs text-blue-600 hover:text-blue-800"
+                                        >
+                                            Clear selection
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center space-x-2 ml-auto">
+                        <button
+                            type="button"
+                            onClick={applyFilters}
+                            className="btn-primary text-sm py-1.5"
+                        >
+                            Apply Filters
+                        </button>
+                        {activeFilterCount > 0 && (
+                            <button
+                                type="button"
+                                onClick={clearFilters}
+                                className="btn-secondary text-sm py-1.5 flex items-center"
+                            >
+                                <XMarkIcon className="w-4 h-4 mr-1" />
+                                Clear
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
+            {/* Table with scrollable body */}
+            <div className="overflow-auto max-h-[60vh]">
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 sticky top-0 z-10">
+                    <thead className="bg-gray-50 sticky top-0 z-20">
                         <tr>
-                            {activeColumns.map((column) => (
+                            {activeColumns.map((column, index) => (
                                 <th
                                     key={column.key}
                                     onClick={() => column.sortable && handleSort(column.key)}
                                     className={`px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
                                         column.align === 'right' ? 'text-right' : 'text-left'
-                                    } ${column.sortable ? 'cursor-pointer hover:bg-gray-100 select-none' : ''}`}
+                                    } ${column.sortable ? 'cursor-pointer hover:bg-gray-100 select-none' : ''} ${
+                                        index === 0 ? 'sticky left-0 z-30 bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
+                                    }`}
                                 >
                                     <div className={`flex items-center ${column.align === 'right' ? 'justify-end' : ''}`}>
                                         <span>{column.label}</span>
@@ -297,11 +574,32 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                 </th>
                             ))}
                         </tr>
+                        {/* Summary row with true averages */}
+                        <tr className="bg-blue-50 border-b border-blue-200">
+                            {activeColumns.map((column, index) => (
+                                <td
+                                    key={column.key}
+                                    className={`px-4 py-2 text-xs font-medium ${
+                                        column.align === 'right' ? 'text-right' : 'text-left'
+                                    } ${index === 0 ? 'sticky left-0 z-30 bg-blue-50 text-blue-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'text-blue-700'}`}
+                                >
+                                    {index === 0 ? (
+                                        'Portfolio Average'
+                                    ) : column.key === 'avg_per_unit' && trueAverages.avg_per_unit !== null ? (
+                                        formatValue(trueAverages.avg_per_unit, 'currency_decimal')
+                                    ) : column.key === 'avg_per_sqft' && trueAverages.avg_per_sqft !== null ? (
+                                        formatValue(trueAverages.avg_per_sqft, 'currency_sqft')
+                                    ) : (
+                                        ''
+                                    )}
+                                </td>
+                            ))}
+                        </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {sortedProperties.map((property) => (
-                            <tr key={property.property_id} className="hover:bg-gray-50">
-                                {activeColumns.map((column) => {
+                            <tr key={property.property_id} className="hover:bg-gray-50 group">
+                                {activeColumns.map((column, index) => {
                                     const value = property[column.key];
 
                                     // Get conditional formatting from backend (for current_month, prev_month, prev_3_months)
@@ -332,7 +630,7 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                         if (column.key === 'property_name') {
                                             return (
                                                 <Link
-                                                    href={route('utilities.show', property.property_id)}
+                                                    href={route('properties.show', property.property_id) + '?tab=utilities'}
                                                     className="font-medium text-blue-600 hover:text-blue-800"
                                                 >
                                                     {value}
@@ -385,8 +683,8 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                             key={column.key}
                                             className={`px-4 py-3 whitespace-nowrap text-sm ${
                                                 column.align === 'right' ? 'text-right' : 'text-left'
-                                            }`}
-                                            style={cellStyle}
+                                            } ${index === 0 ? 'sticky left-0 z-10 bg-white group-hover:bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''}`}
+                                            style={index === 0 ? {} : cellStyle}
                                         >
                                             {renderCellContent()}
                                         </td>
@@ -396,36 +694,6 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                         ))}
                     </tbody>
                 </table>
-            </div>
-
-            {/* Footer with totals */}
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                        <span className="text-gray-500">Current Month Total:</span>
-                        <span className="ml-2 font-medium text-gray-900">
-                            {formatCurrency(data.totals?.current_month)}
-                        </span>
-                    </div>
-                    <div>
-                        <span className="text-gray-500">Prev Month Total:</span>
-                        <span className="ml-2 font-medium text-gray-900">
-                            {formatCurrency(data.totals?.prev_month)}
-                        </span>
-                    </div>
-                    <div>
-                        <span className="text-gray-500">Avg per Property (3 mo):</span>
-                        <span className="ml-2 font-medium text-gray-900">
-                            {formatCurrency(data.averages?.prev_3_months)}
-                        </span>
-                    </div>
-                    <div>
-                        <span className="text-gray-500">Avg per Property (12 mo):</span>
-                        <span className="ml-2 font-medium text-gray-900">
-                            {formatCurrency(data.averages?.prev_12_months)}
-                        </span>
-                    </div>
-                </div>
             </div>
 
             {/* Note Modal */}

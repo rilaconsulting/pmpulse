@@ -1,6 +1,7 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
 import { PropertyTabPanel } from '../../components/Property/PropertyTabs';
@@ -74,6 +75,46 @@ export default function PropertyShow({
 
     const [showAddFlagModal, setShowAddFlagModal] = useState(false);
     const [deletingFlagId, setDeletingFlagId] = useState(null);
+    const [expenseUtilityFilter, setExpenseUtilityFilter] = useState('all');
+
+    // Prepare pie chart data for utility breakdown
+    const pieChartData = useMemo(() => {
+        if (!utilityData?.costBreakdown?.breakdown) return [];
+        return utilityData.costBreakdown.breakdown.map((item) => {
+            const utilityType = findUtilityType(utilityData.utilityTypes, item.type);
+            return {
+                name: utilityType?.label || item.type,
+                value: item.cost,
+                type: item.type,
+                colorScheme: utilityType?.color_scheme || 'gray',
+            };
+        });
+    }, [utilityData?.costBreakdown?.breakdown, utilityData?.utilityTypes]);
+
+    // Color mapping for pie chart
+    const PIE_COLORS = {
+        blue: '#3B82F6',
+        yellow: '#EAB308',
+        orange: '#F97316',
+        red: '#EF4444',
+        green: '#22C55E',
+        teal: '#14B8A6',
+        cyan: '#06B6D4',
+        purple: '#A855F7',
+        pink: '#EC4899',
+        indigo: '#6366F1',
+        gray: '#6B7280',
+        slate: '#64748B',
+    };
+
+    // Filtered expenses based on utility type selection
+    const filteredExpenses = useMemo(() => {
+        if (!utilityData?.recentExpenses) return [];
+        if (expenseUtilityFilter === 'all') return utilityData.recentExpenses;
+        return utilityData.recentExpenses.filter(
+            (expense) => expense.utility_type === expenseUtilityFilter
+        );
+    }, [utilityData?.recentExpenses, expenseUtilityFilter]);
 
     // Helper to update unit filters via Inertia
     const updateUnitFilters = useCallback((newFilters) => {
@@ -718,7 +759,7 @@ export default function PropertyShow({
                 {/* Utilities Tab */}
                 <PropertyTabPanel id="utilities" isActive={activeTab === 'utilities'}>
                     <div className="space-y-6">
-                        {/* Cost Breakdown */}
+                        {/* Cost Breakdown with Pie Chart */}
                         {utilityData?.costBreakdown && (
                             <div className="card">
                                 <div className="card-header">
@@ -734,43 +775,73 @@ export default function PropertyShow({
                                         </div>
                                     </div>
 
-                                    {utilityData.costBreakdown.breakdown?.length > 0 ? (
-                                        <div className="space-y-3">
-                                            {utilityData.costBreakdown.breakdown.map((item) => {
-                                                const utilityType = findUtilityType(utilityData.utilityTypes, item.type);
-                                                const Icon = getIconComponent(utilityType?.icon);
-                                                const colors = getColorScheme(utilityType?.color_scheme);
-                                                const widthPercent = utilityData.costBreakdown.total > 0
-                                                    ? Math.max((item.cost / utilityData.costBreakdown.total) * 100, 2)
-                                                    : 0;
-
-                                                return (
-                                                    <div key={item.type} className="flex items-center space-x-4">
-                                                        <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
-                                                            <Icon className="w-4 h-4" />
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center justify-between mb-1">
-                                                                <span className="text-sm font-medium text-gray-700">
-                                                                    {utilityType?.label || item.type}
-                                                                </span>
-                                                                <span className="text-sm text-gray-900">
-                                                                    {formatUtilityCurrency(item.cost)}
-                                                                    <span className="text-gray-500 ml-1">
-                                                                        ({item.percentage}%)
-                                                                    </span>
-                                                                </span>
-                                                            </div>
-                                                            <div className="w-full bg-gray-100 rounded-full h-2">
-                                                                <div
-                                                                    className={`h-2 rounded-full ${colors.bar}`}
-                                                                    style={{ width: `${widthPercent}%` }}
+                                    {pieChartData.length > 0 ? (
+                                        <div className="flex flex-col md:flex-row items-center gap-6">
+                                            {/* Pie Chart */}
+                                            <div className="w-48 h-48 md:w-56 md:h-56 flex-shrink-0">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={pieChartData}
+                                                            cx="50%"
+                                                            cy="50%"
+                                                            outerRadius="90%"
+                                                            dataKey="value"
+                                                        >
+                                                            {pieChartData.map((entry, index) => (
+                                                                <Cell
+                                                                    key={`cell-${index}`}
+                                                                    fill={PIE_COLORS[entry.colorScheme] || PIE_COLORS.gray}
                                                                 />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                            ))}
+                                                        </Pie>
+                                                        <Tooltip
+                                                            formatter={(value) => formatUtilityCurrency(value)}
+                                                            contentStyle={{
+                                                                backgroundColor: 'white',
+                                                                border: '1px solid #E5E7EB',
+                                                                borderRadius: '0.5rem',
+                                                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                                            }}
+                                                        />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                            {/* Legend Table */}
+                                            <div className="flex-1 w-full">
+                                                <table className="w-full text-sm">
+                                                    <thead>
+                                                        <tr className="border-b border-gray-200">
+                                                            <th className="text-left py-2 font-medium text-gray-500">Utility</th>
+                                                            <th className="text-right py-2 font-medium text-gray-500">Amount</th>
+                                                            <th className="text-right py-2 font-medium text-gray-500">%</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {pieChartData.map((item, index) => (
+                                                            <tr key={index} className="border-b border-gray-100">
+                                                                <td className="py-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span
+                                                                            className="w-3 h-3 rounded-full flex-shrink-0"
+                                                                            style={{ backgroundColor: PIE_COLORS[item.colorScheme] || PIE_COLORS.gray }}
+                                                                        />
+                                                                        <span className="text-gray-900">{item.name}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="py-2 text-right text-gray-900">
+                                                                    {formatUtilityCurrency(item.value)}
+                                                                </td>
+                                                                <td className="py-2 text-right text-gray-500">
+                                                                    {utilityData.costBreakdown.total > 0
+                                                                        ? ((item.value / utilityData.costBreakdown.total) * 100).toFixed(0)
+                                                                        : 0}%
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     ) : (
                                         <div className="text-center py-8">
@@ -793,8 +864,20 @@ export default function PropertyShow({
                         {/* Recent Expenses */}
                         {utilityData?.recentExpenses && (
                             <div className="card">
-                                <div className="card-header">
+                                <div className="card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                     <h2 className="text-lg font-medium text-gray-900">Recent Expenses</h2>
+                                    <select
+                                        className="input text-sm py-1.5 w-full sm:w-auto"
+                                        value={expenseUtilityFilter}
+                                        onChange={(e) => setExpenseUtilityFilter(e.target.value)}
+                                    >
+                                        <option value="all">All Utilities</option>
+                                        {utilityData.utilityTypes?.map((type) => (
+                                            <option key={type.key} value={type.key}>
+                                                {type.label}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200">
@@ -815,14 +898,16 @@ export default function PropertyShow({
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200">
-                                            {utilityData.recentExpenses.length === 0 ? (
+                                            {filteredExpenses.length === 0 ? (
                                                 <tr>
                                                     <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
-                                                        No expense records found
+                                                        {expenseUtilityFilter === 'all'
+                                                            ? 'No expense records found'
+                                                            : 'No expenses found for this utility type'}
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                utilityData.recentExpenses.map((expense) => {
+                                                filteredExpenses.map((expense) => {
                                                     const utilityType = findUtilityType(utilityData.utilityTypes, expense.utility_type);
                                                     const colors = getColorScheme(utilityType?.color_scheme);
                                                     return (

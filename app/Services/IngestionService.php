@@ -134,6 +134,12 @@ class IngestionService
 
         $method = $methodMap[$resourceType];
 
+        // For bill_details, delete existing records in the date range before syncing
+        // This ensures deleted bills in AppFolio are also removed from our system
+        if ($resourceType === 'bill_details') {
+            $this->deleteBillDetailsInDateRange($params['from_date'], $params['to_date']);
+        }
+
         // Fetch ALL pages from AppFolio Reports API V2
         // This uses pagination to get the complete dataset
         $allResults = $this->appfolioClient->fetchAllPages(
@@ -1104,6 +1110,41 @@ class IngestionService
         );
 
         return $workOrder->wasRecentlyCreated;
+    }
+
+    /**
+     * Delete bill details within a date range before syncing.
+     *
+     * This ensures that bills deleted in AppFolio are also removed from our system.
+     * Also deletes associated utility_expenses that reference the deleted bill_details.
+     */
+    private function deleteBillDetailsInDateRange(string $fromDate, string $toDate): void
+    {
+        // Get the bill_detail IDs that will be deleted so we can cascade to utility_expenses
+        $billDetailIds = BillDetail::whereBetween('bill_date', [$fromDate, $toDate])
+            ->pluck('id');
+
+        if ($billDetailIds->isEmpty()) {
+            Log::info('No existing bill details to delete in date range', [
+                'from_date' => $fromDate,
+                'to_date' => $toDate,
+            ]);
+
+            return;
+        }
+
+        // Delete associated utility expenses first (they reference bill_detail_id)
+        $utilityExpensesDeleted = \App\Models\UtilityExpense::whereIn('bill_detail_id', $billDetailIds)->delete();
+
+        // Delete the bill details
+        $billDetailsDeleted = BillDetail::whereIn('id', $billDetailIds)->delete();
+
+        Log::info('Deleted bill details and utility expenses before sync', [
+            'from_date' => $fromDate,
+            'to_date' => $toDate,
+            'bill_details_deleted' => $billDetailsDeleted,
+            'utility_expenses_deleted' => $utilityExpensesDeleted,
+        ]);
     }
 
     /**

@@ -67,6 +67,8 @@ Route::middleware('auth')->group(function () {
         ->name('utilities.dashboard');
     Route::get('/utilities/data', [UtilityDashboardController::class, 'data'])
         ->name('utilities.data');
+    Route::get('/utilities/excluded', [UtilityDashboardController::class, 'excluded'])
+        ->name('utilities.excluded');
     Route::get('/utilities/property/{property}', [UtilityDashboardController::class, 'show'])
         ->name('utilities.show');
 
@@ -138,6 +140,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/utility-accounts', [UtilityAccountController::class, 'store'])->name('utility-accounts.store');
         Route::patch('/utility-accounts/{utilityAccount}', [UtilityAccountController::class, 'update'])->name('utility-accounts.update');
         Route::delete('/utility-accounts/{utilityAccount}', [UtilityAccountController::class, 'destroy'])->name('utility-accounts.destroy');
+        Route::post('/utility-accounts/reprocess', [UtilityAccountController::class, 'reprocess'])->name('utility-accounts.reprocess');
 
         // Utility Types
         Route::get('/utility-types', [UtilityAccountController::class, 'types'])->name('utility-types.index');
