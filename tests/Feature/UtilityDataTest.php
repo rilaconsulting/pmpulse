@@ -84,7 +84,6 @@ class UtilityDataTest extends TestCase
             ->has('heatMapStats')
             ->has('filters')
             ->has('propertyTypeOptions')
-            ->has('excludedProperties')
         );
     }
 
