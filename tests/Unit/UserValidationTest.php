@@ -71,17 +71,24 @@ class UserValidationTest extends TestCase
             ->assertJsonValidationErrors(['password']);
     }
 
-    public function test_google_user_requires_google_id(): void
+    public function test_google_user_can_be_created_without_google_id(): void
     {
+        // Google SSO users can be created without a google_id.
+        // The google_id will be linked automatically when the user first logs in with Google.
         $response = $this->actingAs($this->adminUser)
             ->postJson('/api/users', [
                 'name' => 'Test User',
                 'email' => 'test@example.com',
                 'auth_provider' => 'google',
+                'role_id' => $this->adminUser->role_id,
             ]);
 
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['google_id']);
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('users', [
+            'email' => 'test@example.com',
+            'auth_provider' => 'google',
+            'google_id' => null,
+        ]);
     }
 
     public function test_sso_user_cannot_have_password(): void

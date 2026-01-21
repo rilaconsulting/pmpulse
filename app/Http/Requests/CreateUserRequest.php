@@ -45,8 +45,11 @@ class CreateUserRequest extends FormRequest
                 'string',
                 Rule::in([User::AUTH_PROVIDER_PASSWORD, User::AUTH_PROVIDER_GOOGLE]),
             ],
+            // Note: google_id is NOT required when creating a Google SSO user.
+            // The admin creates the user with auth_provider='google' and no google_id.
+            // When the user first logs in with Google, GoogleSsoService will link
+            // their Google ID automatically by matching on email.
             'google_id' => [
-                Rule::requiredIf($this->input('auth_provider') === User::AUTH_PROVIDER_GOOGLE),
                 'nullable',
                 'string',
                 'unique:users',
@@ -66,7 +69,6 @@ class CreateUserRequest extends FormRequest
     {
         return [
             'password.required_if' => 'Password is required for password authentication.',
-            'google_id.required_if' => 'Google ID is required for Google SSO authentication.',
             'email.unique' => 'This email address is already in use.',
             'google_id.unique' => 'This Google ID is already associated with another account.',
         ];
