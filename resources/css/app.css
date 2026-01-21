@@ -3,8 +3,9 @@
 
 /* Custom styles for PMPulse */
 @layer base {
-    html {
+    html, body {
         font-family: 'Inter', system-ui, sans-serif;
+        overscroll-behavior-y: none;
     }
 }
 

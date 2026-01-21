@@ -66,12 +66,37 @@ class VendorController extends Controller
             $query->withInsuranceStatus($insuranceStatus);
         }
 
+        // Filter by work orders in last 12 months (default: true)
+        $hasWorkOrders = $request->validated('has_work_orders');
+        if ($hasWorkOrders === null || $hasWorkOrders === true) {
+            $query->whereHas('workOrders', function ($q) {
+                $q->where('opened_at', '>=', now()->subMonths(12));
+            });
+        }
+
         // Sorting (validated by form request)
         $sortField = $request->validated('sort', 'company_name');
         $sortDirection = $request->validated('direction', 'asc');
         $query->orderBy($sortField, $sortDirection);
 
-        $vendors = $query->paginate(15)->withQueryString();
+        // Handle pagination - 'all' means no pagination, otherwise use per_page or default to 15
+        $perPage = $request->validated('per_page', '15');
+        $allowedPageSizes = VendorIndexRequest::ALLOWED_PAGE_SIZES;
+
+        if ($perPage === 'all') {
+            $vendors = $query->get();
+            // Wrap in a fake paginator-like structure for frontend compatibility
+            $vendors = new \Illuminate\Pagination\LengthAwarePaginator(
+                $vendors,
+                $vendors->count(),
+                $vendors->count() ?: 1,
+                1,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        } else {
+            $pageSize = in_array((int) $perPage, $allowedPageSizes) ? (int) $perPage : 15;
+            $vendors = $query->paginate($pageSize)->withQueryString();
+        }
 
         // Get unique trades for filter
         $allTrades = $this->analyticsService->getAllTrades();
@@ -116,12 +141,15 @@ class VendorController extends Controller
             'trades' => $allTrades,
             'vendorTypes' => $vendorTypes,
             'stats' => $stats,
+            'perPage' => $perPage,
+            'allowedPageSizes' => $allowedPageSizes,
             'filters' => [
                 'search' => $request->validated('search', ''),
                 'trade' => $request->validated('trade', ''),
                 'is_active' => $request->input('is_active', ''), // Keep original for display
                 'insurance_status' => $request->validated('insurance_status', ''),
                 'canonical_filter' => $canonicalFilter,
+                'has_work_orders' => $hasWorkOrders === false ? false : true, // Default to true
                 'sort' => $sortField,
                 'direction' => $sortDirection,
             ],

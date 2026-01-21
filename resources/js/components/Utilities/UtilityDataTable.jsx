@@ -1,8 +1,9 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Link, router } from '@inertiajs/react';
-import { ArrowDownTrayIcon, ChevronUpIcon, ChevronDownIcon, ChatBubbleLeftIcon, PlusIcon, FunnelIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, ChevronUpIcon, ChevronDownIcon, ChatBubbleLeftIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import ColumnVisibilityDropdown from './ColumnVisibilityDropdown';
 import NoteModal from './NoteModal';
+import Tooltip from '../Tooltip';
 import { findUtilityType, getIconComponent, getColorScheme, formatCurrency, getHeatMapStyle, calculateHeatMapStats } from './constants';
 
 // Column definitions
@@ -363,11 +364,18 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
 
     if (!data || !data.properties || data.properties.length === 0) {
         return (
-            <div className="card">
-                <div className="card-header">
-                    <h3 className="text-lg font-medium text-gray-900">Property Utility Data</h3>
+            <div className="card flex-1 flex flex-col">
+                <div className="card-body border-b border-gray-200 py-3">
+                    <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
+                            <Icon className="w-5 h-5" />
+                        </div>
+                        <h3 className="text-base font-medium text-gray-900">
+                            {selectedUtilityType?.label || selectedType} Data
+                        </h3>
+                    </div>
                 </div>
-                <div className="card-body">
+                <div className="flex-1 flex items-center justify-center">
                     <div className="py-12 text-center text-gray-500">
                         No property data available for the selected filters
                     </div>
@@ -377,50 +385,27 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
     }
 
     return (
-        <div className="card overflow-visible">
-            {/* Header with integrated filters */}
-            <div className="card-header sticky top-16 z-30 bg-white border-b border-gray-200">
-                {/* Title Row */}
-                <div className="flex items-center justify-between mb-4">
+        <div className="card overflow-visible flex-1 flex flex-col min-h-0">
+            {/* Compact single-row header with filters */}
+            <div className="flex-shrink-0 card-body border-b border-gray-200 py-3">
+                <div className="flex flex-wrap items-center gap-4">
+                    {/* Title Section */}
                     <div className="flex items-center space-x-3">
                         <div className={`p-2 rounded-lg ${colors.bg} ${colors.text}`}>
                             <Icon className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-medium text-gray-900">
+                            <h3 className="text-base font-medium text-gray-900">
                                 {selectedUtilityType?.label || selectedType} Data
                             </h3>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-xs text-gray-500">
                                 {data.property_count} properties
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center space-x-3">
-                        <ColumnVisibilityDropdown
-                            columns={COLUMNS}
-                            visibleColumns={visibleColumns}
-                            onChange={handleColumnVisibilityChange}
-                            onBatchChange={handleBatchColumnVisibilityChange}
-                        />
-                        <button onClick={exportToCsv} className="btn-secondary text-sm">
-                            <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
-                            Export CSV
-                        </button>
-                    </div>
-                </div>
 
-                {/* Filters Row */}
-                <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-gray-100">
-                    {/* Filter Icon & Label */}
-                    <div className="flex items-center text-gray-600">
-                        <FunnelIcon className="w-5 h-5 mr-2" />
-                        <span className="font-medium text-sm">Filters</span>
-                        {activeFilterCount > 0 && (
-                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {activeFilterCount} active
-                            </span>
-                        )}
-                    </div>
+                    {/* Divider */}
+                    <div className="h-8 w-px bg-gray-200" />
 
                     {/* Utility Type Selector */}
                     <div className="flex items-center space-x-2">
@@ -450,7 +435,7 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                             placeholder="Min"
                             value={unitCountMin}
                             onChange={(e) => setUnitCountMin(e.target.value)}
-                            className="input py-1.5 w-20 text-sm"
+                            className="input py-1.5 w-16 text-sm"
                         />
                         <span className="text-gray-400">-</span>
                         <input
@@ -459,7 +444,7 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                             placeholder="Max"
                             value={unitCountMax}
                             onChange={(e) => setUnitCountMax(e.target.value)}
-                            className="input py-1.5 w-20 text-sm"
+                            className="input py-1.5 w-16 text-sm"
                         />
                     </div>
 
@@ -468,13 +453,13 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                         <button
                             type="button"
                             onClick={() => setPropertyTypeDropdownOpen(!propertyTypeDropdownOpen)}
-                            className="input py-1.5 pr-8 text-sm text-left min-w-[160px] flex items-center justify-between"
+                            className="input py-1.5 pr-8 text-sm text-left min-w-[140px] flex items-center justify-between"
                             aria-expanded={propertyTypeDropdownOpen}
                             aria-haspopup="listbox"
                         >
                             <span className={selectedPropertyTypes.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
                                 {selectedPropertyTypes.length > 0
-                                    ? `${selectedPropertyTypes.length} type${selectedPropertyTypes.length > 1 ? 's' : ''} selected`
+                                    ? `${selectedPropertyTypes.length} type${selectedPropertyTypes.length > 1 ? 's' : ''}`
                                     : 'Property types'
                                 }
                             </span>
@@ -521,31 +506,44 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                         )}
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center space-x-2 ml-auto">
+                    {/* Apply/Clear Filters */}
+                    <button
+                        type="button"
+                        onClick={applyFilters}
+                        className="btn-primary text-sm py-1.5"
+                    >
+                        Apply Filters
+                    </button>
+                    {activeFilterCount > 0 && (
                         <button
                             type="button"
-                            onClick={applyFilters}
-                            className="btn-primary text-sm py-1.5"
+                            onClick={clearFilters}
+                            className="btn-secondary text-sm py-1.5 flex items-center"
                         >
-                            Apply Filters
+                            <XMarkIcon className="w-4 h-4 mr-1" />
+                            Clear
                         </button>
-                        {activeFilterCount > 0 && (
-                            <button
-                                type="button"
-                                onClick={clearFilters}
-                                className="btn-secondary text-sm py-1.5 flex items-center"
-                            >
-                                <XMarkIcon className="w-4 h-4 mr-1" />
-                                Clear
-                            </button>
-                        )}
-                    </div>
+                    )}
+
+                    {/* Spacer */}
+                    <div className="flex-1" />
+
+                    {/* Column Visibility & Export */}
+                    <ColumnVisibilityDropdown
+                        columns={COLUMNS}
+                        visibleColumns={visibleColumns}
+                        onChange={handleColumnVisibilityChange}
+                        onBatchChange={handleBatchColumnVisibilityChange}
+                    />
+                    <button onClick={exportToCsv} className="btn-secondary text-sm py-1.5">
+                        <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
+                        Export CSV
+                    </button>
                 </div>
             </div>
 
             {/* Table with scrollable body */}
-            <div className="overflow-auto max-h-[60vh]">
+            <div className="flex-1 overflow-auto min-h-0">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 sticky top-0 z-20">
                         <tr>
@@ -642,6 +640,28 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                             return <span className="text-gray-500">{value || '-'}</span>;
                                         }
 
+                                        if (column.key === 'unit_count' && property.unit_count_adjusted) {
+                                            return (
+                                                <Tooltip content="Adjusted value (manual override)">
+                                                    <span className="text-gray-900">
+                                                        {formatValue(value, column.format)}
+                                                        <span className="text-blue-500 ml-0.5">*</span>
+                                                    </span>
+                                                </Tooltip>
+                                            );
+                                        }
+
+                                        if (column.key === 'total_sqft' && property.sqft_adjusted) {
+                                            return (
+                                                <Tooltip content="Adjusted value (manual override)">
+                                                    <span className="text-gray-900">
+                                                        {formatValue(value, column.format)}
+                                                        <span className="text-blue-500 ml-0.5">*</span>
+                                                    </span>
+                                                </Tooltip>
+                                            );
+                                        }
+
                                         if (column.key === 'note') {
                                             const note = getPropertyNote(property);
                                             return (
@@ -668,6 +688,24 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                                         </>
                                                     )}
                                                 </button>
+                                            );
+                                        }
+
+                                        // Wrap formatted cells with tooltip
+                                        if (backendFormatting) {
+                                            return (
+                                                <Tooltip
+                                                    content={
+                                                        <div>
+                                                            <div className="font-medium">{backendFormatting.rule_name}</div>
+                                                            <div className="text-gray-400 mt-1">
+                                                                {backendFormatting.operator === 'increase_percent' ? '≥' : '≤'} {backendFormatting.threshold}% {backendFormatting.operator === 'increase_percent' ? 'above' : 'below'} 12-mo avg
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                >
+                                                    <span>{formatValue(value, column.format)}</span>
+                                                </Tooltip>
                                             );
                                         }
 

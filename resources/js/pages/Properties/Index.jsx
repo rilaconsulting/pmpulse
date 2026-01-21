@@ -164,45 +164,19 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
         <Layout>
             <Head title="Properties" />
 
-            <div className="space-y-6">
-                {/* Header */}
-                <PageHeader
-                    title="Properties"
-                    subtitle="Manage and view all properties in your portfolio"
-                    actions={
-                        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
-                            <button
-                                type="button"
-                                onClick={() => setViewMode('table')}
-                                className={`flex items-center gap-2 px-2 py-1.5 sm:px-3 text-sm font-medium rounded-md transition-colors touch-target ${
-                                    viewMode === 'table'
-                                        ? 'bg-white text-gray-900 shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                                title="Table view"
-                            >
-                                <ListBulletIcon className="w-5 h-5 sm:w-4 sm:h-4" />
-                                <span className="hidden sm:inline">Table</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setViewMode('map')}
-                                className={`flex items-center gap-2 px-2 py-1.5 sm:px-3 text-sm font-medium rounded-md transition-colors touch-target ${
-                                    viewMode === 'map'
-                                        ? 'bg-white text-gray-900 shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                                title="Map view"
-                            >
-                                <MapIcon className="w-5 h-5 sm:w-4 sm:h-4" />
-                                <span className="hidden sm:inline">Map</span>
-                            </button>
-                        </div>
-                    }
-                />
+            <div className="flex flex-col h-[calc(100vh-64px)] -m-4 md:-m-8">
+                {/* Header - doesn't scroll */}
+                <div className="flex-shrink-0 px-4 md:px-8 pt-4 md:pt-8">
+                    <PageHeader
+                        title="Properties"
+                        subtitle="Manage and view all properties in your portfolio"
+                        sticky={false}
+                    />
+                </div>
 
-                {/* Filters */}
-                <div className="card sticky top-16 z-10 shadow-sm">
+                {/* Filters - doesn't scroll */}
+                <div className="flex-shrink-0 px-4 md:px-8 pt-6">
+                    <div className="card shadow-sm">
                     <div className="card-body">
                         {/* Search - Always visible */}
                         <form onSubmit={handleSearch} className="flex gap-2">
@@ -224,6 +198,39 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
 
                         {/* Desktop Filters - Hidden on mobile */}
                         <div className="hidden md:flex flex-wrap gap-4 items-end mt-4">
+                            {/* View Toggle */}
+                            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg self-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('table')}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                        viewMode === 'table'
+                                            ? 'bg-white text-gray-900 shadow-sm'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                                    title="Table view"
+                                >
+                                    <ListBulletIcon className="w-4 h-4" />
+                                    Table
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('map')}
+                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                                        viewMode === 'map'
+                                            ? 'bg-white text-gray-900 shadow-sm'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                                    title="Map view"
+                                >
+                                    <MapIcon className="w-4 h-4" />
+                                    Map
+                                </button>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="h-8 w-px bg-gray-200 self-end" />
+
                             {/* Portfolio Filter */}
                             {portfolios.length > 0 && (
                                 <div>
@@ -285,6 +292,24 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                                 </select>
                             </div>
 
+                            {/* Page Size */}
+                            <div>
+                                <label htmlFor="page-size-desktop" className="label">
+                                    Show
+                                </label>
+                                <select
+                                    id="page-size-desktop"
+                                    value={pageSize}
+                                    onChange={(e) => handlePageSizeChange(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))}
+                                    className="input"
+                                >
+                                    {(allowedPageSizes || [15, 50, 100]).map((size) => (
+                                        <option key={size} value={size}>{size}</option>
+                                    ))}
+                                    <option value="all">All</option>
+                                </select>
+                            </div>
+
                             {/* Clear Filters */}
                             {hasActiveFilters && (
                                 <button
@@ -296,10 +321,83 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                                     Clear
                                 </button>
                             )}
+
+                            {/* Spacer to push pagination to the right */}
+                            <div className="flex-1" />
+
+                            {/* Results count and Pagination */}
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm text-gray-500">
+                                    {properties.from || 0}-{properties.to || 0} of {properties.total}
+                                </span>
+                                {properties.last_page > 1 && (
+                                    <div className="flex gap-1">
+                                        {properties.prev_page_url ? (
+                                            <Link
+                                                href={properties.prev_page_url}
+                                                className="btn-secondary p-1.5"
+                                                preserveScroll
+                                                title="Previous page"
+                                            >
+                                                <ChevronLeftIcon className="w-4 h-4" />
+                                            </Link>
+                                        ) : (
+                                            <span className="btn-secondary p-1.5 opacity-50 cursor-not-allowed">
+                                                <ChevronLeftIcon className="w-4 h-4" />
+                                            </span>
+                                        )}
+                                        {properties.next_page_url ? (
+                                            <Link
+                                                href={properties.next_page_url}
+                                                className="btn-secondary p-1.5"
+                                                preserveScroll
+                                                title="Next page"
+                                            >
+                                                <ChevronRightIcon className="w-4 h-4" />
+                                            </Link>
+                                        ) : (
+                                            <span className="btn-secondary p-1.5 opacity-50 cursor-not-allowed">
+                                                <ChevronRightIcon className="w-4 h-4" />
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Mobile Filters - Collapsible */}
                         <div className="md:hidden mt-3">
+                            {/* Mobile View Toggle */}
+                            <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100">
+                                <span className="text-sm text-gray-500">View:</span>
+                                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                                    <button
+                                        type="button"
+                                        onClick={() => setViewMode('table')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors min-h-[36px] ${
+                                            viewMode === 'table'
+                                                ? 'bg-white text-gray-900 shadow-sm'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        <ListBulletIcon className="w-4 h-4" />
+                                        Table
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setViewMode('map')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors min-h-[36px] ${
+                                            viewMode === 'map'
+                                                ? 'bg-white text-gray-900 shadow-sm'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        <MapIcon className="w-4 h-4" />
+                                        Map
+                                    </button>
+                                </div>
+                            </div>
+
                             <Disclosure>
                                 {({ open }) => (
                                     <>
@@ -385,6 +483,24 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                                                     </select>
                                                 </div>
 
+                                                {/* Page Size */}
+                                                <div>
+                                                    <label htmlFor="page-size-mobile" className="label">
+                                                        Show
+                                                    </label>
+                                                    <select
+                                                        id="page-size-mobile"
+                                                        value={pageSize}
+                                                        onChange={(e) => handlePageSizeChange(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))}
+                                                        className="input w-full min-h-[44px]"
+                                                    >
+                                                        {(allowedPageSizes || [15, 50, 100]).map((size) => (
+                                                            <option key={size} value={size}>{size}</option>
+                                                        ))}
+                                                        <option value="all">All</option>
+                                                    </select>
+                                                </div>
+
                                                 {/* Clear Filters */}
                                                 {hasActiveFilters && (
                                                     <button
@@ -404,7 +520,10 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                         </div>
                     </div>
                 </div>
+                </div>
 
+                {/* Content area - grows to fill remaining space */}
+                <div className="flex-1 min-h-0 px-4 md:px-8 pt-6 pb-4 md:pb-8 flex flex-col">
                 {/* Map View */}
                 {viewMode === 'map' && (
                     <Suspense fallback={
@@ -419,9 +538,9 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
 
                 {/* Properties Table */}
                 {viewMode === 'table' && (
-                <div className="card">
+                <div className="card flex-1 flex flex-col overflow-hidden min-h-0">
                     {/* Mobile Card View */}
-                    <div className="md:hidden">
+                    <div className="md:hidden flex-1 overflow-auto">
                         {properties.data.length === 0 ? (
                             <div className="px-4 py-12 text-center">
                                 <BuildingOfficeIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -507,9 +626,9 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                     </div>
 
                     {/* Desktop Table View */}
-                    <div className="hidden md:block overflow-x-auto">
+                    <div className="hidden md:block flex-1 overflow-auto">
                         <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                            <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
                                 <tr>
                                     <SortableHeader field="name">Property</SortableHeader>
                                     <SortableHeader field="city">Location</SortableHeader>
@@ -648,80 +767,51 @@ export default function PropertiesIndex({ properties, portfolios, propertyTypes,
                         </table>
                     </div>
 
-                    {/* Pagination and Page Size */}
-                    <div className="px-4 md:px-6 py-4 border-t border-gray-200">
-                        {/* Mobile: Stacked layout */}
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            {/* Results count and page size */}
-                            <div className="flex items-center justify-between sm:justify-start gap-4">
-                                <div className="text-xs sm:text-sm text-gray-500">
-                                    <span className="hidden sm:inline">Showing </span>
+                    {/* Bottom Pagination */}
+                    {properties.last_page > 1 && (
+                        <div className="flex-shrink-0 px-4 md:px-6 py-4 border-t border-gray-200">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-500">
                                     {properties.from || 0}-{properties.to || 0} of {properties.total}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <label htmlFor="page-size" className="text-xs sm:text-sm text-gray-500">
-                                        Show:
-                                    </label>
-                                    <select
-                                        id="page-size"
-                                        value={pageSize}
-                                        onChange={(e) => handlePageSizeChange(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))}
-                                        className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 min-h-[36px]"
-                                    >
-                                        {(allowedPageSizes || [15, 50, 100]).map((size) => (
-                                            <option key={size} value={size}>{size}</option>
-                                        ))}
-                                        <option value="all">All</option>
-                                    </select>
+                                </span>
+                                <div className="flex gap-2">
+                                    {properties.prev_page_url ? (
+                                        <Link
+                                            href={properties.prev_page_url}
+                                            className="btn-secondary flex items-center min-h-[44px] sm:min-h-0"
+                                            preserveScroll
+                                        >
+                                            <ChevronLeftIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
+                                            <span className="hidden sm:inline">Previous</span>
+                                        </Link>
+                                    ) : (
+                                        <span className="btn-secondary flex items-center min-h-[44px] sm:min-h-0 opacity-50 cursor-not-allowed">
+                                            <ChevronLeftIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
+                                            <span className="hidden sm:inline">Previous</span>
+                                        </span>
+                                    )}
+                                    {properties.next_page_url ? (
+                                        <Link
+                                            href={properties.next_page_url}
+                                            className="btn-secondary flex items-center min-h-[44px] sm:min-h-0"
+                                            preserveScroll
+                                        >
+                                            <span className="hidden sm:inline">Next</span>
+                                            <ChevronRightIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:ml-1" />
+                                        </Link>
+                                    ) : (
+                                        <span className="btn-secondary flex items-center min-h-[44px] sm:min-h-0 opacity-50 cursor-not-allowed">
+                                            <span className="hidden sm:inline">Next</span>
+                                            <ChevronRightIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:ml-1" />
+                                        </span>
+                                    )}
                                 </div>
                             </div>
-
-                            {/* Pagination controls */}
-                            {properties.last_page > 1 && (
-                                <div className="flex items-center justify-between sm:justify-end gap-2">
-                                    {/* Mobile: Page indicator */}
-                                    <span className="text-sm text-gray-500 sm:hidden">
-                                        {properties.current_page} / {properties.last_page}
-                                    </span>
-
-                                    <div className="flex gap-2">
-                                        {properties.prev_page_url ? (
-                                            <Link
-                                                href={properties.prev_page_url}
-                                                className="btn-secondary flex items-center min-h-[44px] sm:min-h-0"
-                                                preserveScroll
-                                            >
-                                                <ChevronLeftIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
-                                                <span className="hidden sm:inline">Previous</span>
-                                            </Link>
-                                        ) : (
-                                            <span className="btn-secondary flex items-center min-h-[44px] sm:min-h-0 opacity-50 cursor-not-allowed">
-                                                <ChevronLeftIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-1" />
-                                                <span className="hidden sm:inline">Previous</span>
-                                            </span>
-                                        )}
-                                        {properties.next_page_url ? (
-                                            <Link
-                                                href={properties.next_page_url}
-                                                className="btn-secondary flex items-center min-h-[44px] sm:min-h-0"
-                                                preserveScroll
-                                            >
-                                                <span className="hidden sm:inline">Next</span>
-                                                <ChevronRightIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:ml-1" />
-                                            </Link>
-                                        ) : (
-                                            <span className="btn-secondary flex items-center min-h-[44px] sm:min-h-0 opacity-50 cursor-not-allowed">
-                                                <span className="hidden sm:inline">Next</span>
-                                                <ChevronRightIcon className="w-5 h-5 sm:w-4 sm:h-4 sm:ml-1" />
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </div>
-                    </div>
+                    )}
                 </div>
                 )}
+                </div>
             </div>
         </Layout>
     );

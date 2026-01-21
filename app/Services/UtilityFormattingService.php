@@ -31,7 +31,7 @@ class UtilityFormattingService
      * @param  string  $utilityType  The utility type (water, electric, gas, etc.)
      * @param  float|null  $value  The current value to evaluate
      * @param  float|null  $average  The 12-month average to compare against
-     * @return array{color: string, background_color: string|null, rule_name: string}|null
+     * @return array{color: string, background_color: string|null, rule_name: string, operator: string, operator_label: string, threshold: string}|null
      */
     public function getFormatting(string $utilityType, ?float $value, ?float $average): ?array
     {
@@ -47,6 +47,9 @@ class UtilityFormattingService
                     'color' => $rule->color,
                     'background_color' => $rule->background_color,
                     'rule_name' => $rule->name,
+                    'operator' => $rule->operator,
+                    'operator_label' => $rule->operator_label,
+                    'threshold' => $rule->threshold,
                 ];
             }
         }
