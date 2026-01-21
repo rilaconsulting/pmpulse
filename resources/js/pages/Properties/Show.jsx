@@ -1,7 +1,7 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useState, useCallback, useMemo } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
 import { PropertyTabPanel } from '../../components/Property/PropertyTabs';

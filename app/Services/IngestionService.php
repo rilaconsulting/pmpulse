@@ -1133,18 +1133,21 @@ class IngestionService
             return;
         }
 
-        // Delete associated utility expenses first (they reference bill_detail_id)
-        $utilityExpensesDeleted = \App\Models\UtilityExpense::whereIn('bill_detail_id', $billDetailIds)->delete();
+        // Wrap cascading deletes in a transaction for atomicity
+        DB::transaction(function () use ($billDetailIds, $fromDate, $toDate) {
+            // Delete associated utility expenses first (they reference bill_detail_id)
+            $utilityExpensesDeleted = \App\Models\UtilityExpense::whereIn('bill_detail_id', $billDetailIds)->delete();
 
-        // Delete the bill details
-        $billDetailsDeleted = BillDetail::whereIn('id', $billDetailIds)->delete();
+            // Delete the bill details
+            $billDetailsDeleted = BillDetail::whereIn('id', $billDetailIds)->delete();
 
-        Log::info('Deleted bill details and utility expenses before sync', [
-            'from_date' => $fromDate,
-            'to_date' => $toDate,
-            'bill_details_deleted' => $billDetailsDeleted,
-            'utility_expenses_deleted' => $utilityExpensesDeleted,
-        ]);
+            Log::info('Deleted bill details and utility expenses before sync', [
+                'from_date' => $fromDate,
+                'to_date' => $toDate,
+                'bill_details_deleted' => $billDetailsDeleted,
+                'utility_expenses_deleted' => $utilityExpensesDeleted,
+            ]);
+        });
     }
 
     /**

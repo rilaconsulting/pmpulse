@@ -550,9 +550,8 @@ class UtilityExpenseService
             $deleteQuery->where('expense_date', '<=', $toDate);
         }
 
-        // Count and delete existing utility expenses
-        $deletedCount = $deleteQuery->count();
-        $deleteQuery->delete();
+        // Delete existing utility expenses and get count from delete() return value
+        $deletedCount = $deleteQuery->delete();
 
         Log::info('Deleted existing utility expenses for reprocessing', [
             'deleted_count' => $deletedCount,
