@@ -12,20 +12,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Utility type filter on property utility expenses to view specific utilities
 - Reprocess Data button in Admin Utility Accounts to apply mapping changes retroactively
 - Command-line tool for reprocessing utility expenses (`php artisan utilities:reprocess`)
+- Navigation tabs on vendor pages linking All Vendors, Compliance, Compare, and Deduplication
+- Filter for vendors with work orders in the last 12 months (enabled by default)
+- Page size selector on vendor list (15, 50, 100, or Show All)
+- Visual indicator for adjusted values in utility data table (asterisk with tooltip)
 
 ### Changed
 - Utility Data Table now shows filters inline with the table header (always visible)
 - Utility Data Table scrolls with sticky column headers and locked property column
+- Utility Data Table now uses adjusted unit counts and square footage in calculations
 - Property utility breakdown now displays as a pie chart with legend table
 - Utility pages now land on Data Table first (previously Dashboard)
 - Cost per square foot now shows 4 decimal places for precision
 - Formatting rule colors now show swatches only (hex codes hidden)
+- Vendor list now has sticky header and filter bar that stays visible when scrolling
 
 ### Fixed
 - Deleted bills in AppFolio are now properly removed during sync
 - Vendor detail page no longer shows total spend metric
 - Google SSO users can now be created without requiring Google ID upfront
 - Google SSO login button now works correctly in all environments
+- Vendor trades now wrap properly on vendor detail page when there are many trades
+- Trackpad swipe navigation now works for browser back/forward gestures
 
 ### Removed
 - Excluded properties list from individual utility tabs (now separate page)
