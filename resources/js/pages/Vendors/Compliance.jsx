@@ -1,6 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import Layout from '../../components/Layout';
+import PageHeader from '../../components/PageHeader';
 import {
     ExclamationTriangleIcon,
     CheckCircleIcon,
@@ -10,6 +11,10 @@ import {
     PrinterIcon,
     ChevronDownIcon,
     ChevronUpIcon,
+    TableCellsIcon,
+    ShieldCheckIcon,
+    ScaleIcon,
+    LinkIcon,
 } from '@heroicons/react/24/outline';
 
 export default function VendorsCompliance({
@@ -46,7 +51,19 @@ export default function VendorsCompliance({
         });
     };
 
-    const tabs = [
+    const { auth } = usePage().props;
+    const isAdmin = auth.user?.role?.name === 'admin';
+
+    // Navigation tabs for vendor pages
+    const navTabs = [
+        { label: 'All Vendors', href: route('vendors.index'), icon: TableCellsIcon },
+        { label: 'Compliance', href: route('vendors.compliance'), icon: ShieldCheckIcon },
+        { label: 'Compare', href: route('vendors.compare'), icon: ScaleIcon },
+        ...(isAdmin ? [{ label: 'Deduplication', href: route('vendors.deduplication'), icon: LinkIcon }] : []),
+    ];
+
+    // Internal tabs for this page
+    const internalTabs = [
         { id: 'overview', name: 'Overview', count: null },
         { id: 'expired', name: 'Expired', count: stats.expired, color: 'bg-red-100 text-red-800' },
         { id: 'expiring', name: 'Expiring Soon', count: stats.expiring_soon, color: 'bg-yellow-100 text-yellow-800' },
@@ -127,36 +144,32 @@ export default function VendorsCompliance({
         <Layout>
             <Head title="Vendor Compliance" />
 
-            <div className="space-y-6">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <Link href={route('vendors.index')} className="text-sm text-gray-500 hover:text-gray-700 min-h-[44px] sm:min-h-0 flex items-center">
-                                Vendors
-                            </Link>
-                            <span className="text-gray-400">/</span>
-                            <span className="text-sm text-gray-900">Compliance Report</span>
-                        </div>
-                        <h1 className="mt-2 text-xl sm:text-2xl font-semibold text-gray-900">Insurance Compliance</h1>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Track vendor insurance status and compliance issues
-                        </p>
-                    </div>
-                    <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={() => window.print()}
-                            className="btn-secondary flex items-center min-h-[44px] sm:min-h-0"
-                            title="Print report"
-                        >
-                            <PrinterIcon className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Print</span>
-                        </button>
-                    </div>
+            <div className="flex flex-col h-[calc(100vh-64px)] -m-4 md:-m-8">
+                {/* Header - doesn't scroll */}
+                <div className="flex-shrink-0 px-4 md:px-8 pt-4 md:pt-8">
+                    <PageHeader
+                        title="Insurance Compliance"
+                        subtitle="Track vendor insurance status and compliance issues"
+                        tabs={navTabs}
+                        activeTab="Compliance"
+                        sticky={false}
+                        actions={
+                            <button
+                                type="button"
+                                onClick={() => window.print()}
+                                className="btn-secondary flex items-center min-h-[44px] sm:min-h-0"
+                                title="Print report"
+                            >
+                                <PrinterIcon className="w-4 h-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Print</span>
+                            </button>
+                        }
+                    />
                 </div>
 
-                {/* Summary Stats */}
+                {/* Summary Stats - doesn't scroll */}
+                <div className="flex-shrink-0 px-4 md:px-8 pt-6">
+                    {/* Summary Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                     <div className="card">
                         <div className="card-body text-center">
@@ -200,12 +213,14 @@ export default function VendorsCompliance({
                             <p className="text-2xl font-semibold text-gray-700">{stats.do_not_use}</p>
                         </div>
                     </div>
+                    </div>
                 </div>
 
-                {/* Tabs - Horizontally scrollable on mobile */}
-                <div className="border-b border-gray-200 -mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto">
-                    <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
-                        {tabs.map((tab) => (
+                {/* Internal Tabs - doesn't scroll */}
+                <div className="flex-shrink-0 px-4 md:px-8 pt-6">
+                    <div className="border-b border-gray-200 overflow-x-auto">
+                        <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
+                            {internalTabs.map((tab) => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
@@ -223,11 +238,13 @@ export default function VendorsCompliance({
                                 )}
                             </button>
                         ))}
-                    </nav>
+                        </nav>
+                    </div>
                 </div>
 
-                {/* Tab Content */}
-                {activeTab === 'overview' && (
+                {/* Tab Content - scrollable */}
+                <div className="flex-1 min-h-0 px-4 md:px-8 pt-6 pb-4 md:pb-8 overflow-auto">
+                    {activeTab === 'overview' && (
                     <div className="space-y-4">
                         {/* Expired Section */}
                         {expired.length > 0 && (
@@ -594,6 +611,7 @@ export default function VendorsCompliance({
                         )}
                     </div>
                 )}
+                </div>
             </div>
         </Layout>
     );

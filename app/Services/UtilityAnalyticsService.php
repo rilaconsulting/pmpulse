@@ -589,19 +589,25 @@ class UtilityAnalyticsService
             $prev3Monthly = $prev3Total > 0 ? round($prev3Total / 3, 2) : null;
             $prev12Monthly = $prev12Total > 0 ? round($prev12Total / 12, 2) : null;
 
-            // Calculate $/unit and $/sqft using 12-month average
+            // Get effective unit count and sqft (respecting adjustments)
+            $effectiveUnitCount = $this->getEffectiveUnitCount($property, $now);
+            $effectiveSqft = $this->getEffectiveSqft($property, $now);
+            $unitCountAdjusted = $this->adjustmentService->hasAdjustment($property, 'unit_count', $now);
+            $sqftAdjusted = $this->adjustmentService->hasAdjustment($property, 'total_sqft', $now);
+
+            // Calculate $/unit and $/sqft using 12-month average and effective values
             $avgPerUnit = null;
             $avgPerSqft = null;
 
             if ($prev12Total > 0) {
                 $monthlyAvg = $prev12Total / 12;
 
-                if ($property->unit_count && $property->unit_count > 0) {
-                    $avgPerUnit = round($monthlyAvg / $property->unit_count, 2);
+                if ($effectiveUnitCount > 0) {
+                    $avgPerUnit = round($monthlyAvg / $effectiveUnitCount, 2);
                 }
 
-                if ($property->total_sqft && $property->total_sqft > 0) {
-                    $avgPerSqft = round($monthlyAvg / $property->total_sqft, 4);
+                if ($effectiveSqft > 0) {
+                    $avgPerSqft = round($monthlyAvg / $effectiveSqft, 4);
                 }
             }
 
@@ -609,8 +615,10 @@ class UtilityAnalyticsService
                 'property_id' => $property->id,
                 'property_name' => $property->name,
                 'property_type' => $property->property_type,
-                'unit_count' => $property->unit_count,
-                'total_sqft' => $property->total_sqft,
+                'unit_count' => $effectiveUnitCount,
+                'total_sqft' => $effectiveSqft,
+                'unit_count_adjusted' => $unitCountAdjusted,
+                'sqft_adjusted' => $sqftAdjusted,
                 'current_month' => $currentMonth > 0 ? $currentMonth : null,
                 'prev_month' => $prevMonth > 0 ? $prevMonth : null,
                 'prev_3_months' => $prev3Monthly,
@@ -743,19 +751,25 @@ class UtilityAnalyticsService
             $prev3Monthly = $prev3Total > 0 ? round($prev3Total / 3, 2) : null;
             $prev12Monthly = $prev12Total > 0 ? round($prev12Total / 12, 2) : null;
 
-            // Calculate $/unit and $/sqft using 12-month average
+            // Get effective unit count and sqft (respecting adjustments)
+            $effectiveUnitCount = $this->getEffectiveUnitCount($property, $now);
+            $effectiveSqft = $this->getEffectiveSqft($property, $now);
+            $unitCountAdjusted = $this->adjustmentService->hasAdjustment($property, 'unit_count', $now);
+            $sqftAdjusted = $this->adjustmentService->hasAdjustment($property, 'total_sqft', $now);
+
+            // Calculate $/unit and $/sqft using 12-month average and effective values
             $avgPerUnit = null;
             $avgPerSqft = null;
 
             if ($prev12Total > 0) {
                 $monthlyAvg = $prev12Total / 12;
 
-                if ($property->unit_count && $property->unit_count > 0) {
-                    $avgPerUnit = round($monthlyAvg / $property->unit_count, 2);
+                if ($effectiveUnitCount > 0) {
+                    $avgPerUnit = round($monthlyAvg / $effectiveUnitCount, 2);
                 }
 
-                if ($property->total_sqft && $property->total_sqft > 0) {
-                    $avgPerSqft = round($monthlyAvg / $property->total_sqft, 4);
+                if ($effectiveSqft > 0) {
+                    $avgPerSqft = round($monthlyAvg / $effectiveSqft, 4);
                 }
             }
 
@@ -763,8 +777,10 @@ class UtilityAnalyticsService
                 'property_id' => $property->id,
                 'property_name' => $property->name,
                 'property_type' => $property->property_type,
-                'unit_count' => $property->unit_count,
-                'total_sqft' => $property->total_sqft,
+                'unit_count' => $effectiveUnitCount,
+                'total_sqft' => $effectiveSqft,
+                'unit_count_adjusted' => $unitCountAdjusted,
+                'sqft_adjusted' => $sqftAdjusted,
                 'current_month' => $currentMonth > 0 ? $currentMonth : null,
                 'prev_month' => $prevMonth > 0 ? $prevMonth : null,
                 'prev_3_months' => $prev3Monthly,

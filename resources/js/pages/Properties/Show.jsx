@@ -347,7 +347,7 @@ export default function PropertyShow({
                         {/* Stats Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                     {/* Total Units */}
-                    <div className="card">
+                    <div className="card overflow-visible">
                         <div className="card-body">
                             <div className="flex items-center">
                                 <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -447,7 +447,7 @@ export default function PropertyShow({
                 {/* Property Details */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Details Card */}
-                    <div className="card">
+                    <div className="card overflow-visible">
                         <div className="card-header">
                             <h2 className="text-lg font-medium text-gray-900">Property Details</h2>
                         </div>

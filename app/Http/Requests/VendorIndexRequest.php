@@ -51,17 +51,33 @@ class VendorIndexRequest extends FormRequest
                 ]);
             }
         }
+
+        // Convert has_work_orders string to boolean
+        if ($this->has('has_work_orders') && $this->input('has_work_orders') !== '') {
+            $value = $this->input('has_work_orders');
+            if (is_string($value)) {
+                $this->merge([
+                    'has_work_orders' => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE),
+                ]);
+            }
+        }
     }
 
     /**
      * Get the validation rules that apply to the request.
      */
+    /**
+     * Allowed page sizes.
+     */
+    public const ALLOWED_PAGE_SIZES = [15, 50, 100];
+
     public function rules(): array
     {
         return [
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
             'trade' => ['sometimes', 'nullable', 'string', 'max:255'],
             'is_active' => ['sometimes', 'nullable', 'boolean'],
+            'has_work_orders' => ['sometimes', 'nullable', 'boolean'],
             'insurance_status' => [
                 'sometimes',
                 'nullable',
@@ -87,6 +103,7 @@ class VendorIndexRequest extends FormRequest
                 Rule::in(self::SORT_DIRECTIONS),
             ],
             'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'nullable', 'string'], // 'all' or numeric
         ];
     }
 

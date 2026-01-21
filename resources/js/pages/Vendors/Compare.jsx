@@ -1,14 +1,28 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import Layout from '../../components/Layout';
+import PageHeader from '../../components/PageHeader';
 import { InsuranceStatusBadge, formatCurrency, formatDays } from '../../components/Vendor';
 import {
-    ArrowLeftIcon,
     WrenchScrewdriverIcon,
     ExclamationTriangleIcon,
     ScaleIcon,
+    TableCellsIcon,
+    ShieldCheckIcon,
+    LinkIcon,
 } from '@heroicons/react/24/outline';
 
 export default function VendorCompare({ vendors, comparison, trades, selectedTrade }) {
+    const { auth } = usePage().props;
+    const isAdmin = auth.user?.role?.name === 'admin';
+
+    // Navigation tabs for vendor pages
+    const navTabs = [
+        { label: 'All Vendors', href: route('vendors.index'), icon: TableCellsIcon },
+        { label: 'Compliance', href: route('vendors.compliance'), icon: ShieldCheckIcon },
+        { label: 'Compare', href: route('vendors.compare'), icon: ScaleIcon },
+        ...(isAdmin ? [{ label: 'Deduplication', href: route('vendors.deduplication'), icon: LinkIcon }] : []),
+    ];
+
     const handleTradeChange = (trade) => {
         router.get(route('vendors.compare'), { trade }, {
             preserveState: true,
@@ -39,30 +53,21 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
         <Layout>
             <Head title="Compare Vendors" />
 
-            <div className="space-y-6">
-                {/* Back Button */}
-                <Link
-                    href={route('vendors.index')}
-                    className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 min-h-[44px] sm:min-h-0"
-                >
-                    <ArrowLeftIcon className="w-4 h-4 mr-1" />
-                    Back to Vendors
-                </Link>
-
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div>
-                        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 flex items-center gap-2">
-                            <ScaleIcon className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
-                            Compare Vendors
-                        </h1>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Compare vendors side-by-side within a trade
-                        </p>
-                    </div>
+            <div className="flex flex-col h-[calc(100vh-64px)] -m-4 md:-m-8">
+                {/* Header - doesn't scroll */}
+                <div className="flex-shrink-0 px-4 md:px-8 pt-4 md:pt-8">
+                    <PageHeader
+                        title="Compare Vendors"
+                        subtitle="Compare vendors side-by-side within a trade"
+                        tabs={navTabs}
+                        activeTab="Compare"
+                        sticky={false}
+                    />
                 </div>
 
-                {/* Trade Selector */}
+                {/* Trade Selector - doesn't scroll */}
+                <div className="flex-shrink-0 px-4 md:px-8 pt-6">
+                    {/* Trade Selector */}
                 <div className="card">
                     <div className="card-body">
                         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-end">
@@ -95,9 +100,12 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
                         </div>
                     </div>
                 </div>
+                </div>
 
-                {/* Legend */}
-                {vendors.length > 1 && (
+                {/* Content area - scrollable */}
+                <div className="flex-1 min-h-0 px-4 md:px-8 pt-6 pb-4 md:pb-8 overflow-auto space-y-6">
+                    {/* Legend */}
+                    {vendors.length > 1 && (
                     <div className="flex items-center gap-4 text-sm">
                         <span className="inline-flex items-center gap-1">
                             <span className="w-4 h-4 rounded bg-green-100 border border-green-300" />
@@ -306,6 +314,7 @@ export default function VendorCompare({ vendors, comparison, trades, selectedTra
                         ))}
                     </div>
                 )}
+                </div>
             </div>
         </Layout>
     );

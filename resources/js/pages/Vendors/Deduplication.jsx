@@ -1,7 +1,8 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import Layout from '../../components/Layout';
+import PageHeader from '../../components/PageHeader';
 import { useToast } from '../../components/Toast';
 import {
     UsersIcon,
@@ -14,9 +15,23 @@ import {
     CheckCircleIcon,
     ArrowPathIcon,
     ClockIcon,
+    TableCellsIcon,
+    ShieldCheckIcon,
+    ScaleIcon,
 } from '@heroicons/react/24/outline';
 
 export default function VendorDeduplication({ canonicalGroups, allCanonicalVendors, stats }) {
+    const { auth } = usePage().props;
+    const isAdmin = auth.user?.role?.name === 'admin';
+
+    // Navigation tabs for vendor pages
+    const navTabs = [
+        { label: 'All Vendors', href: route('vendors.index'), icon: TableCellsIcon },
+        { label: 'Compliance', href: route('vendors.compliance'), icon: ShieldCheckIcon },
+        { label: 'Compare', href: route('vendors.compare'), icon: ScaleIcon },
+        ...(isAdmin ? [{ label: 'Deduplication', href: route('vendors.deduplication'), icon: LinkIcon }] : []),
+    ];
+
     const [expandedGroups, setExpandedGroups] = useState(new Set());
     const [showLinkModal, setShowLinkModal] = useState(false);
     const [selectedVendor, setSelectedVendor] = useState(null);
@@ -266,21 +281,21 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
         <Layout>
             <Head title="Vendor Deduplication" />
 
-            <div className="space-y-6">
-                {/* Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Vendor Deduplication</h1>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Manage duplicate vendor records and canonical groupings
-                        </p>
-                    </div>
-                    <Link href={route('vendors.index')} className="btn-secondary min-h-[44px] sm:min-h-0 text-center">
-                        Back to Vendors
-                    </Link>
+            <div className="flex flex-col h-[calc(100vh-64px)] -m-4 md:-m-8">
+                {/* Header - doesn't scroll */}
+                <div className="flex-shrink-0 px-4 md:px-8 pt-4 md:pt-8">
+                    <PageHeader
+                        title="Vendor Deduplication"
+                        subtitle="Manage duplicate vendor records and canonical groupings"
+                        tabs={navTabs}
+                        activeTab="Deduplication"
+                        sticky={false}
+                    />
                 </div>
 
-                {/* Potential Duplicates Settings */}
+                {/* Content area - scrollable */}
+                <div className="flex-1 min-h-0 px-4 md:px-8 pt-6 pb-4 md:pb-8 overflow-auto space-y-6">
+                    {/* Potential Duplicates Settings */}
                 <div className="card">
                     <div className="card-body">
                         <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
@@ -582,6 +597,7 @@ export default function VendorDeduplication({ canonicalGroups, allCanonicalVendo
                             })
                         )}
                     </div>
+                </div>
                 </div>
             </div>
 

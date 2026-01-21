@@ -39,9 +39,9 @@ export default function PropertyTabs({ tabs, activeTab, onTabChange, className =
     };
 
     return (
-        <div className={`border-b border-gray-200 ${className}`}>
+        <div className={`border-b border-gray-200 pt-2 pb-2 ${className}`}>
             <nav
-                className="flex -mb-px"
+                className="flex space-x-1"
                 role="tablist"
                 aria-label="Property sections"
             >
@@ -61,17 +61,17 @@ export default function PropertyTabs({ tabs, activeTab, onTabChange, className =
                             tabIndex={isActive ? 0 : -1}
                             onClick={() => onTabChange(tab.id)}
                             onKeyDown={(e) => handleKeyDown(e, index)}
-                            className={`group px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                            className={`group px-3 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors ${
                                 isActive
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'bg-blue-50 text-blue-600'
+                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                             }`}
                         >
                             <span className="flex items-center gap-2">
                                 {Icon && (
                                     <Icon
                                         className={`w-4 h-4 ${
-                                            isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+                                            isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
                                         }`}
                                         aria-hidden="true"
                                     />

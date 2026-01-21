@@ -114,7 +114,7 @@ class VendorControllerTest extends TestCase
             'company_name' => 'Test Vendor Company',
         ]);
 
-        $response = $this->actingAs($this->user)->get('/vendors');
+        $response = $this->actingAs($this->user)->get('/vendors?has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -130,7 +130,7 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->create(['company_name' => 'Alpha Plumbing']);
         Vendor::factory()->create(['company_name' => 'Beta Electric']);
 
-        $response = $this->actingAs($this->user)->get('/vendors?search=Alpha');
+        $response = $this->actingAs($this->user)->get('/vendors?search=Alpha&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -154,7 +154,7 @@ class VendorControllerTest extends TestCase
             'email' => 'beta@example.com',
         ]);
 
-        $response = $this->actingAs($this->user)->get('/vendors?search=John');
+        $response = $this->actingAs($this->user)->get('/vendors?search=John&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -176,7 +176,7 @@ class VendorControllerTest extends TestCase
             'email' => 'beta@example.com',
         ]);
 
-        $response = $this->actingAs($this->user)->get('/vendors?search=alpha@');
+        $response = $this->actingAs($this->user)->get('/vendors?search=alpha@&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -192,12 +192,39 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->withTrade('Plumbing')->create(['company_name' => 'Plumber Co']);
         Vendor::factory()->withTrade('Electrical')->create(['company_name' => 'Electric Co']);
 
-        $response = $this->actingAs($this->user)->get('/vendors?trade=Plumbing');
+        $response = $this->actingAs($this->user)->get('/vendors?trade=Plumbing&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
             ->has('vendors.data', 1)
             ->where('vendors.data.0.company_name', 'Plumber Co')
+        );
+    }
+
+    public function test_vendor_index_filter_by_has_work_orders(): void
+    {
+        $this->skipIfNotPostgres();
+
+        $vendorWithWorkOrders = Vendor::factory()->create(['company_name' => 'Vendor With WOs']);
+        $vendorWithoutWorkOrders = Vendor::factory()->create(['company_name' => 'Vendor Without WOs']);
+
+        WorkOrder::factory()->forVendor($vendorWithWorkOrders)->openedAt(now()->subMonths(6))->create();
+
+        // Default filter (has_work_orders=true) should only show vendor with work orders
+        $response = $this->actingAs($this->user)->get('/vendors');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->has('vendors.data', 1)
+            ->where('vendors.data.0.company_name', 'Vendor With WOs')
+        );
+
+        // has_work_orders=false should show all vendors
+        $response = $this->actingAs($this->user)->get('/vendors?has_work_orders=false');
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->has('vendors.data', 2)
         );
     }
 
@@ -208,7 +235,7 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->create(['company_name' => 'Active Vendor', 'is_active' => true]);
         Vendor::factory()->inactive()->create(['company_name' => 'Inactive Vendor']);
 
-        $response = $this->actingAs($this->user)->get('/vendors?is_active=1');
+        $response = $this->actingAs($this->user)->get('/vendors?is_active=1&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -224,7 +251,7 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->create(['company_name' => 'Active Vendor', 'is_active' => true]);
         Vendor::factory()->inactive()->create(['company_name' => 'Inactive Vendor']);
 
-        $response = $this->actingAs($this->user)->get('/vendors?is_active=0');
+        $response = $this->actingAs($this->user)->get('/vendors?is_active=0&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -248,7 +275,7 @@ class VendorControllerTest extends TestCase
             'auto_ins_expires' => null,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/vendors?insurance_status=expired');
+        $response = $this->actingAs($this->user)->get('/vendors?insurance_status=expired&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -276,7 +303,7 @@ class VendorControllerTest extends TestCase
             'auto_ins_expires' => null,
         ]);
 
-        $response = $this->actingAs($this->user)->get('/vendors?insurance_status=expiring_soon');
+        $response = $this->actingAs($this->user)->get('/vendors?insurance_status=expiring_soon&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -299,7 +326,7 @@ class VendorControllerTest extends TestCase
             'company_name' => 'Expired Vendor',
         ]);
 
-        $response = $this->actingAs($this->user)->get('/vendors?insurance_status=current');
+        $response = $this->actingAs($this->user)->get('/vendors?insurance_status=current&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -315,7 +342,7 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->create(['company_name' => 'Zebra Plumbing']);
         Vendor::factory()->create(['company_name' => 'Alpha Electric']);
 
-        $response = $this->actingAs($this->user)->get('/vendors?sort=company_name&direction=asc');
+        $response = $this->actingAs($this->user)->get('/vendors?sort=company_name&direction=asc&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -332,7 +359,7 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->create(['company_name' => 'Alpha Electric']);
         Vendor::factory()->create(['company_name' => 'Zebra Plumbing']);
 
-        $response = $this->actingAs($this->user)->get('/vendors?sort=company_name&direction=desc');
+        $response = $this->actingAs($this->user)->get('/vendors?sort=company_name&direction=desc&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -368,7 +395,7 @@ class VendorControllerTest extends TestCase
         Vendor::factory()->inactive()->create(['company_name' => 'Inactive']);
         Vendor::factory()->create(['company_name' => 'Active', 'is_active' => true]);
 
-        $response = $this->actingAs($this->user)->get('/vendors?sort=is_active&direction=desc');
+        $response = $this->actingAs($this->user)->get('/vendors?sort=is_active&direction=desc&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -383,7 +410,7 @@ class VendorControllerTest extends TestCase
 
         Vendor::factory()->count(20)->create();
 
-        $response = $this->actingAs($this->user)->get('/vendors');
+        $response = $this->actingAs($this->user)->get('/vendors?has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -399,7 +426,7 @@ class VendorControllerTest extends TestCase
         $canonical = Vendor::factory()->create(['company_name' => 'Canonical Vendor']);
         Vendor::factory()->duplicateOf($canonical)->create(['company_name' => 'Duplicate Vendor']);
 
-        $response = $this->actingAs($this->user)->get('/vendors');
+        $response = $this->actingAs($this->user)->get('/vendors?has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
@@ -415,7 +442,7 @@ class VendorControllerTest extends TestCase
         $canonical = Vendor::factory()->create(['company_name' => 'Canonical Vendor']);
         Vendor::factory()->duplicateOf($canonical)->create(['company_name' => 'Duplicate Vendor']);
 
-        $response = $this->actingAs($this->user)->get('/vendors?canonical_filter=all');
+        $response = $this->actingAs($this->user)->get('/vendors?canonical_filter=all&has_work_orders=false');
 
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page

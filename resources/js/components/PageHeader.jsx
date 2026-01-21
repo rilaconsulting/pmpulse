@@ -43,6 +43,21 @@ export default function PageHeader({
 }) {
     const { url: currentUrl } = usePage();
 
+    // Extract pathname from a URL (handles both full URLs and paths)
+    const getPathname = (url) => {
+        if (!url) return '';
+        try {
+            // If it's a full URL, extract the pathname
+            if (url.startsWith('http')) {
+                return new URL(url).pathname;
+            }
+            // Otherwise, strip query string and return path
+            return url.split('?')[0];
+        } catch {
+            return url.split('?')[0];
+        }
+    };
+
     // Determine if a tab is active based on id, label, or href matching
     const isTabActive = (tab) => {
         if (activeTab) {
@@ -50,7 +65,10 @@ export default function PageHeader({
             return tab.id === activeTab || tab.label === activeTab;
         }
         // Fallback to URL matching (for navigation tabs)
-        return tab.href && currentUrl.startsWith(tab.href);
+        if (!tab.href) return false;
+        const currentPath = getPathname(currentUrl);
+        const tabPath = getPathname(tab.href);
+        return currentPath.startsWith(tabPath);
     };
 
     // Card styling classes (matches .card in app.css)
@@ -158,9 +176,9 @@ export default function PageHeader({
 
             {/* Tabs Section (if provided) - inside the card */}
             {tabs.length > 0 && (
-                <div className="border-t border-gray-200 -mx-6 px-6 mt-4">
+                <div className="border-t border-gray-200 -mx-6 px-6 mt-4 pt-2 -mb-2">
                     <nav
-                        className="-mb-px flex space-x-2 sm:space-x-4 md:space-x-8 overflow-x-auto scrollbar-hide"
+                        className="flex space-x-1 sm:space-x-2 overflow-x-auto scrollbar-hide"
                         aria-label="Page navigation"
                         role={onTabChange ? 'tablist' : undefined}
                     >
@@ -172,7 +190,7 @@ export default function PageHeader({
                                     {TabIcon && (
                                         <TabIcon
                                             className={`w-5 h-5 flex-shrink-0 sm:mr-2 transition-colors ${
-                                                active ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
+                                                active ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'
                                             }`}
                                             aria-hidden="true"
                                         />
@@ -193,10 +211,10 @@ export default function PageHeader({
                                 </>
                             );
 
-                            const tabClasses = `group flex items-center py-4 px-2 sm:px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap flex-shrink-0 ${
+                            const tabClasses = `group flex items-center py-2 px-3 rounded-lg font-medium text-sm transition-colors whitespace-nowrap flex-shrink-0 ${
                                 active
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    ? 'bg-blue-50 text-blue-600'
+                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                             }`;
 
                             // Render button for in-page tabs, Link for navigation tabs

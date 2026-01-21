@@ -8,15 +8,7 @@ import {
     XMarkIcon,
     CheckIcon,
 } from '@heroicons/react/24/outline';
-
-const UtilityTypeColors = {
-    water: 'bg-blue-100 text-blue-800 border-blue-200',
-    electric: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    gas: 'bg-orange-100 text-orange-800 border-orange-200',
-    garbage: 'bg-gray-100 text-gray-800 border-gray-200',
-    sewer: 'bg-green-100 text-green-800 border-green-200',
-    other: 'bg-purple-100 text-purple-800 border-purple-200',
-};
+import { getColorScheme } from '../../components/Utilities/constants';
 
 function ColorPicker({ value, onChange, label }) {
     const handleTextChange = (e) => {
@@ -376,19 +368,19 @@ function RuleRow({ rule, operators, onEdit, onDelete }) {
     );
 }
 
-function UtilityTypeSection({ utilityTypeId, utilityTypeKey, utilityTypeName, rules, operators, editingId, setEditingId, addingType, setAddingType }) {
+function UtilityTypeSection({ utilityTypeId, utilityTypeName, colorScheme, rules, operators, editingId, setEditingId, addingType, setAddingType }) {
     const handleDelete = (rule) => {
         if (confirm(`Are you sure you want to delete the formatting rule "${rule.name}"?`)) {
             router.delete(route('admin.utility-formatting-rules.destroy', rule.id));
         }
     };
 
-    const colorClasses = UtilityTypeColors[utilityTypeKey] || UtilityTypeColors.other;
+    const colors = getColorScheme(colorScheme);
 
     return (
         <div className="card overflow-hidden">
             {/* Section Header */}
-            <div className={`px-4 py-3 border-b ${colorClasses}`}>
+            <div className={`px-4 py-3 border-b ${colors.bg} ${colors.text} ${colors.border}`}>
                 <div className="flex items-center justify-between">
                     <h3 className="font-medium">{utilityTypeName}</h3>
                     {addingType !== utilityTypeId && (
@@ -506,8 +498,8 @@ export default function UtilityFormattingRules({ rules, rulesByType, utilityType
                         <UtilityTypeSection
                             key={type.id}
                             utilityTypeId={type.id}
-                            utilityTypeKey={type.key}
                             utilityTypeName={type.label}
+                            colorScheme={type.color_scheme}
                             rules={rulesByType[type.key] || []}
                             operators={operators}
                             editingId={editingId}
