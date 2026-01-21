@@ -523,6 +523,97 @@ class UtilityExpenseService
     }
 
     /**
+     * Reprocess all utility expenses with current account mappings.
+     *
+     * This method should be called when utility account mappings change
+     * to retroactively apply the new mappings to all existing data.
+     *
+     * Steps:
+     * 1. Delete all existing utility_expenses
+     * 2. Reprocess all bill_details with current mappings
+     *
+     * @param  string|null  $fromDate  Optional start date filter (Y-m-d)
+     * @param  string|null  $toDate  Optional end date filter (Y-m-d)
+     * @return array Processing statistics
+     */
+    public function reprocessAllWithCurrentMappings(?string $fromDate = null, ?string $toDate = null): array
+    {
+        $this->resetStats();
+        $this->loadAccountMappings();
+
+        // Build the date filter for deletion
+        $deleteQuery = UtilityExpense::query();
+        if ($fromDate !== null) {
+            $deleteQuery->where('expense_date', '>=', $fromDate);
+        }
+        if ($toDate !== null) {
+            $deleteQuery->where('expense_date', '<=', $toDate);
+        }
+
+        // Delete existing utility expenses and get count from delete() return value
+        $deletedCount = $deleteQuery->delete();
+
+        Log::info('Deleted existing utility expenses for reprocessing', [
+            'deleted_count' => $deletedCount,
+            'from_date' => $fromDate,
+            'to_date' => $toDate,
+        ]);
+
+        // Get the GL account numbers that are mapped to utility accounts
+        $utilityGlAccounts = $this->accountMappings->keys()->all();
+
+        if (empty($utilityGlAccounts)) {
+            Log::info('No utility accounts configured, nothing to reprocess');
+
+            return array_merge($this->getStats(), ['deleted' => $deletedCount]);
+        }
+
+        // Query bill details that match utility GL accounts
+        $query = BillDetail::whereIn('gl_account_number', $utilityGlAccounts);
+
+        if ($fromDate !== null) {
+            $query->where('bill_date', '>=', $fromDate);
+        }
+        if ($toDate !== null) {
+            $query->where('bill_date', '<=', $toDate);
+        }
+
+        $totalCount = $query->count();
+
+        Log::info('Reprocessing bill details for utility expenses', [
+            'total_bill_details' => $totalCount,
+            'utility_gl_accounts' => $utilityGlAccounts,
+            'from_date' => $fromDate,
+            'to_date' => $toDate,
+        ]);
+
+        // Process in chunks to manage memory
+        $query->chunk(500, function ($billDetails) {
+            foreach ($billDetails as $billDetail) {
+                try {
+                    $this->processBillDetailToUtilityExpense($billDetail);
+                } catch (\Exception $e) {
+                    $this->errors[] = [
+                        'txn_id' => $billDetail->txn_id,
+                        'error' => $e->getMessage(),
+                    ];
+                    Log::error('Failed to reprocess bill detail', [
+                        'txn_id' => $billDetail->txn_id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        });
+
+        $stats = $this->getStats();
+        $stats['deleted'] = $deletedCount;
+
+        Log::info('Utility expense reprocessing complete', $stats);
+
+        return $stats;
+    }
+
+    /**
      * Get unmatched GL accounts from recent expenses.
      *
      * Returns a list of GL accounts that appear in expenses but are not

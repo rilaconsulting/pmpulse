@@ -323,26 +323,18 @@ function RuleRow({ rule, operators, onEdit, onDelete }) {
                 {rule.threshold}%
             </td>
             <td className="px-4 py-3 whitespace-nowrap">
-                <div className="flex items-center gap-2">
-                    <span
-                        className="w-5 h-5 rounded border border-gray-300"
-                        style={{ backgroundColor: rule.color }}
-                        title={rule.color}
-                    />
-                    <span className="text-xs text-gray-500 font-mono">{rule.color}</span>
-                </div>
+                <span
+                    className="w-6 h-6 rounded border border-gray-300 inline-block"
+                    style={{ backgroundColor: rule.color }}
+                    title={rule.color}
+                />
             </td>
             <td className="px-4 py-3 whitespace-nowrap">
-                <div className="flex items-center gap-2">
-                    <span
-                        className="w-5 h-5 rounded border border-gray-300"
-                        style={{ backgroundColor: rule.background_color || 'transparent' }}
-                        title={rule.background_color || 'None'}
-                    />
-                    <span className="text-xs text-gray-500 font-mono">
-                        {rule.background_color || '-'}
-                    </span>
-                </div>
+                <span
+                    className="w-6 h-6 rounded border border-gray-300 inline-block"
+                    style={{ backgroundColor: rule.background_color || 'transparent' }}
+                    title={rule.background_color || 'None'}
+                />
             </td>
             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 text-center">
                 {rule.priority}

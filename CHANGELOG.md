@@ -7,23 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!--
-Add your changes here using these categories:
-
 ### Added
-New features
+- Excluded Properties tab in Utility section for viewing properties excluded from analytics
+- Utility type filter on property utility expenses to view specific utilities
+- Reprocess Data button in Admin Utility Accounts to apply mapping changes retroactively
+- Command-line tool for reprocessing utility expenses (`php artisan utilities:reprocess`)
 
 ### Changed
-Changes in existing functionality
+- Utility Data Table now shows filters inline with the table header (always visible)
+- Utility Data Table scrolls with sticky column headers and locked property column
+- Property utility breakdown now displays as a pie chart with legend table
+- Utility pages now land on Data Table first (previously Dashboard)
+- Cost per square foot now shows 4 decimal places for precision
+- Formatting rule colors now show swatches only (hex codes hidden)
 
 ### Fixed
-Bug fixes
+- Deleted bills in AppFolio are now properly removed during sync
+- Vendor detail page no longer shows total spend metric
 
 ### Removed
-Removed features
-
-Run `/changelog` in Claude Code to auto-generate entries from your branch changes.
--->
+- Excluded properties list from individual utility tabs (now separate page)
 
 ---
 

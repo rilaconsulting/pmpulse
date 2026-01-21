@@ -3,9 +3,8 @@ import Layout from '../../components/Layout';
 import PageHeader from '../../components/PageHeader';
 import UtilityTrendChart from '../../components/Utilities/UtilityTrendChart';
 import AnomalyAlerts from '../../components/Utilities/AnomalyAlerts';
-import ExcludedPropertiesList from '../../components/Utilities/ExcludedPropertiesList';
 import { formatCurrency, findUtilityType, getIconComponent, getColorScheme } from '../../components/Utilities/constants';
-import { BoltIcon, ChartBarIcon, TableCellsIcon } from '@heroicons/react/24/outline';
+import { BoltIcon, ChartBarIcon, TableCellsIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 export default function UtilitiesDashboard({
     period,
@@ -15,7 +14,6 @@ export default function UtilitiesDashboard({
     anomalies,
     trendData,
     utilityTypes,
-    excludedProperties,
 }) {
     const handlePeriodChange = (newPeriod) => {
         router.get(route('utilities.dashboard'), { period: newPeriod }, { preserveState: true });
@@ -50,8 +48,9 @@ export default function UtilitiesDashboard({
                         </div>
                     }
                     tabs={[
-                        { label: 'Dashboard', href: route('utilities.dashboard'), icon: ChartBarIcon },
                         { label: 'Data Table', href: route('utilities.data'), icon: TableCellsIcon },
+                        { label: 'Dashboard', href: route('utilities.dashboard'), icon: ChartBarIcon },
+                        { label: 'Excluded', href: route('utilities.excluded'), icon: EyeSlashIcon },
                     ]}
                     activeTab="Dashboard"
                 />
@@ -115,9 +114,6 @@ export default function UtilitiesDashboard({
                 {anomalies && anomalies.length > 0 && (
                     <AnomalyAlerts anomalies={anomalies} />
                 )}
-
-                {/* Excluded Properties */}
-                <ExcludedPropertiesList excludedProperties={excludedProperties} />
 
                 {/* Trend Chart */}
                 <UtilityTrendChart data={trendData} utilityTypes={utilityTypes} />

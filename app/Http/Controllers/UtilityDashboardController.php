@@ -26,11 +26,11 @@ class UtilityDashboardController extends Controller
     ) {}
 
     /**
-     * Redirect to dashboard view.
+     * Redirect to data table view (default landing page).
      */
     public function index(): RedirectResponse
     {
-        return redirect()->route('utilities.dashboard');
+        return redirect()->route('utilities.data');
     }
 
     /**
@@ -96,9 +96,6 @@ class UtilityDashboardController extends Controller
         // Get trend data for the portfolio (last 12 months)
         $trendData = $this->getPortfolioTrend($utilityTypes, 12);
 
-        // Get excluded properties info for display
-        $excludedProperties = $this->analyticsService->getExcludedPropertiesInfo();
-
         return Inertia::render('Utilities/Dashboard', [
             'period' => $periodType,
             'periodLabel' => $this->getPeriodLabel($periodType, $date),
@@ -107,7 +104,6 @@ class UtilityDashboardController extends Controller
             'anomalies' => $anomalies,
             'trendData' => $trendData,
             'utilityTypes' => UtilityType::getAllWithMetadata(),
-            'excludedProperties' => $excludedProperties,
         ]);
     }
 
@@ -167,6 +163,17 @@ class UtilityDashboardController extends Controller
             'heatMapStats' => $heatMapStats,
             'filters' => $filters,
             'propertyTypeOptions' => $propertyTypeOptions,
+        ]);
+    }
+
+    /**
+     * Display excluded properties page.
+     */
+    public function excluded(): Response
+    {
+        $excludedProperties = $this->analyticsService->getExcludedPropertiesInfo();
+
+        return Inertia::render('Utilities/Excluded', [
             'excludedProperties' => $excludedProperties,
         ]);
     }

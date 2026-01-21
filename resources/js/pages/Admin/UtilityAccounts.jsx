@@ -9,6 +9,7 @@ import {
     CheckIcon,
     BoltIcon,
     LightBulbIcon,
+    ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { getColorScheme } from '../../components/Utilities/constants';
 
@@ -398,6 +399,17 @@ function MobileAccountForm({ account, utilityTypes, onCancel, isEditing = false 
 export default function UtilityAccounts({ accounts, utilityTypes }) {
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState(null);
+    const [isReprocessing, setIsReprocessing] = useState(false);
+
+    const handleReprocess = () => {
+        if (!confirm('This will reprocess all utility expenses using the current account mappings. This may take a few moments. Continue?')) {
+            return;
+        }
+        setIsReprocessing(true);
+        router.post(route('admin.utility-accounts.reprocess'), {}, {
+            onFinish: () => setIsReprocessing(false),
+        });
+    };
 
     const handleDelete = (account) => {
         if (confirm(`Are you sure you want to delete the mapping for GL account "${account.gl_account_number}"?`)) {
@@ -417,6 +429,16 @@ export default function UtilityAccounts({ accounts, utilityTypes }) {
                         </p>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={handleReprocess}
+                            disabled={isReprocessing}
+                            className="btn-secondary text-center"
+                            title="Reapply current mappings to all existing data"
+                        >
+                            <ArrowPathIcon className={`w-4 h-4 mr-2 inline ${isReprocessing ? 'animate-spin' : ''}`} />
+                            {isReprocessing ? 'Reprocessing...' : 'Reprocess Data'}
+                        </button>
                         <Link
                             href={route('admin.utility-accounts.suggestions')}
                             className="btn-secondary text-center"
@@ -569,6 +591,20 @@ export default function UtilityAccounts({ accounts, utilityTypes }) {
                             <li>Utility expenses will appear in dedicated dashboards and reports</li>
                             <li>Inactive mappings will be ignored during sync</li>
                         </ul>
+
+                        <h3 className="text-sm font-medium text-gray-900 mt-4 mb-2">Changing Mappings</h3>
+                        <p className="text-sm text-gray-600 mb-2">
+                            When you add, edit, or delete account mappings, the changes only apply to future syncs by default.
+                            To apply changes retroactively to all existing data:
+                        </p>
+                        <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+                            <li>Click the <strong>Reprocess Data</strong> button above</li>
+                            <li>This will re-categorize all existing bills using the current mappings</li>
+                            <li>No data is downloaded - it uses already-synced bill data</li>
+                        </ul>
+                        <p className="text-xs text-gray-500 mt-2">
+                            You can also run <code className="bg-gray-100 px-1 rounded">php artisan utilities:reprocess</code> from the command line.
+                        </p>
                     </div>
                 </div>
             </div>

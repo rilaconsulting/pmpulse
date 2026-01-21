@@ -35,7 +35,7 @@ export default function VendorShow({
     workOrderStats = {},
     workOrderFilters = {},
 }) {
-    const yearlyChange = periodComparison?.last_12_months?.changes?.total_spend;
+    const workOrderCountChange = periodComparison?.last_12_months?.changes?.work_order_count;
 
     return (
         <Layout>
@@ -109,17 +109,12 @@ export default function VendorShow({
                     sticky
                 />
 
-                {/* Metrics Summary - 2-col on mobile, 4-col on desktop */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                {/* Metrics Summary - 1-col on mobile, 3-col on desktop */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
                     <MetricCard
                         title="Work Orders (12 mo)"
                         value={metrics?.work_order_count || 0}
-                        change={yearlyChange}
-                    />
-                    <MetricCard
-                        title="Total Spend (12 mo)"
-                        value={formatCurrency(metrics?.total_spend)}
-                        change={periodComparison?.last_12_months?.changes?.total_spend}
+                        change={workOrderCountChange}
                     />
                     <MetricCard
                         title="Avg Cost per WO"
