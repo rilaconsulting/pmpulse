@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 
 export default function Login({ googleSsoEnabled }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -108,7 +108,7 @@ export default function Login({ googleSsoEnabled }) {
                                         </div>
                                     </div>
 
-                                    <Link
+                                    <a
                                         href={route('auth.google')}
                                         className="w-full inline-flex justify-center items-center px-4 py-2 min-h-[44px] border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                     >
@@ -119,7 +119,7 @@ export default function Login({ googleSsoEnabled }) {
                                             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                                         </svg>
                                         Sign in with Google
-                                    </Link>
+                                    </a>
                                 </>
                             )}
                         </div>
