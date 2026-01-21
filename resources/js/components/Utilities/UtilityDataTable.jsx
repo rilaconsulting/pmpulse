@@ -6,6 +6,19 @@ import NoteModal from './NoteModal';
 import Tooltip from '../Tooltip';
 import { findUtilityType, getIconComponent, getColorScheme, formatCurrency, getHeatMapStyle, calculateHeatMapStats } from './constants';
 
+/**
+ * Format operator description for formatting rule tooltip
+ * @param {string} operator - The operator type (e.g., 'increase_percent', 'decrease_percent')
+ * @param {number} threshold - The threshold percentage
+ * @returns {string} Formatted description
+ */
+const formatOperatorDescription = (operator, threshold) => {
+    const isIncrease = operator === 'increase_percent';
+    const symbol = isIncrease ? '≥' : '≤';
+    const direction = isIncrease ? 'above' : 'below';
+    return `${symbol} ${threshold}% ${direction} 12-mo avg`;
+};
+
 // Column definitions
 const COLUMNS = [
     { key: 'property_name', label: 'Property', alwaysVisible: true, sortable: true, align: 'left' },
@@ -699,7 +712,7 @@ export default function UtilityDataTable({ data, utilityTypes = {}, selectedType
                                                         <div>
                                                             <div className="font-medium">{backendFormatting.rule_name}</div>
                                                             <div className="text-gray-400 mt-1">
-                                                                {backendFormatting.operator === 'increase_percent' ? '≥' : '≤'} {backendFormatting.threshold}% {backendFormatting.operator === 'increase_percent' ? 'above' : 'below'} 12-mo avg
+                                                                {formatOperatorDescription(backendFormatting.operator, backendFormatting.threshold)}
                                                             </div>
                                                         </div>
                                                     }

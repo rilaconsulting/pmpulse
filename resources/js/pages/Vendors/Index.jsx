@@ -383,7 +383,7 @@ export default function VendorsIndex({ vendors, trades, vendorTypes, stats, filt
                                                     Filters
                                                     {hasActiveFilters && (
                                                         <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                                                            {[filters.trade, filters.insurance_status, filters.is_active, filters.canonical_filter && filters.canonical_filter !== 'canonical_only'].filter(Boolean).length}
+                                                            {[filters.trade, filters.insurance_status, filters.is_active, filters.canonical_filter && filters.canonical_filter !== 'canonical_only', filters.has_work_orders === false || filters.has_work_orders === 'false'].filter(Boolean).length}
                                                         </span>
                                                     )}
                                                 </span>
