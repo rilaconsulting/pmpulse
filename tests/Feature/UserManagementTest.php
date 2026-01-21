@@ -331,15 +331,25 @@ class UserManagementTest extends TestCase
         $response->assertSessionHasErrors('password');
     }
 
-    public function test_create_sso_user_requires_google_id(): void
+    public function test_create_sso_user_without_google_id_succeeds(): void
     {
+        // Admin can create SSO users without specifying a google_id.
+        // The google_id will be linked automatically when the user first logs in with Google.
         $response = $this->actingAs($this->adminUser)->post('/admin/users', [
             'name' => 'Test SSO User',
             'email' => 'testsso@example.com',
             'auth_provider' => 'google',
+            'role_id' => $this->adminUser->role_id,
         ]);
 
-        $response->assertSessionHasErrors('google_id');
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect(route('admin.users.index'));
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'testsso@example.com',
+            'auth_provider' => 'google',
+            'google_id' => null,
+        ]);
     }
 
     public function test_create_sso_user_cannot_have_password(): void

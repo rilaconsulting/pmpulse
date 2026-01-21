@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Deleted bills in AppFolio are now properly removed during sync
 - Vendor detail page no longer shows total spend metric
+- Google SSO users can now be created without requiring Google ID upfront
+- Google SSO login button now works correctly in all environments
 
 ### Removed
 - Excluded properties list from individual utility tabs (now separate page)

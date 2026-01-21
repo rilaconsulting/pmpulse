@@ -37,7 +37,9 @@ class SocialiteServiceProvider extends ServiceProvider
             $config = [
                 'client_id' => $googleConfig['client_id'] ?? config('services.google.client_id'),
                 'client_secret' => $googleConfig['client_secret'] ?? config('services.google.client_secret'),
-                'redirect' => config('services.google.redirect'),
+                // Use route() to ensure redirect matches the actual APP_URL
+                // and is resilient to URL structure changes
+                'redirect' => route('auth.google.callback'),
             ];
 
             return Socialite::buildProvider(
